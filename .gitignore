@@ -1,0 +1,39 @@
+node_modules
+.env
+.env.local
+.env.production.local
+
+# Prisma generated
+/src/generated/prisma
+
+# Next.js
+/.next/
+/out/
+
+# Build
+/build
+
+# Misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+
+# Debug
+npm-debug.log*
+
+# Vercel
+.vercel
+
+# Screenshots
+*.png
+*.jpg
+
+# Playwright MCP
+.playwright-mcp/
+
+# Claude
+.claude/
+
+# MCP config
+.mcp.json

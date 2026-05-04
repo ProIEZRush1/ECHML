@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Color {
+  AZUL
+  VERDE
+  ROSA
+  MORADO
+}
+
+enum StockChangeType {
+  SALE
+  MANUAL_ADD
+  MANUAL_REMOVE
+  ADJUSTMENT
+  INITIAL
+}
+
+enum MLListingStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+  UNDER_REVIEW
+}
+
+enum UserRole {
+  ADMIN
+  PARTNER
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  name         String
+  passwordHash String
+  role         UserRole   @default(PARTNER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  stockLogs    StockLog[]
+  stockEntries StockEntry[]
+}
+
+model MLCredential {
+  id             String   @id @default(cuid())
+  appId          String
+  clientSecret   String
+  accessToken    String
+  refreshToken   String
+  tokenExpiresAt DateTime
+  mlUserId       BigInt
+  scope          String   @default("offline_access read write")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tokenExpiresAt])
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  contact   String?
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products     Product[]
+  stockEntries StockEntry[]
+}
+
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  supplierCode String
+  unitCost     Decimal  @db.Decimal(10, 2)
+  supplierId   String
+  description  String?
+  imageUrl     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  supplier Supplier         @relation(fields: [supplierId], references: [id])
+  variants ProductVariant[]
+
+  @@unique([supplierId, supplierCode])
+  @@index([supplierCode])
+}
+
+model ProductVariant {
+  id        String   @id @default(cuid())
+  productId String
+  color     Color
+  stock     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  packItems       PackItem[]
+  stockLogs       StockLog[]
+  stockEntryItems StockEntryItem[]
+
+  @@unique([productId, color])
+  @@index([stock])
+}
+
+model Pack {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  salePrice   Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  description String?
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items      PackItem[]
+  mlListings MLListing[]
+
+  @@index([sku])
+}
+
+model PackItem {
+  id               String @id @default(cuid())
+  packId           String
+  productVariantId String
+  quantity         Int
+
+  pack           Pack           @relation(fields: [packId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, productVariantId])
+}
+
+model MLListing {
+  id           String          @id @default(cuid())
+  mlItemId     String          @unique
+  packId       String
+  title        String?
+  permalink    String?
+  status       MLListingStatus @default(ACTIVE)
+  currentStock Int             @default(0)
+  currentPrice Decimal?        @db.Decimal(10, 2)
+  lastSyncedAt DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  pack Pack @relation(fields: [packId], references: [id])
+
+  @@index([packId])
+}
+
+model StockLog {
+  id               String          @id @default(cuid())
+  productVariantId String
+  changeType       StockChangeType
+  quantityChange   Int
+  previousStock    Int
+  newStock         Int
+  reason           String?
+  mlOrderId        BigInt?
+  userId           String?
+  createdAt        DateTime        @default(now())
+
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+  user           User?          @relation(fields: [userId], references: [id])
+
+  @@index([productVariantId, createdAt])
+  @@index([mlOrderId])
+  @@index([changeType])
+  @@index([createdAt])
+}
+
+model StockEntry {
+  id         String   @id @default(cuid())
+  supplierId String
+  userId     String
+  notes      String?
+  totalCost  Decimal  @db.Decimal(10, 2)
+  createdAt  DateTime @default(now())
+
+  supplier Supplier         @relation(fields: [supplierId], references: [id])
+  user     User             @relation(fields: [userId], references: [id])
+  items    StockEntryItem[]
+}
+
+model StockEntryItem {
+  id               String  @id @default(cuid())
+  stockEntryId     String
+  productVariantId String
+  quantity         Int
+  unitCost         Decimal @db.Decimal(10, 2)
+
+  stockEntry     StockEntry     @relation(fields: [stockEntryId], references: [id], onDelete: Cascade)
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id])
+
+  @@unique([stockEntryId, productVariantId])
+}
+
+model WebhookLog {
+  id          String    @id @default(cuid())
+  topic       String
+  resource    String
+  mlUserId    BigInt
+  payload     Json
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@index([topic, createdAt])
+  @@index([resource])
+}
+
+model MLOrder {
+  id            String    @id @default(cuid())
+  mlOrderId     BigInt    @unique
+  mlItemId      String
+  quantity      Int
+  unitPrice     Decimal   @db.Decimal(10, 2)
+  totalAmount   Decimal   @db.Decimal(10, 2)
+  status        String
+  buyerNickname String?
+  dateCreated   DateTime
+  dateClosed    DateTime?
+  processedAt   DateTime?
+  rawPayload    Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([mlItemId])
+  @@index([status])
+  @@index([dateCreated])
+}
