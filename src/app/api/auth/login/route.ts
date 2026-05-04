@@ -44,9 +44,11 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
     });
-  } catch {
+  } catch (error) {
+    console.error("Login error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: "Error interno del servidor", detail: message },
       { status: 500 }
     );
   }
