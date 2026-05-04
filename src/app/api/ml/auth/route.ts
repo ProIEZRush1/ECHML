@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/setup/mercadolibre", request.url));
   }
 
-  const redirectUri = `${request.nextUrl.origin}/api/ml/auth/callback`;
+  const redirectUri = process.env.ML_REDIRECT_URI || `${request.nextUrl.origin}/api/ml/auth/callback`;
   const authUrl = buildAuthURL(cred.appId, redirectUri);
 
   return NextResponse.redirect(authUrl);

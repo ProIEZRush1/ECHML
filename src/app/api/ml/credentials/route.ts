@@ -48,7 +48,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    const redirectUri = `${request.nextUrl.origin}/api/ml/auth/callback`;
+    const redirectUri = process.env.ML_REDIRECT_URI || `${request.nextUrl.origin}/api/ml/auth/callback`;
     const authUrl = buildAuthURL(appId, redirectUri);
 
     return NextResponse.json({ success: true, authUrl });

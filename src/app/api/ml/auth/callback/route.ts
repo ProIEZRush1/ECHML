@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const redirectUri = `${request.nextUrl.origin}/api/ml/auth/callback`;
+    const redirectUri = process.env.ML_REDIRECT_URI || `${request.nextUrl.origin}/api/ml/auth/callback`;
     await exchangeCodeForToken(code, redirectUri);
 
     return NextResponse.redirect(
