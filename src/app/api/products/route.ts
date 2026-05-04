@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth";
+import { verifyAnyAuth } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +13,8 @@ const createProductSchema = z.object({
   description: z.string().optional(),
 });
 
-export async function GET() {
-  const session = await verifySession();
+export async function GET(request: NextRequest) {
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json(
       { error: "No autenticado" },
@@ -39,7 +39,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await verifySession();
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json(
       { error: "No autenticado" },

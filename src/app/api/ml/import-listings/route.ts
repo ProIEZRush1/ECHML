@@ -5,9 +5,9 @@
  *       Falls back to "demo mode" (returns existing DB listings) if no valid token.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth";
+import { verifyAnyAuth } from "@/lib/api-auth";
 import {
   getMLCredentials,
   hasValidToken,
@@ -15,8 +15,8 @@ import {
   getItemDetails,
 } from "@/lib/ml/client";
 
-export async function POST(): Promise<NextResponse> {
-  const session = await verifySession();
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }

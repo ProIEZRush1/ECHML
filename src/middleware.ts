@@ -19,9 +19,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // API routes with Bearer token (API key) — let them through, the route handler validates
+  if (pathname.startsWith("/api/") && request.headers.get("authorization")?.startsWith("Bearer ech_")) {
+    return NextResponse.next();
+  }
+
   const token = request.cookies.get("echml-session")?.value;
 
   if (!token) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
@@ -29,6 +37,9 @@ export async function middleware(request: NextRequest) {
     await jwtVerify(token, secretKey);
     return NextResponse.next();
   } catch {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Sesion expirada" }, { status: 401 });
+    }
     return NextResponse.redirect(new URL("/login", request.url));
   }
 }

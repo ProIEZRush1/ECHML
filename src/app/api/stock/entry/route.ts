@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
-import { verifySession } from "@/lib/auth";
+import { verifyAnyAuth } from "@/lib/api-auth";
 import { addStock } from "@/lib/stock/engine";
 
 const stockEntrySchema = z.object({
@@ -16,7 +16,7 @@ const stockEntrySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const session = await verifySession();
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json(
       { error: "No autenticado" },
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     const { supplierId, notes, items } = result.data;
 
-    await addStock(items, supplierId, session.userId, notes);
+    await addStock(items, supplierId, session.id, notes);
 
     return NextResponse.json({ success: true });
   } catch (error) {
