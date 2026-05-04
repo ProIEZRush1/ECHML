@@ -1,24 +1,16 @@
-/**
- * API routes for managing MercadoLibre credentials.
- *
- * POST: Save new app ID + client secret (creates placeholder MLCredential)
- * GET: Return current credential status
- * DELETE: Remove credentials (disconnect)
- */
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifySession } from "@/lib/auth";
+import { buildAuthURL } from "@/lib/ml/client";
 
-export async function POST(request: Request): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const session = await verifySession();
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   try {
-    const body = await request.json();
-    const { appId, clientSecret } = body as {
+    const { appId, clientSecret } = (await request.json()) as {
       appId?: string;
       clientSecret?: string;
     };
@@ -30,10 +22,8 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    // Check if credentials already exist
     const existing = await prisma.mLCredential.findFirst();
     if (existing) {
-      // Update existing
       await prisma.mLCredential.update({
         where: { id: existing.id },
         data: {
@@ -46,7 +36,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         },
       });
     } else {
-      // Create new with placeholder tokens
       await prisma.mLCredential.create({
         data: {
           appId,
@@ -59,7 +48,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       });
     }
 
-    return NextResponse.json({ success: true });
+    const redirectUri = `${request.nextUrl.origin}/api/ml/auth/callback`;
+    const authUrl = buildAuthURL(appId, redirectUri);
+
+    return NextResponse.json({ success: true, authUrl });
   } catch (error) {
     console.error("Error saving ML credentials:", error);
     return NextResponse.json(
@@ -77,23 +69,16 @@ export async function GET(): Promise<NextResponse> {
 
   try {
     const credential = await prisma.mLCredential.findFirst();
-
     if (!credential) {
-      return NextResponse.json({
-        connected: false,
-        appId: null,
-        mlUserId: null,
-        tokenExpiry: null,
-      });
+      return NextResponse.json({ connected: false });
     }
 
-    // Mask the app ID (show last 4 chars)
     const maskedAppId =
       credential.appId.length > 4
         ? "****" + credential.appId.slice(-4)
         : credential.appId;
 
-    const hasValidToken =
+    const tokenValid =
       credential.accessToken !== "" &&
       credential.tokenExpiresAt > new Date();
 
@@ -102,14 +87,14 @@ export async function GET(): Promise<NextResponse> {
       appId: maskedAppId,
       mlUserId: credential.mlUserId.toString(),
       tokenExpiry: credential.tokenExpiresAt.toISOString(),
-      hasValidToken,
+      hasValidToken: tokenValid,
       scope: credential.scope,
       updatedAt: credential.updatedAt.toISOString(),
     });
   } catch (error) {
     console.error("Error fetching ML credential status:", error);
     return NextResponse.json(
-      { error: "Error al obtener el estado de las credenciales" },
+      { error: "Error al obtener el estado" },
       { status: 500 }
     );
   }
@@ -122,19 +107,7 @@ export async function DELETE(): Promise<NextResponse> {
   }
 
   try {
-    const credential = await prisma.mLCredential.findFirst();
-
-    if (!credential) {
-      return NextResponse.json(
-        { error: "No hay credenciales para eliminar" },
-        { status: 404 }
-      );
-    }
-
-    await prisma.mLCredential.delete({
-      where: { id: credential.id },
-    });
-
+    await prisma.mLCredential.deleteMany();
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting ML credentials:", error);

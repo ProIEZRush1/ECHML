@@ -88,7 +88,15 @@ export default async function MLConfigPage() {
                 </div>
               </div>
 
-              <div className="border-t pt-4">
+              <div className="flex items-center gap-3 border-t pt-4">
+                {!hasValidToken && (
+                  <a
+                    href="/api/ml/auth"
+                    className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90"
+                  >
+                    Autorizar con MercadoLibre
+                  </a>
+                )}
                 <DisconnectButton />
               </div>
             </div>

@@ -51,6 +51,11 @@ export default function MLSetupPage() {
         return;
       }
 
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+        return;
+      }
+
       router.push("/dashboard");
       router.refresh();
     } catch {

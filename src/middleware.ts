@@ -5,7 +5,7 @@ const secretKey = new TextEncoder().encode(
   process.env.SESSION_SECRET || "dev-fallback-secret-do-not-use-in-prod"
 );
 
-const PUBLIC_PATHS = ["/login", "/setup", "/api/auth/login", "/api/auth/setup", "/api/ml/webhook", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/setup", "/api/auth/login", "/api/auth/setup", "/api/ml/webhook", "/api/ml/auth/callback", "/api/health"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

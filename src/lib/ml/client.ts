@@ -1,13 +1,8 @@
-/**
- * MercadoLibre API client module.
- *
- * Provides authenticated access to the MercadoLibre REST API,
- * credential management, and helper functions for common operations.
- */
-
 import { prisma } from "@/lib/prisma";
 
 const ML_API_BASE = "https://api.mercadolibre.com";
+const ML_AUTH_URL = "https://auth.mercadolibre.com.mx/authorization";
+const ML_TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
 
 interface MLCredentialData {
   id: string;
@@ -24,14 +19,168 @@ interface MLFetchOptions extends RequestInit {
   params?: Record<string, string>;
 }
 
+interface MLTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  scope: string;
+  user_id: number;
+  refresh_token: string;
+}
+
+export async function getMLCredentials(): Promise<MLCredentialData | null> {
+  return prisma.mLCredential.findFirst();
+}
+
+export function buildAuthURL(appId: string, redirectUri: string): string {
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: appId,
+    redirect_uri: redirectUri,
+  });
+  return `${ML_AUTH_URL}?${params.toString()}`;
+}
+
+export async function exchangeCodeForToken(
+  code: string,
+  redirectUri: string
+): Promise<MLTokenResponse> {
+  const cred = await getMLCredentials();
+  if (!cred) throw new Error("No credentials configured");
+
+  const res = await fetch(ML_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: cred.appId,
+      client_secret: cred.clientSecret,
+      code,
+      redirect_uri: redirectUri,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Token exchange failed: ${err}`);
+  }
+
+  const data: MLTokenResponse = await res.json();
+
+  await prisma.mLCredential.update({
+    where: { id: cred.id },
+    data: {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      tokenExpiresAt: new Date(Date.now() + data.expires_in * 1000),
+      mlUserId: BigInt(data.user_id),
+      scope: data.scope,
+    },
+  });
+
+  return data;
+}
+
+export async function refreshAccessToken(): Promise<boolean> {
+  const cred = await getMLCredentials();
+  if (!cred || !cred.refreshToken) return false;
+
+  try {
+    const res = await fetch(ML_TOKEN_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: cred.appId,
+        client_secret: cred.clientSecret,
+        refresh_token: cred.refreshToken,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("Token refresh failed:", await res.text());
+      return false;
+    }
+
+    const data: MLTokenResponse = await res.json();
+
+    await prisma.mLCredential.update({
+      where: { id: cred.id },
+      data: {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        tokenExpiresAt: new Date(Date.now() + data.expires_in * 1000),
+      },
+    });
+
+    return true;
+  } catch (e) {
+    console.error("Token refresh error:", e);
+    return false;
+  }
+}
+
+async function ensureValidToken(): Promise<string | null> {
+  const cred = await getMLCredentials();
+  if (!cred) return null;
+
+  if (cred.accessToken && cred.tokenExpiresAt > new Date(Date.now() + 60000)) {
+    return cred.accessToken;
+  }
+
+  if (cred.refreshToken) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      const updated = await getMLCredentials();
+      return updated?.accessToken || null;
+    }
+  }
+
+  return null;
+}
+
+export async function hasValidToken(): Promise<boolean> {
+  const token = await ensureValidToken();
+  return !!token;
+}
+
+export async function mlFetch<T = unknown>(
+  endpoint: string,
+  options: MLFetchOptions = {}
+): Promise<T> {
+  const token = await ensureValidToken();
+  if (!token) {
+    throw new Error("No hay token valido de MercadoLibre. Reconecta tu cuenta.");
+  }
+
+  const { params, ...fetchOptions } = options;
+  let url = `${ML_API_BASE}${endpoint}`;
+
+  if (params) {
+    url += `?${new URLSearchParams(params).toString()}`;
+  }
+
+  const response = await fetch(url, {
+    ...fetchOptions,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...fetchOptions.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`ML API error ${response.status}: ${errorBody}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
 interface MLItemSearchResponse {
   seller_id: string;
   results: string[];
-  paging: {
-    total: number;
-    offset: number;
-    limit: number;
-  };
+  paging: { total: number; offset: number; limit: number };
 }
 
 interface MLItemDetail {
@@ -45,88 +194,6 @@ interface MLItemDetail {
   thumbnail: string;
 }
 
-/**
- * Fetch ML credentials from the database.
- *
- * Returns:
- *   The first MLCredential record, or null if none exists.
- */
-export async function getMLCredentials(): Promise<MLCredentialData | null> {
-  const credential = await prisma.mLCredential.findFirst();
-  return credential;
-}
-
-/**
- * Check if the current credentials have a valid (non-expired) access token.
- *
- * Returns:
- *   True if credentials exist and token is not expired.
- */
-export async function hasValidToken(): Promise<boolean> {
-  const cred = await getMLCredentials();
-  if (!cred) return false;
-  if (!cred.accessToken || cred.accessToken === "") return false;
-  return cred.tokenExpiresAt > new Date();
-}
-
-/**
- * Perform an authenticated fetch against the MercadoLibre API.
- *
- * Args:
- *   endpoint: The API path (e.g., "/users/me")
- *   options: Standard fetch options plus optional query params
- *
- * Returns:
- *   The parsed JSON response.
- *
- * Raises:
- *   Error: If no valid credentials exist or if the API returns an error.
- */
-export async function mlFetch<T = unknown>(
-  endpoint: string,
-  options: MLFetchOptions = {}
-): Promise<T> {
-  const cred = await getMLCredentials();
-  if (!cred || !cred.accessToken) {
-    throw new Error("No hay credenciales de MercadoLibre configuradas");
-  }
-
-  const { params, ...fetchOptions } = options;
-  let url = `${ML_API_BASE}${endpoint}`;
-
-  if (params) {
-    const searchParams = new URLSearchParams(params);
-    url += `?${searchParams.toString()}`;
-  }
-
-  const response = await fetch(url, {
-    ...fetchOptions,
-    headers: {
-      Authorization: `Bearer ${cred.accessToken}`,
-      "Content-Type": "application/json",
-      ...fetchOptions.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(
-      `ML API error ${response.status}: ${errorBody}`
-    );
-  }
-
-  return response.json() as Promise<T>;
-}
-
-/**
- * Fetch all seller item IDs with pagination.
- *
- * Args:
- *   userId: The ML user ID (seller)
- *
- * Returns:
- *   Array of all item IDs belonging to the seller.
- */
 export async function getSellerItems(userId: string): Promise<string[]> {
   const allItems: string[] = [];
   let offset = 0;
@@ -136,14 +203,8 @@ export async function getSellerItems(userId: string): Promise<string[]> {
   while (offset < total) {
     const response = await mlFetch<MLItemSearchResponse>(
       `/users/${userId}/items/search`,
-      {
-        params: {
-          offset: offset.toString(),
-          limit: limit.toString(),
-        },
-      }
+      { params: { offset: offset.toString(), limit: limit.toString() } }
     );
-
     total = response.paging.total;
     allItems.push(...response.results);
     offset += limit;
@@ -152,34 +213,18 @@ export async function getSellerItems(userId: string): Promise<string[]> {
   return allItems;
 }
 
-/**
- * Batch fetch item details (max 20 per request as per ML API limits).
- *
- * Args:
- *   itemIds: Array of ML item IDs to fetch details for
- *
- * Returns:
- *   Array of item detail objects.
- */
-export async function getItemDetails(
-  itemIds: string[]
-): Promise<MLItemDetail[]> {
+export async function getItemDetails(itemIds: string[]): Promise<MLItemDetail[]> {
   const results: MLItemDetail[] = [];
   const batchSize = 20;
 
   for (let i = 0; i < itemIds.length; i += batchSize) {
     const batch = itemIds.slice(i, i + batchSize);
-    const ids = batch.join(",");
-
     const response = await mlFetch<Array<{ code: number; body: MLItemDetail }>>(
       "/items",
-      { params: { ids } }
+      { params: { ids: batch.join(",") } }
     );
-
     for (const item of response) {
-      if (item.code === 200) {
-        results.push(item.body);
-      }
+      if (item.code === 200) results.push(item.body);
     }
   }
 
