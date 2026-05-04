@@ -186,7 +186,7 @@ export default function MLSetupPage() {
                     Haz clic en &quot;Crear nueva aplicacion&quot;. Usa cualquier nombre
                     (ej: &quot;ECH CRM&quot;) y como Redirect URI pon:{" "}
                     <code className="rounded bg-muted px-1.5 py-0.5">
-                      https://localhost/callback
+                      https://echml.overcloud.us/api/ml/auth/callback
                     </code>
                   </p>
                 </div>
