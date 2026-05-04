@@ -42,6 +42,7 @@ export default function LoginPage() {
   }
 
   return (
+    <div className="mx-auto max-w-sm rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-black/20 backdrop-blur-xl">
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor="email" className="text-sm font-medium text-white/80">
@@ -89,5 +90,6 @@ export default function LoginPage() {
         {loading ? "Ingresando..." : "Iniciar Sesion"}
       </Button>
     </form>
+    </div>
   );
 }

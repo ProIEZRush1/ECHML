@@ -16,7 +16,7 @@ export default function SetupLayout({
           Configuracion inicial
         </p>
       </div>
-      <div className="w-full max-w-lg">{children}</div>
+      <div className="w-full max-w-2xl">{children}</div>
     </div>
   );
 }
