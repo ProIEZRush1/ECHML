@@ -144,6 +144,7 @@ model Pack {
   items                 PackItem[]
   mlListings            MLListing[]
   withdrawalAllocations WithdrawalAllocation[]
+  mpTransactions        MPTransaction[]
 
   @@index([sku])
 }
@@ -309,4 +310,26 @@ model Expense {
 
   @@index([date])
   @@index([category])
+}
+
+model MPTransaction {
+  id            String   @id @default(cuid())
+  mpId          BigInt   @unique
+  type          String
+  amount        Decimal  @db.Decimal(10, 2)
+  balanceChange Decimal  @db.Decimal(10, 2)
+  status        String
+  label         String
+  description   String?
+  referenceId   String?
+  mlOrderId     BigInt?
+  packId        String?
+  dateCreated   DateTime
+  syncedAt      DateTime @default(now())
+
+  pack Pack? @relation(fields: [packId], references: [id])
+
+  @@index([dateCreated])
+  @@index([label])
+  @@index([packId])
 }

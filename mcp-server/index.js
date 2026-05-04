@@ -409,6 +409,28 @@ server.tool(
   }
 );
 
+// ─── Mercado Pago ───────────────────────────────────────────────────────────
+
+server.tool(
+  "sync_mp_transactions",
+  "Sincronizar movimientos de Mercado Pago (ventas, comisiones, envios, retiros)",
+  {},
+  async () => {
+    const data = await apiRequest("/api/mp/sync", { method: "POST" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_mp_balance",
+  "Obtener balance en tiempo real de Mercado Pago (disponible, total, no disponible)",
+  {},
+  async () => {
+    const data = await apiRequest("/api/mp/balance");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── Start Server ────────────────────────────────────────────────────────────
 
 async function main() {

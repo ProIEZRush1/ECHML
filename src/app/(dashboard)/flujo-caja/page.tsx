@@ -18,27 +18,33 @@ import {
   Receipt,
   Wallet,
   Activity,
+  Percent,
+  Truck,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { MPSyncButton } from "./mp-sync-button";
 
 interface PackBalance {
   id: string;
   sku: string;
   name: string;
   income: number;
+  fees: number;
+  netIncome: number;
   withdrawn: number;
   net: number;
 }
 
 interface RecentTransaction {
-  type: "income" | "withdrawal" | "expense";
+  type: "income" | "withdrawal" | "expense" | "fee" | "mp_movement";
   date: Date;
   amount: number;
   description: string;
+  label?: string;
 }
 
 export default async function FlujoCajaPage() {
-  const [orders, withdrawals, expenses, listings] = await Promise.all([
+  const [orders, withdrawals, expenses, listings, mpTransactions] = await Promise.all([
     prisma.mLOrder.findMany({
       select: {
         id: true,
@@ -68,13 +74,12 @@ export default async function FlujoCajaPage() {
         pack: { select: { id: true, sku: true, name: true } },
       },
     }),
+    prisma.mPTransaction.findMany({
+      orderBy: { dateCreated: "desc" },
+    }),
   ]);
 
-  // Calculate totals
-  const totalIncome = orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
-  const totalWithdrawn = withdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const mpBalance = totalIncome - totalWithdrawn;
+  const hasMPData = mpTransactions.length > 0;
 
   // Build mlItemId -> Pack mapping
   const itemToPackMap = new Map<string, { id: string; sku: string; name: string }>();
@@ -84,12 +89,49 @@ export default async function FlujoCajaPage() {
 
   // Calculate income per pack
   const incomeByPack = new Map<string, number>();
-  for (const order of orders) {
-    const pack = itemToPackMap.get(order.mlItemId);
-    if (pack) {
-      incomeByPack.set(pack.id, (incomeByPack.get(pack.id) || 0) + Number(order.totalAmount));
+  const feesByPack = new Map<string, number>();
+  let totalIncome = 0;
+  let totalFees = 0;
+  let totalShippingFees = 0;
+
+  if (hasMPData) {
+    for (const tx of mpTransactions) {
+      const amount = Number(tx.amount);
+      const label = tx.label;
+
+      if (label === "sale") {
+        totalIncome += amount;
+        if (tx.packId) {
+          incomeByPack.set(tx.packId, (incomeByPack.get(tx.packId) || 0) + amount);
+        }
+      }
+
+      if (label === "fee" || label === "commission") {
+        totalFees += Math.abs(amount);
+        if (tx.packId) {
+          feesByPack.set(tx.packId, (feesByPack.get(tx.packId) || 0) + Math.abs(amount));
+        }
+      }
+
+      if (label === "shipping") {
+        totalShippingFees += Math.abs(amount);
+      }
+    }
+  } else {
+    for (const order of orders) {
+      const amount = Number(order.totalAmount);
+      totalIncome += amount;
+
+      const pack = itemToPackMap.get(order.mlItemId);
+      if (pack) {
+        incomeByPack.set(pack.id, (incomeByPack.get(pack.id) || 0) + amount);
+      }
     }
   }
+
+  const totalWithdrawn = withdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const mpBalance = totalIncome - totalWithdrawn - totalFees - totalShippingFees;
 
   // Calculate withdrawals per pack
   const withdrawnByPack = new Map<string, number>();
@@ -118,15 +160,19 @@ export default async function FlujoCajaPage() {
     seenPacks.add(listing.pack.id);
 
     const income = incomeByPack.get(listing.pack.id) || 0;
+    const fees = feesByPack.get(listing.pack.id) || 0;
     const withdrawn = withdrawnByPack.get(listing.pack.id) || 0;
+    const netIncome = income - fees;
 
     packBalances.push({
       id: listing.pack.id,
       sku: listing.pack.sku,
       name: listing.pack.name,
       income,
+      fees,
+      netIncome,
       withdrawn,
-      net: income - withdrawn,
+      net: netIncome - withdrawn,
     });
   }
 
@@ -135,14 +181,33 @@ export default async function FlujoCajaPage() {
   // Build recent transactions
   const recentTransactions: RecentTransaction[] = [];
 
-  for (const order of orders.slice(0, 15)) {
-    const pack = itemToPackMap.get(order.mlItemId);
-    recentTransactions.push({
-      type: "income",
-      date: order.dateCreated,
-      amount: Number(order.totalAmount),
-      description: pack ? `Venta ${pack.sku}` : `Venta ${order.mlItemId}`,
-    });
+  if (hasMPData) {
+    for (const tx of mpTransactions.slice(0, 30)) {
+      const amount = Number(tx.amount);
+      const label = tx.label;
+
+      let type: RecentTransaction["type"] = "mp_movement";
+      if (label === "sale") type = "income";
+      else if (label === "fee" || label === "commission") type = "fee";
+
+      recentTransactions.push({
+        type,
+        date: tx.dateCreated,
+        amount: tx.type === "debit" ? -Math.abs(amount) : amount,
+        description: tx.description || `Movimiento MP: ${label}`,
+        label,
+      });
+    }
+  } else {
+    for (const order of orders.slice(0, 15)) {
+      const pack = itemToPackMap.get(order.mlItemId);
+      recentTransactions.push({
+        type: "income",
+        date: order.dateCreated,
+        amount: Number(order.totalAmount),
+        description: pack ? `Venta ${pack.sku}` : `Venta ${order.mlItemId}`,
+      });
+    }
   }
 
   for (const withdrawal of withdrawals.slice(0, 10)) {
@@ -204,10 +269,13 @@ export default async function FlujoCajaPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Flujo de Caja"
-        description="Balance y movimientos financieros"
-      />
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title="Flujo de Caja"
+          description="Balance y movimientos financieros"
+        />
+        <MPSyncButton />
+      </div>
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -230,13 +298,86 @@ export default async function FlujoCajaPage() {
         ))}
       </div>
 
+      {/* Fee Breakdown — only show if MP data exists */}
+      {hasMPData && (totalFees > 0 || totalShippingFees > 0) && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Comisiones ML
+              </CardTitle>
+              <div className="rounded-md p-2 bg-purple-100 dark:bg-purple-900/30">
+                <Percent className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                {formatCurrency(totalFees)}
+              </div>
+              {totalIncome > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Costos de Envio
+              </CardTitle>
+              <div className="rounded-md p-2 bg-orange-100 dark:bg-orange-900/30">
+                <Truck className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-orange-600 dark:text-orange-400">
+                {formatCurrency(totalShippingFees)}
+              </div>
+              {totalIncome > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((totalShippingFees / totalIncome) * 100).toFixed(1)}% de ingresos
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Ingreso Neto
+              </CardTitle>
+              <div className="rounded-md p-2 bg-emerald-100 dark:bg-emerald-900/30">
+                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                {formatCurrency(totalIncome - totalFees - totalShippingFees)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Despues de comisiones y envios
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* MP Sync Status */}
+      {hasMPData && (
+        <p className="text-xs text-muted-foreground">
+          Datos de Mercado Pago sincronizados ({mpTransactions.length} movimientos)
+        </p>
+      )}
+
       {/* Balance por Pack */}
       {packBalances.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-semibold tracking-tight">Balance por Pack</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {packBalances.map((pack) => {
-              const ratio = pack.income > 0 ? (pack.withdrawn / pack.income) * 100 : 0;
+              const ratio = pack.netIncome > 0 ? (pack.withdrawn / pack.netIncome) * 100 : 0;
               const isPositive = pack.net >= 0;
 
               return (
@@ -260,6 +401,14 @@ export default async function FlujoCajaPage() {
                             {formatCurrency(pack.income)}
                           </span>
                         </div>
+                        {hasMPData && pack.fees > 0 && (
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Comisiones</span>
+                            <span className="font-medium text-purple-600 dark:text-purple-400">
+                              -{formatCurrency(pack.fees)}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-muted-foreground">Retirado</span>
                           <span className="font-medium text-red-600 dark:text-red-400">
@@ -332,6 +481,16 @@ export default async function FlujoCajaPage() {
                           Gasto
                         </Badge>
                       )}
+                      {tx.type === "fee" && (
+                        <Badge variant="default" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100">
+                          Comision
+                        </Badge>
+                      )}
+                      {tx.type === "mp_movement" && (
+                        <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
+                          MP
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium text-sm">
                       {tx.description}
@@ -339,13 +498,13 @@ export default async function FlujoCajaPage() {
                     <TableCell className="text-right font-medium">
                       <span
                         className={
-                          tx.type === "income"
+                          tx.amount >= 0
                             ? "text-green-600 dark:text-green-400"
                             : "text-red-600 dark:text-red-400"
                         }
                       >
-                        {tx.type === "income" ? "+" : "-"}
-                        {formatCurrency(tx.amount)}
+                        {tx.amount >= 0 ? "+" : ""}
+                        {formatCurrency(Math.abs(tx.amount))}
                       </span>
                     </TableCell>
                   </TableRow>
