@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { ProductTable } from "@/components/products/product-table";
+import { ProductCreateButton } from "@/components/products/product-create-button";
 import type { ProductWithVariants } from "@/types";
 
 export default async function ProductosPage() {
@@ -31,8 +32,10 @@ export default async function ProductosPage() {
     <div className="space-y-6">
       <PageHeader
         title="Productos"
-        description="Gestión de productos y variantes de inventario"
-      />
+        description="Gestion de productos y variantes de inventario"
+      >
+        <ProductCreateButton />
+      </PageHeader>
 
       <ProductTable products={typedProducts} />
     </div>

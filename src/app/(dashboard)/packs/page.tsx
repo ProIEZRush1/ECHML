@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { PackTable } from "@/components/packs/pack-table";
+import { PackCreateButton } from "@/components/packs/pack-create-button";
 import type { PackWithDetails } from "@/types";
 
 export default async function PacksPage() {
@@ -59,7 +60,9 @@ export default async function PacksPage() {
       <PageHeader
         title="Packs"
         description="Bundles de productos para publicaciones ML"
-      />
+      >
+        <PackCreateButton />
+      </PageHeader>
       <PackTable packs={packsData} />
     </div>
   );

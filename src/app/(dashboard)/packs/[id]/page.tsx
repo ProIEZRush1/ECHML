@@ -15,8 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ColorBadge } from "@/components/shared/color-badge";
 import { StockIndicator } from "@/components/shared/stock-indicator";
+import { PackDetailActions } from "@/components/packs/pack-detail-actions";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import type { Color, MLListingStatus } from "@/types";
+import type { Color, MLListingStatus, PackWithDetails } from "@/types";
 
 interface PackDetailPageProps {
   params: Promise<{ id: string }>;
@@ -59,12 +60,46 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
     notFound();
   }
 
+  const packData: PackWithDetails = {
+    id: pack.id,
+    sku: pack.sku,
+    name: pack.name,
+    salePrice: pack.salePrice.toString(),
+    stock: pack.stock,
+    description: pack.description,
+    items: pack.items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+      productVariant: {
+        id: item.productVariant.id,
+        color: item.productVariant.color,
+        stock: item.productVariant.stock,
+        product: {
+          id: item.productVariant.product.id,
+          name: item.productVariant.product.name,
+          supplierCode: item.productVariant.product.supplierCode,
+        },
+      },
+    })),
+    mlListings: pack.mlListings.map((listing) => ({
+      id: listing.id,
+      mlItemId: listing.mlItemId,
+      title: listing.title,
+      status: listing.status,
+      currentStock: listing.currentStock,
+      currentPrice: listing.currentPrice?.toString() ?? null,
+      lastSyncedAt: listing.lastSyncedAt,
+    })),
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={pack.name}
         description={`SKU: ${pack.sku}`}
-      />
+      >
+        <PackDetailActions pack={packData} />
+      </PageHeader>
 
       {/* Pack Info */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -100,6 +135,18 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
         </Card>
       </div>
 
+      {/* Description */}
+      {pack.description && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Descripcion</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">{pack.description}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Composition */}
       <Card>
         <CardHeader>
@@ -118,11 +165,13 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
             </TableHeader>
             <TableBody>
               {pack.items.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className="hover:bg-muted/50">
                   <TableCell className="font-medium">
                     {item.productVariant.product.name}
                   </TableCell>
-                  <TableCell>{item.productVariant.product.supplierCode}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {item.productVariant.product.supplierCode}
+                  </TableCell>
                   <TableCell>
                     <ColorBadge color={item.productVariant.color as Color} />
                   </TableCell>
@@ -134,6 +183,36 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      {/* Stock Calculation */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Calculo de Stock</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {pack.items.map((item) => {
+              const maxPacks = Math.floor(item.productVariant.stock / item.quantity);
+              return (
+                <div key={item.id} className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2">
+                    <ColorBadge color={item.productVariant.color as Color} showLabel={false} />
+                    <span>{item.productVariant.product.name}</span>
+                    <span className="text-muted-foreground">
+                      ({item.productVariant.stock} / {item.quantity} por pack)
+                    </span>
+                  </span>
+                  <span className="font-medium">{maxPacks} packs posibles</span>
+                </div>
+              );
+            })}
+            <div className="border-t pt-2 mt-2 flex items-center justify-between font-medium">
+              <span>Stock final (limitante)</span>
+              <StockIndicator stock={pack.stock} />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -156,7 +235,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
               </TableHeader>
               <TableBody>
                 {pack.mlListings.map((listing) => (
-                  <TableRow key={listing.id}>
+                  <TableRow key={listing.id} className="hover:bg-muted/50">
                     <TableCell className="font-mono text-sm">
                       {listing.mlItemId}
                     </TableCell>
