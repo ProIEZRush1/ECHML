@@ -332,6 +332,83 @@ server.tool(
   }
 );
 
+// ─── Cash Flow ──────────────────────────────────────────────────────────────
+
+server.tool(
+  "get_cashflow",
+  "Obtener reporte de flujo de caja: ingresos por pack, retiros, balance en MP",
+  {},
+  async () => {
+    const data = await apiRequest("/api/cashflow");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "list_withdrawals",
+  "Listar todos los retiros de Mercado Pago con sus asignaciones",
+  {},
+  async () => {
+    const data = await apiRequest("/api/withdrawals");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "create_withdrawal",
+  "Registrar un retiro de Mercado Pago con asignacion a packs/productos",
+  {
+    amount: z.number().describe("Monto del retiro en MXN"),
+    date: z.string().describe("Fecha del retiro (YYYY-MM-DD)"),
+    concept: z.string().describe("Concepto del retiro (ej: Transferencia a banco)"),
+    method: z.enum(["bank", "cash", "provider"]).optional().describe("Metodo: bank, cash, provider"),
+    reference: z.string().optional().describe("Referencia bancaria"),
+    notes: z.string().optional().describe("Notas adicionales"),
+    allocations: z.array(z.object({
+      packId: z.string().optional().describe("ID del pack al que se asigna"),
+      productId: z.string().optional().describe("ID del producto al que se asigna"),
+      amount: z.number().describe("Monto asignado a este pack/producto"),
+    })).optional().describe("Asignaciones del retiro a packs/productos"),
+  },
+  async (params) => {
+    const data = await apiRequest("/api/withdrawals", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "list_expenses",
+  "Listar gastos operativos",
+  {},
+  async () => {
+    const data = await apiRequest("/api/expenses");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "create_expense",
+  "Registrar un gasto operativo",
+  {
+    amount: z.number().describe("Monto del gasto en MXN"),
+    date: z.string().describe("Fecha del gasto (YYYY-MM-DD)"),
+    category: z.enum(["proveedor", "envio", "suscripcion", "publicidad", "otro"]).describe("Categoria"),
+    concept: z.string().describe("Concepto del gasto"),
+    supplierId: z.string().optional().describe("ID del proveedor (si aplica)"),
+    notes: z.string().optional().describe("Notas"),
+  },
+  async (params) => {
+    const data = await apiRequest("/api/expenses", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── Start Server ────────────────────────────────────────────────────────────
 
 async function main() {

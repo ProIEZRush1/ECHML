@@ -46,6 +46,8 @@ model User {
   stockLogs    StockLog[]
   stockEntries StockEntry[]
   apiKeys      ApiKey[]
+  withdrawals  Withdrawal[]
+  expenses     Expense[]
 }
 
 model ApiKey {
@@ -89,6 +91,7 @@ model Supplier {
 
   products     Product[]
   stockEntries StockEntry[]
+  expenses     Expense[]
 }
 
 model Product {
@@ -102,8 +105,9 @@ model Product {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  supplier Supplier         @relation(fields: [supplierId], references: [id])
-  variants ProductVariant[]
+  supplier              Supplier               @relation(fields: [supplierId], references: [id])
+  variants              ProductVariant[]
+  withdrawalAllocations WithdrawalAllocation[]
 
   @@unique([supplierId, supplierCode])
   @@index([supplierCode])
@@ -137,8 +141,9 @@ model Pack {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  items      PackItem[]
-  mlListings MLListing[]
+  items                 PackItem[]
+  mlListings            MLListing[]
+  withdrawalAllocations WithdrawalAllocation[]
 
   @@index([sku])
 }
@@ -253,4 +258,55 @@ model MLOrder {
   @@index([mlItemId])
   @@index([status])
   @@index([dateCreated])
+}
+
+model Withdrawal {
+  id        String   @id @default(cuid())
+  amount    Decimal  @db.Decimal(10, 2)
+  date      DateTime
+  concept   String
+  method    String   @default("bank")
+  reference String?
+  notes     String?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User                  @relation(fields: [userId], references: [id])
+  allocations WithdrawalAllocation[]
+
+  @@index([date])
+}
+
+model WithdrawalAllocation {
+  id           String  @id @default(cuid())
+  withdrawalId String
+  packId       String?
+  productId    String?
+  amount       Decimal @db.Decimal(10, 2)
+  notes        String?
+
+  withdrawal Withdrawal @relation(fields: [withdrawalId], references: [id], onDelete: Cascade)
+  pack       Pack?      @relation(fields: [packId], references: [id])
+  product    Product?   @relation(fields: [productId], references: [id])
+
+  @@index([withdrawalId])
+}
+
+model Expense {
+  id         String   @id @default(cuid())
+  amount     Decimal  @db.Decimal(10, 2)
+  date       DateTime
+  category   String
+  concept    String
+  supplierId String?
+  notes      String?
+  userId     String
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([date])
+  @@index([category])
 }

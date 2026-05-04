@@ -15,6 +15,9 @@ import {
   Settings,
   Key,
   ChevronDown,
+  TrendingUp,
+  ArrowDownToLine,
+  Receipt,
 } from "lucide-react";
 import {
   Sidebar,
@@ -54,6 +57,12 @@ const inventarioSubItems = [
 const salesNavItems = [
   { title: "Ventas", href: "/ventas", icon: ShoppingCart },
   { title: "Publicaciones ML", href: "/publicaciones", icon: Store },
+];
+
+const finanzasNavItems = [
+  { title: "Flujo de Caja", href: "/flujo-caja", icon: TrendingUp },
+  { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
+  { title: "Gastos", href: "/gastos", icon: Receipt },
 ];
 
 const configNavItems = [
@@ -159,6 +168,28 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {salesNavItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    isActive={isActive(item.href)}
+                    tooltip={item.title}
+                    render={<Link href={item.href} />}
+                  >
+                    <item.icon />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Finanzas</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {finanzasNavItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton
                     isActive={isActive(item.href)}
