@@ -27,13 +27,14 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/scripts/docker-entrypoint.sh ./entrypoint.sh
+COPY --from=builder /app/scripts ./scripts
 
-RUN chmod +x ./entrypoint.sh
+RUN chmod +x ./scripts/docker-entrypoint.sh
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
 ENV PORT=3000
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["./scripts/docker-entrypoint.sh"]
