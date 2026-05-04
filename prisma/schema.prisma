@@ -45,6 +45,22 @@ model User {
 
   stockLogs    StockLog[]
   stockEntries StockEntry[]
+  apiKeys      ApiKey[]
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  key        String    @unique
+  userId     String
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([key])
 }
 
 model MLCredential {

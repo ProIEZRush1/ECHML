@@ -1,0 +1,9 @@
+{
+  "name": "ech-crm-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": "index.js",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}

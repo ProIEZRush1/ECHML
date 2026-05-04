@@ -37,3 +37,6 @@ npm-debug.log*
 
 # MCP config
 .mcp.json
+
+# MCP server node_modules
+mcp-server/node_modules

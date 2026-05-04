@@ -13,6 +13,7 @@ import {
   BarChart3,
   ShoppingCart,
   Settings,
+  Key,
   ChevronDown,
 } from "lucide-react";
 import {
@@ -60,6 +61,11 @@ const configNavItems = [
     title: "Configuracion ML",
     href: "/configuracion/mercadolibre",
     icon: Settings,
+  },
+  {
+    title: "API Keys",
+    href: "/configuracion/api-keys",
+    icon: Key,
   },
 ];
 
