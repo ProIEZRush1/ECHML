@@ -1,183 +1,189 @@
 import { mlFetch, getMLCredentials } from "@/lib/ml/client";
 import { prisma } from "@/lib/prisma";
 
-interface MPBalanceResponse {
-  available_balance: number;
-  total_amount: number;
-  unavailable_balance: number;
-}
-
-interface MPMovementDetail {
-  label: string;
-  description: string;
-}
-
-interface MPMovement {
+interface MLOrderPayment {
   id: number;
-  type: "credit" | "debit";
-  date_created: string;
-  amount: number;
-  balance_change: number;
+  transaction_amount: number;
+  currency_id: string;
   status: string;
-  detail: MPMovementDetail;
-  reference_id: string | null;
+  marketplace_fee: number;
+  shipping_cost: number;
+  total_paid_amount: number;
 }
 
-interface MPMovementsResponse {
-  results: MPMovement[];
+interface MLOrderItem {
+  item: { id: string; title: string };
+  quantity: number;
+  unit_price: number;
+  sale_fee: number;
+  currency_id: string;
+}
+
+interface MLOrderResult {
+  id: number;
+  status: string;
+  date_created: string;
+  date_closed: string;
+  total_amount: number;
+  currency_id: string;
+  order_items: MLOrderItem[];
+  payments: MLOrderPayment[];
+  shipping: { id: number };
+  tags: string[];
+}
+
+interface MLOrdersSearchResponse {
+  results: MLOrderResult[];
   paging: { total: number; offset: number; limit: number };
 }
 
-export interface MPBalance {
-  available: number;
+interface BillingSummary {
+  period: { date_from: string; date_to: string; key: string };
+  bill_includes: {
+    total_amount: number;
+    charges: Array<{ label: string; amount: number; type: string }>;
+    bonuses: Array<{ label: string; amount: number; type: string }>;
+  };
+  payment_collected: {
+    operation_discount: number;
+    total_payment: number;
+    total_collected: number;
+    total_debt: number;
+  };
+}
+
+export interface SyncResult {
+  synced: number;
   total: number;
-  unavailable: number;
+  fees: number;
+  revenue: number;
 }
 
-export interface MPMovementParsed {
-  id: number;
-  type: "credit" | "debit";
-  dateCreated: string;
-  amount: number;
-  balanceChange: number;
-  status: string;
-  label: string;
-  description: string;
-  referenceId: string | null;
-}
-
-/**
- * Get MP account balance using the ML access token.
- */
-export async function getMPBalance(): Promise<MPBalance> {
+export async function syncOrdersFromML(): Promise<SyncResult> {
   const cred = await getMLCredentials();
-  if (!cred) {
+  if (!cred || !cred.mlUserId) {
     throw new Error("No hay credenciales de MercadoLibre configuradas.");
   }
 
-  const data = await mlFetch<MPBalanceResponse>(
-    `/users/${cred.mlUserId}/mercadopago_account/balance`
-  );
-
-  return {
-    available: data.available_balance,
-    total: data.total_amount,
-    unavailable: data.unavailable_balance,
-  };
-}
-
-/**
- * Get MP movements with pagination.
- */
-export async function getMPMovements(options?: {
-  offset?: number;
-  limit?: number;
-  dateFrom?: string;
-  dateTo?: string;
-}): Promise<{ movements: MPMovementParsed[]; total: number }> {
-  const params: Record<string, string> = {
-    offset: String(options?.offset ?? 0),
-    limit: String(options?.limit ?? 50),
-  };
-
-  if (options?.dateFrom) {
-    params.begin_date = options.dateFrom;
-  }
-  if (options?.dateTo) {
-    params.end_date = options.dateTo;
-  }
-
-  const data = await mlFetch<MPMovementsResponse>(
-    "/mercadopago_account/movements/search",
-    { params }
-  );
-
-  const movements: MPMovementParsed[] = data.results.map((m) => ({
-    id: m.id,
-    type: m.type,
-    dateCreated: m.date_created,
-    amount: m.amount,
-    balanceChange: m.balance_change,
-    status: m.status,
-    label: m.detail?.label || "other",
-    description: m.detail?.description || "",
-    referenceId: m.reference_id || null,
-  }));
-
-  return { movements, total: data.paging.total };
-}
-
-/**
- * Sync movements from MP API into the MPTransaction database table.
- * Fetches all movements (paginated) and upserts by mpId.
- */
-export async function syncMPTransactions(): Promise<{
-  synced: number;
-  total: number;
-}> {
   let offset = 0;
   const limit = 50;
   let total = Infinity;
   let synced = 0;
+  let totalFees = 0;
+  let totalRevenue = 0;
 
   while (offset < total) {
-    const data = await getMPMovements({ offset, limit });
-    total = data.total;
-
-    for (const movement of data.movements) {
-      // Try to link to an ML order if it's a sale
-      let mlOrderId: bigint | null = null;
-      let packId: string | null = null;
-
-      if (movement.label === "sale" && movement.referenceId) {
-        const order = await prisma.mLOrder.findUnique({
-          where: { mlOrderId: BigInt(movement.referenceId) },
-          select: { mlOrderId: true, mlItemId: true },
-        });
-
-        if (order) {
-          mlOrderId = order.mlOrderId;
-
-          // Try to find the pack via MLListing
-          const listing = await prisma.mLListing.findUnique({
-            where: { mlItemId: order.mlItemId },
-            select: { packId: true },
-          });
-
-          if (listing) {
-            packId = listing.packId;
-          }
-        }
+    const data = await mlFetch<MLOrdersSearchResponse>(
+      `/orders/search`, {
+        params: {
+          seller: cred.mlUserId.toString(),
+          "order.status": "paid",
+          sort: "date_desc",
+          offset: offset.toString(),
+          limit: limit.toString(),
+        },
       }
+    );
+
+    total = data.paging.total;
+
+    for (const order of data.results) {
+      const payment = order.payments?.[0];
+      const item = order.order_items?.[0];
+      if (!item) continue;
+
+      const saleFee = item.sale_fee ?? 0;
+      const marketplaceFee = payment?.marketplace_fee ?? 0;
+      const shippingCost = payment?.shipping_cost ?? 0;
+      const totalPaid = payment?.total_paid_amount ?? order.total_amount;
+      const netReceived = totalPaid - marketplaceFee - shippingCost;
+
+      totalFees += marketplaceFee + shippingCost;
+      totalRevenue += netReceived;
+
+      let packId: string | null = null;
+      const listing = await prisma.mLListing.findUnique({
+        where: { mlItemId: item.item.id },
+        select: { packId: true },
+      });
+      if (listing) packId = listing.packId;
 
       await prisma.mPTransaction.upsert({
-        where: { mpId: BigInt(movement.id) },
+        where: { mpId: BigInt(order.id) },
         create: {
-          mpId: BigInt(movement.id),
-          type: movement.type,
-          amount: movement.amount,
-          balanceChange: movement.balanceChange,
-          status: movement.status,
-          label: movement.label,
-          description: movement.description || null,
-          referenceId: movement.referenceId,
-          mlOrderId,
+          mpId: BigInt(order.id),
+          type: "credit",
+          amount: order.total_amount,
+          balanceChange: netReceived,
+          status: order.status,
+          label: "sale",
+          description: item.item.title,
+          referenceId: String(order.id),
+          mlOrderId: BigInt(order.id),
           packId,
-          dateCreated: new Date(movement.dateCreated),
+          dateCreated: new Date(order.date_closed || order.date_created),
         },
         update: {
-          type: movement.type,
-          amount: movement.amount,
-          balanceChange: movement.balanceChange,
-          status: movement.status,
-          label: movement.label,
-          description: movement.description || null,
-          referenceId: movement.referenceId,
-          mlOrderId,
+          amount: order.total_amount,
+          balanceChange: netReceived,
+          status: order.status,
+          description: item.item.title,
           packId,
           syncedAt: new Date(),
         },
       });
+
+      if (marketplaceFee > 0) {
+        const feeId = BigInt(order.id) * BigInt(100) + BigInt(1);
+        await prisma.mPTransaction.upsert({
+          where: { mpId: feeId },
+          create: {
+            mpId: feeId,
+            type: "debit",
+            amount: marketplaceFee,
+            balanceChange: -marketplaceFee,
+            status: "approved",
+            label: "fee",
+            description: `Comision ML - ${item.item.title}`,
+            referenceId: String(order.id),
+            mlOrderId: BigInt(order.id),
+            packId,
+            dateCreated: new Date(order.date_closed || order.date_created),
+          },
+          update: {
+            amount: marketplaceFee,
+            balanceChange: -marketplaceFee,
+            description: `Comision ML - ${item.item.title}`,
+            syncedAt: new Date(),
+          },
+        });
+      }
+
+      if (shippingCost > 0) {
+        const shipId = BigInt(order.id) * BigInt(100) + BigInt(2);
+        await prisma.mPTransaction.upsert({
+          where: { mpId: shipId },
+          create: {
+            mpId: shipId,
+            type: "debit",
+            amount: shippingCost,
+            balanceChange: -shippingCost,
+            status: "approved",
+            label: "shipping",
+            description: `Envio - ${item.item.title}`,
+            referenceId: String(order.id),
+            mlOrderId: BigInt(order.id),
+            packId,
+            dateCreated: new Date(order.date_closed || order.date_created),
+          },
+          update: {
+            amount: shippingCost,
+            balanceChange: -shippingCost,
+            description: `Envio - ${item.item.title}`,
+            syncedAt: new Date(),
+          },
+        });
+      }
 
       synced++;
     }
@@ -185,5 +191,25 @@ export async function syncMPTransactions(): Promise<{
     offset += limit;
   }
 
-  return { synced, total };
+  return { synced, total, fees: totalFees, revenue: totalRevenue };
+}
+
+export async function getBillingSummary(): Promise<BillingSummary | null> {
+  try {
+    const data = await mlFetch<{ results: Array<{ key: string }> }>(
+      "/billing/integration/monthly/periods",
+      { params: { group: "MP", document_type: "BILL", limit: "1" } }
+    );
+
+    if (!data.results?.length) return null;
+
+    const key = data.results[0].key;
+    const summary = await mlFetch<BillingSummary>(
+      `/billing/integration/periods/key/${key}/summary/details`
+    );
+
+    return summary;
+  } catch {
+    return null;
+  }
 }
