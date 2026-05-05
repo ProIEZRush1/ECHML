@@ -18,24 +18,41 @@ if (!API_KEY) {
 
 /**
  * Helper para hacer requests autenticados a la API del CRM.
+ * Retries on transient failures (network errors, 502, 503, 504).
  */
-async function apiRequest(path, options = {}) {
+async function apiRequest(path, options = {}, retries = 2) {
   const url = `${API_URL}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${API_KEY}`,
-      ...options.headers,
-    },
-  });
 
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${errorText || res.statusText}`);
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${API_KEY}`,
+          ...options.headers,
+        },
+      });
+
+      if (res.status >= 502 && res.status <= 504 && attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        throw new Error(`API error ${res.status}: ${errorText || res.statusText}`);
+      }
+
+      return res.json();
+    } catch (error) {
+      if (attempt < retries && (error.code === "ECONNRESET" || error.code === "ECONNREFUSED" || error.cause?.code === "ECONNRESET")) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      throw error;
+    }
   }
-
-  return res.json();
 }
 
 const server = new McpServer({
@@ -1385,13 +1402,34 @@ server.tool(
       form.append("image", blob, basename(p));
     }
 
-    // Call OpenAI directly via CRM's image edit proxy
+    // Call OpenAI directly via CRM's image edit proxy (with retry)
     const url = `${API_URL}/api/openai/image-edit`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${API_KEY}` },
-      body: form,
-    });
+    let res;
+    for (let attempt = 0; attempt <= 2; attempt++) {
+      try {
+        // Rebuild form on retry (body consumed after first attempt)
+        const retryForm = new FormData();
+        retryForm.append("model", model);
+        retryForm.append("prompt", prompt);
+        retryForm.append("size", size);
+        retryForm.append("quality", quality);
+        retryForm.append("n", String(n));
+        for (const p of paths) {
+          const fd = await readFile(p);
+          retryForm.append("image", new Blob([fd], { type: "image/png" }), basename(p));
+        }
+        res = await fetch(url, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${API_KEY}` },
+          body: retryForm,
+        });
+        if (res.ok || (res.status < 500 && res.status !== 401)) break;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 2000));
+      } catch (err) {
+        if (attempt >= 2) throw err;
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
