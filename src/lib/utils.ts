@@ -43,6 +43,16 @@ export const COLOR_MAP = {
 
 export type ColorKey = keyof typeof COLOR_MAP;
 
+export function getVariantDisplay(variant: { color?: string | null; variantLabel?: string | null }): { label: string; hex: string; bg: string; text: string } {
+  if (variant.variantLabel) {
+    return { label: variant.variantLabel, hex: "#6b7280", bg: "bg-gray-500", text: "text-gray-600" };
+  }
+  if (variant.color && variant.color in COLOR_MAP) {
+    return COLOR_MAP[variant.color as ColorKey];
+  }
+  return { label: "Sin variante", hex: "#9ca3af", bg: "bg-gray-400", text: "text-gray-500" };
+}
+
 export function getStockStatus(stock: number): "healthy" | "low" | "out" {
   if (stock <= 0) return "out";
   if (stock <= 10) return "low";

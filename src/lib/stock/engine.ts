@@ -253,12 +253,14 @@ export async function recalculateAffectedPacks(
       data: { stock: newStock },
     });
 
-    for (const listing of pack.mlListings) {
-      if (listing.currentStock !== newStock) {
-        await prisma.mLListing.update({
-          where: { id: listing.id },
-          data: { currentStock: newStock, lastSyncedAt: new Date() },
-        });
+    if (pack.stockSyncEnabled) {
+      for (const listing of pack.mlListings) {
+        if (listing.currentStock !== newStock) {
+          await prisma.mLListing.update({
+            where: { id: listing.id },
+            data: { currentStock: newStock, lastSyncedAt: new Date() },
+          });
+        }
       }
     }
   }

@@ -5,12 +5,20 @@ import { verifyAnyAuth } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
+const variantSchema = z.object({
+  color: z.enum(["AZUL", "VERDE", "ROSA", "MORADO"]).optional(),
+  variantLabel: z.string().min(1).optional(),
+  stock: z.number().int().min(0).optional(),
+});
+
 const createProductSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   supplierCode: z.string().min(1, "El codigo de proveedor es obligatorio"),
   unitCost: z.number().min(0, "El costo unitario debe ser mayor o igual a 0"),
   supplierId: z.string().min(1, "El proveedor es obligatorio"),
   description: z.string().optional(),
+  brand: z.string().optional(),
+  variants: z.array(variantSchema).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -25,7 +33,7 @@ export async function GET(request: NextRequest) {
   const products = await prisma.product.findMany({
     include: {
       variants: {
-        select: { id: true, color: true, stock: true },
+        select: { id: true, color: true, variantLabel: true, stock: true },
         orderBy: { color: "asc" },
       },
       supplier: {
@@ -58,7 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, supplierCode, unitCost, supplierId, description } = result.data;
+    const { name, supplierCode, unitCost, supplierId, description, brand, variants } = result.data;
 
     const supplierExists = await prisma.supplier.findUnique({
       where: { id: supplierId },
@@ -70,6 +78,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Determine variants to create
+    let variantsToCreate: { color?: "AZUL" | "VERDE" | "ROSA" | "MORADO"; variantLabel?: string; stock: number }[];
+
+    if (variants && variants.length > 0) {
+      // Custom variants provided
+      variantsToCreate = variants.map((v) => ({
+        color: v.color as "AZUL" | "VERDE" | "ROSA" | "MORADO" | undefined,
+        variantLabel: v.variantLabel,
+        stock: v.stock ?? 0,
+      }));
+    } else {
+      // Default: 4 standard color variants
+      variantsToCreate = [
+        { color: "AZUL", stock: 0 },
+        { color: "VERDE", stock: 0 },
+        { color: "ROSA", stock: 0 },
+        { color: "MORADO", stock: 0 },
+      ];
+    }
+
     const product = await prisma.product.create({
       data: {
         name,
@@ -77,18 +105,18 @@ export async function POST(request: NextRequest) {
         unitCost,
         supplierId,
         description,
+        brand,
         variants: {
-          create: [
-            { color: "AZUL", stock: 0 },
-            { color: "VERDE", stock: 0 },
-            { color: "ROSA", stock: 0 },
-            { color: "MORADO", stock: 0 },
-          ],
+          create: variantsToCreate.map((v) => ({
+            color: v.color ?? null,
+            variantLabel: v.variantLabel ?? null,
+            stock: v.stock,
+          })),
         },
       },
       include: {
         variants: {
-          select: { id: true, color: true, stock: true },
+          select: { id: true, color: true, variantLabel: true, stock: true },
           orderBy: { color: "asc" },
         },
         supplier: {

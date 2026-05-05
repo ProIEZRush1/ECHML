@@ -100,6 +100,7 @@ model Product {
   supplierCode String
   unitCost     Decimal  @db.Decimal(10, 2)
   supplierId   String
+  brand        String?
   description  String?
   imageUrl     String?
   createdAt    DateTime @default(now())
@@ -111,15 +112,17 @@ model Product {
 
   @@unique([supplierId, supplierCode])
   @@index([supplierCode])
+  @@index([brand])
 }
 
 model ProductVariant {
-  id        String   @id @default(cuid())
-  productId String
-  color     Color
-  stock     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  productId    String
+  color        Color?
+  variantLabel String?
+  stock        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   product         Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
   packItems       PackItem[]
@@ -128,6 +131,7 @@ model ProductVariant {
 
   @@unique([productId, color])
   @@index([stock])
+  @@index([productId, variantLabel])
 }
 
 model Pack {
@@ -141,6 +145,7 @@ model Pack {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  stockSyncEnabled      Boolean  @default(true)
   items                 PackItem[]
   mlListings            MLListing[]
   withdrawalAllocations WithdrawalAllocation[]

@@ -16,8 +16,8 @@ import { Badge } from "@/components/ui/badge";
 import { ColorBadge } from "@/components/shared/color-badge";
 import { StockIndicator } from "@/components/shared/stock-indicator";
 import { PackDetailActions } from "@/components/packs/pack-detail-actions";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
-import type { Color, MLListingStatus, PackWithDetails } from "@/types";
+import { formatCurrency, formatDateTime, getVariantDisplay } from "@/lib/utils";
+import type { MLListingStatus, PackWithDetails } from "@/types";
 
 interface PackDetailPageProps {
   params: Promise<{ id: string }>;
@@ -73,6 +73,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
       productVariant: {
         id: item.productVariant.id,
         color: item.productVariant.color,
+        variantLabel: item.productVariant.variantLabel,
         stock: item.productVariant.stock,
         product: {
           id: item.productVariant.product.id,
@@ -135,6 +136,18 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
         </Card>
       </div>
 
+      {/* Stock Sync Status */}
+      <Card>
+        <CardContent className="flex items-center gap-3 py-4">
+          <span className="text-sm font-medium text-muted-foreground">Sincronizacion de stock:</span>
+          {pack.stockSyncEnabled ? (
+            <Badge variant="default">Sincronizado automaticamente</Badge>
+          ) : (
+            <Badge variant="secondary">FULL - Stock gestionado por ML</Badge>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Description */}
       {pack.description && (
         <Card>
@@ -158,29 +171,38 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
               <TableRow>
                 <TableHead>Producto</TableHead>
                 <TableHead>Codigo</TableHead>
-                <TableHead>Color</TableHead>
+                <TableHead>Variante</TableHead>
                 <TableHead className="text-center">Cantidad por Pack</TableHead>
                 <TableHead className="text-right">Stock Disponible</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pack.items.map((item) => (
-                <TableRow key={item.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    {item.productVariant.product.name}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {item.productVariant.product.supplierCode}
-                  </TableCell>
-                  <TableCell>
-                    <ColorBadge color={item.productVariant.color as Color} />
-                  </TableCell>
-                  <TableCell className="text-center">{item.quantity}</TableCell>
-                  <TableCell className="text-right">
-                    <StockIndicator stock={item.productVariant.stock} showBadge={false} />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {pack.items.map((item) => {
+                const display = getVariantDisplay({
+                  color: item.productVariant.color,
+                  variantLabel: item.productVariant.variantLabel,
+                });
+                return (
+                  <TableRow key={item.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      {item.productVariant.product.name}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {item.productVariant.product.supplierCode}
+                    </TableCell>
+                    <TableCell>
+                      <ColorBadge
+                        color={item.productVariant.color}
+                        variantLabel={item.productVariant.variantLabel}
+                      />
+                    </TableCell>
+                    <TableCell className="text-center">{item.quantity}</TableCell>
+                    <TableCell className="text-right">
+                      <StockIndicator stock={item.productVariant.stock} showBadge={false} />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -195,10 +217,18 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
           <div className="space-y-2">
             {pack.items.map((item) => {
               const maxPacks = Math.floor(item.productVariant.stock / item.quantity);
+              const display = getVariantDisplay({
+                color: item.productVariant.color,
+                variantLabel: item.productVariant.variantLabel,
+              });
               return (
                 <div key={item.id} className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
-                    <ColorBadge color={item.productVariant.color as Color} showLabel={false} />
+                    <ColorBadge
+                      color={item.productVariant.color}
+                      variantLabel={item.productVariant.variantLabel}
+                      showLabel={false}
+                    />
                     <span>{item.productVariant.product.name}</span>
                     <span className="text-muted-foreground">
                       ({item.productVariant.stock} / {item.quantity} por pack)

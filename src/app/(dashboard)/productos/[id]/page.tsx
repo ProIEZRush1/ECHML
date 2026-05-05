@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatCurrency, formatDateTime, type ColorKey } from "@/lib/utils";
+import { formatCurrency, formatDateTime, getVariantDisplay } from "@/lib/utils";
 import type { VariantWithStock } from "@/types";
 import { Package, Boxes, Clock } from "lucide-react";
 
@@ -30,7 +30,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     include: {
       supplier: { select: { id: true, name: true } },
       variants: {
-        select: { id: true, color: true, stock: true, productId: true },
+        select: { id: true, color: true, variantLabel: true, stock: true, productId: true },
         orderBy: { color: "asc" },
       },
     },
@@ -45,7 +45,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       where: { productVariantId: { in: variantIds } },
       include: {
         pack: { select: { id: true, name: true, sku: true } },
-        productVariant: { select: { color: true } },
+        productVariant: { select: { color: true, variantLabel: true } },
       },
     }),
     prisma.stockLog.findMany({
@@ -54,7 +54,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       orderBy: { createdAt: "desc" },
       include: {
         productVariant: {
-          select: { color: true, product: { select: { name: true, supplierCode: true } } },
+          select: { color: true, variantLabel: true, product: { select: { name: true, supplierCode: true } } },
         },
         user: { select: { name: true } },
       },
@@ -76,7 +76,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     <div className="space-y-6">
       <PageHeader
         title={product.name}
-        description={`Código: ${product.supplierCode} · Proveedor: ${product.supplier.name}`}
+        description={`Codigo: ${product.supplierCode} · Proveedor: ${product.supplier.name}${product.brand ? ` · Marca: ${product.brand}` : ""}`}
       />
 
       {/* Product info card */}
@@ -85,7 +85,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Package className="h-4 w-4" />
-              Información del Producto
+              Informacion del Producto
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -94,13 +94,19 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
               <span className="text-sm font-medium">{product.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground">Código</span>
+              <span className="text-sm text-muted-foreground">Codigo</span>
               <span className="text-sm font-mono">{product.supplierCode}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Proveedor</span>
               <span className="text-sm font-medium">{product.supplier.name}</span>
             </div>
+            {product.brand && (
+              <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Marca</span>
+                <span className="text-sm font-medium">{product.brand}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground">Costo Unitario</span>
               <span className="text-sm font-medium">
@@ -113,7 +119,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             </div>
             {product.description && (
               <div className="pt-2 border-t">
-                <span className="text-sm text-muted-foreground">Descripción</span>
+                <span className="text-sm text-muted-foreground">Descripcion</span>
                 <p className="mt-1 text-sm">{product.description}</p>
               </div>
             )}
@@ -141,7 +147,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 <TableRow>
                   <TableHead>Pack</TableHead>
                   <TableHead>SKU</TableHead>
-                  <TableHead>Color de Variante</TableHead>
+                  <TableHead>Variante</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
                 </TableRow>
               </TableHeader>
@@ -155,7 +161,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                       {item.pack.sku}
                     </TableCell>
                     <TableCell>
-                      <ColorBadge color={item.productVariant.color as ColorKey} />
+                      <ColorBadge
+                        color={item.productVariant.color}
+                        variantLabel={item.productVariant.variantLabel}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       {item.quantity}
@@ -185,12 +194,12 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Color</TableHead>
+                  <TableHead>Variante</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Anterior</TableHead>
                   <TableHead className="text-right">Cambio</TableHead>
                   <TableHead className="text-right">Nuevo</TableHead>
-                  <TableHead>Razón</TableHead>
+                  <TableHead>Razon</TableHead>
                   <TableHead className="text-right">Fecha</TableHead>
                 </TableRow>
               </TableHeader>
@@ -198,7 +207,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 {stockLogs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>
-                      <ColorBadge color={log.productVariant.color as ColorKey} />
+                      <ColorBadge
+                        color={log.productVariant.color}
+                        variantLabel={log.productVariant.variantLabel}
+                      />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {changeTypeLabels[log.changeType] || log.changeType}

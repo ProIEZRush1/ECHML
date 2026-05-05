@@ -11,7 +11,7 @@ export default async function ProductosPage() {
     include: {
       supplier: { select: { id: true, name: true } },
       variants: {
-        select: { id: true, color: true, stock: true, productId: true },
+        select: { id: true, color: true, variantLabel: true, stock: true, productId: true },
       },
     },
     orderBy: { name: "asc" },
@@ -22,6 +22,7 @@ export default async function ProductosPage() {
     name: p.name,
     supplierCode: p.supplierCode,
     unitCost: p.unitCost.toString(),
+    brand: p.brand,
     description: p.description,
     imageUrl: p.imageUrl,
     supplier: p.supplier,

@@ -75,7 +75,11 @@ export function PackTable({ packs }: PackTableProps) {
                       <span key={item.id} className="flex items-center gap-1 text-sm">
                         {idx > 0 && <span className="text-muted-foreground">+</span>}
                         <span>{item.quantity}x</span>
-                        <ColorBadge color={item.productVariant.color} showLabel={false} />
+                        <ColorBadge
+                          color={item.productVariant.color}
+                          variantLabel={item.productVariant.variantLabel}
+                          showLabel={false}
+                        />
                         <span className="text-muted-foreground">
                           ({item.productVariant.product.supplierCode})
                         </span>

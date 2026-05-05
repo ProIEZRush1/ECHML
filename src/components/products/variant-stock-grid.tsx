@@ -1,42 +1,31 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ColorBadge } from "@/components/shared/color-badge";
-import { getStockColor, type ColorKey } from "@/lib/utils";
+import { getStockColor, getVariantDisplay } from "@/lib/utils";
 import type { VariantWithStock } from "@/types";
 
 interface VariantStockGridProps {
   variants: VariantWithStock[];
 }
 
-const COLOR_ORDER: ColorKey[] = ["AZUL", "VERDE", "ROSA", "MORADO"];
-
-const BORDER_COLORS: Record<ColorKey, string> = {
-  AZUL: "border-l-blue-500",
-  VERDE: "border-l-green-500",
-  ROSA: "border-l-pink-500",
-  MORADO: "border-l-purple-500",
-};
-
 export function VariantStockGrid({ variants }: VariantStockGridProps) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      {COLOR_ORDER.map((color) => {
-        const variant = variants.find((v) => v.color === color);
-        const stock = variant?.stock ?? 0;
-        const stockColorClass = getStockColor(stock);
+      {variants.map((variant) => {
+        const display = getVariantDisplay(variant);
+        const stockColorClass = getStockColor(variant.stock);
 
         return (
           <Card
-            key={color}
-            className={`border-l-4 ${BORDER_COLORS[color]}`}
+            key={variant.id}
+            className="border-l-4"
+            style={{ borderLeftColor: display.hex }}
           >
             <CardContent className="flex flex-col items-center gap-2 py-6">
-              <ColorBadge color={color} />
+              <ColorBadge color={variant.color} variantLabel={variant.variantLabel} />
               <span className={`text-3xl font-bold tabular-nums ${stockColorClass}`}>
-                {variant ? stock : "—"}
+                {variant.stock}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {variant ? "unidades" : "Sin variante"}
-              </span>
+              <span className="text-xs text-muted-foreground">unidades</span>
             </CardContent>
           </Card>
         );

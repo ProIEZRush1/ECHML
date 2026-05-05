@@ -11,6 +11,7 @@ const createPackSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio"),
   salePrice: z.number().min(0, "El precio de venta debe ser mayor o igual a 0"),
   description: z.string().optional(),
+  stockSyncEnabled: z.boolean().optional(),
   items: z
     .array(
       z.object({
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { sku, name, salePrice, description, items } = result.data;
+    const { sku, name, salePrice, description, stockSyncEnabled, items } = result.data;
 
     const variantIds = items.map((i) => i.productVariantId);
     const variants = await prisma.productVariant.findMany({
@@ -93,6 +94,7 @@ export async function POST(request: NextRequest) {
           name,
           salePrice,
           description,
+          stockSyncEnabled: stockSyncEnabled ?? true,
           items: {
             create: items.map((item) => ({
               productVariantId: item.productVariantId,

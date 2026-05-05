@@ -11,6 +11,7 @@ const updatePackSchema = z.object({
   name: z.string().min(1).optional(),
   salePrice: z.number().min(0).optional(),
   description: z.string().nullable().optional(),
+  stockSyncEnabled: z.boolean().optional(),
   items: z
     .array(
       z.object({

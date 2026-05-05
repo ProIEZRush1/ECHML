@@ -13,10 +13,11 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { StockIndicator } from "@/components/shared/stock-indicator";
 import { ProductFormDialog } from "@/components/products/product-form-dialog";
 import { ProductDeleteButton } from "@/components/products/product-delete-button";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getVariantDisplay, COLOR_MAP } from "@/lib/utils";
 import { Search, ArrowUpDown, Pencil } from "lucide-react";
 import type { ProductWithVariants } from "@/types";
 import type { Color } from "@prisma/client";
@@ -28,13 +29,14 @@ interface ProductTableProps {
 type SortField = "name" | "totalStock";
 type SortDirection = "asc" | "desc";
 
-const COLORS: Color[] = ["AZUL", "VERDE", "ROSA", "MORADO"];
-const COLOR_LABELS: Record<Color, string> = {
-  AZUL: "Azul",
-  VERDE: "Verde",
-  ROSA: "Rosa",
-  MORADO: "Morado",
-};
+const STANDARD_COLORS: Color[] = ["AZUL", "VERDE", "ROSA", "MORADO"];
+
+function hasStandardColors(product: ProductWithVariants): boolean {
+  return (
+    product.variants.length === 4 &&
+    product.variants.every((v) => v.color && STANDARD_COLORS.includes(v.color))
+  );
+}
 
 export function ProductTable({ products }: ProductTableProps) {
   const [search, setSearch] = useState("");
@@ -51,7 +53,8 @@ export function ProductTable({ products }: ProductTableProps) {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(term) ||
-          p.supplierCode.toLowerCase().includes(term)
+          p.supplierCode.toLowerCase().includes(term) ||
+          (p.brand && p.brand.toLowerCase().includes(term))
       );
     }
 
@@ -69,6 +72,11 @@ export function ProductTable({ products }: ProductTableProps) {
     return result;
   }, [products, search, sortField, sortDirection]);
 
+  const allStandard = useMemo(
+    () => products.length > 0 && products.every(hasStandardColors),
+    [products]
+  );
+
   function toggleSort(field: SortField) {
     if (sortField === field) {
       setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
@@ -76,11 +84,6 @@ export function ProductTable({ products }: ProductTableProps) {
       setSortField(field);
       setSortDirection("asc");
     }
-  }
-
-  function getVariantStock(product: ProductWithVariants, color: Color): number | null {
-    const variant = product.variants.find((v) => v.color === color);
-    return variant ? variant.stock : null;
   }
 
   function handleEdit(product: ProductWithVariants) {
@@ -101,7 +104,7 @@ export function ProductTable({ products }: ProductTableProps) {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nombre o codigo..."
+                placeholder="Buscar por nombre, codigo o marca..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -125,12 +128,20 @@ export function ProductTable({ products }: ProductTableProps) {
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </TableHead>
+                <TableHead>Marca</TableHead>
                 <TableHead>Costo</TableHead>
-                {COLORS.map((color) => (
-                  <TableHead key={color} className="text-center">
-                    {COLOR_LABELS[color]}
-                  </TableHead>
-                ))}
+                {allStandard ? (
+                  STANDARD_COLORS.map((color) => (
+                    <TableHead key={color} className="text-center">
+                      <span className={`flex items-center justify-center gap-1 ${COLOR_MAP[color].text}`}>
+                        <span className={`inline-block size-2 rounded-full ${COLOR_MAP[color].bg}`} />
+                        {COLOR_MAP[color].label}
+                      </span>
+                    </TableHead>
+                  ))
+                ) : (
+                  <TableHead className="text-center">Variantes</TableHead>
+                )}
                 <TableHead>
                   <button
                     onClick={() => toggleSort("totalStock")}
@@ -146,7 +157,7 @@ export function ProductTable({ products }: ProductTableProps) {
             <TableBody>
               {filteredProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4 + COLORS.length + 2} className="text-center py-8">
+                  <TableCell colSpan={allStandard ? 9 : 8} className="text-center py-8">
                     <p className="text-muted-foreground">No se encontraron productos</p>
                   </TableCell>
                 </TableRow>
@@ -156,6 +167,7 @@ export function ProductTable({ products }: ProductTableProps) {
                     (sum, v) => sum + v.stock,
                     0
                   );
+                  const isStandard = hasStandardColors(product);
 
                   return (
                     <TableRow key={product.id} className="hover:bg-muted/50">
@@ -170,19 +182,44 @@ export function ProductTable({ products }: ProductTableProps) {
                           {product.name}
                         </Link>
                       </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {product.brand || "—"}
+                      </TableCell>
                       <TableCell>{formatCurrency(product.unitCost)}</TableCell>
-                      {COLORS.map((color) => {
-                        const stock = getVariantStock(product, color);
-                        return (
-                          <TableCell key={color} className="text-center">
-                            {stock !== null ? (
-                              <StockIndicator stock={stock} showBadge={false} />
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </TableCell>
-                        );
-                      })}
+                      {allStandard ? (
+                        STANDARD_COLORS.map((color) => {
+                          const variant = product.variants.find((v) => v.color === color);
+                          return (
+                            <TableCell key={color} className="text-center">
+                              {variant ? (
+                                <StockIndicator stock={variant.stock} showBadge={false} />
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          );
+                        })
+                      ) : (
+                        <TableCell className="text-center">
+                          <div className="flex flex-wrap items-center justify-center gap-1">
+                            {product.variants.map((variant) => {
+                              const display = getVariantDisplay(variant);
+                              return (
+                                <Badge
+                                  key={variant.id}
+                                  variant="secondary"
+                                  className="text-xs gap-1"
+                                >
+                                  <span
+                                    className={`inline-block size-2 rounded-full ${display.bg}`}
+                                  />
+                                  {display.label}: {variant.stock}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                      )}
                       <TableCell>
                         <StockIndicator stock={totalStock} showBadge={false} />
                       </TableCell>

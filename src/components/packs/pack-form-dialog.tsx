@@ -24,20 +24,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { COLOR_MAP, type ColorKey } from "@/lib/utils";
+import { getVariantDisplay } from "@/lib/utils";
 import type { PackWithDetails } from "@/types";
 
 interface ProductOption {
   id: string;
   name: string;
   supplierCode: string;
-  variants: { id: string; color: string; stock: number }[];
+  variants: { id: string; color: string | null; variantLabel: string | null; stock: number }[];
 }
 
 interface PackItemRow {
   productId: string;
-  color: string;
-  productVariantId: string;
+  variantId: string;
   quantity: number;
 }
 
@@ -55,8 +54,9 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
   const [name, setName] = useState("");
   const [salePrice, setSalePrice] = useState("");
   const [description, setDescription] = useState("");
+  const [stockSyncEnabled, setStockSyncEnabled] = useState(true);
   const [items, setItems] = useState<PackItemRow[]>([
-    { productId: "", color: "", productVariantId: "", quantity: 1 },
+    { productId: "", variantId: "", quantity: 1 },
   ]);
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,11 +71,11 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
         setName(pack.name);
         setSalePrice(pack.salePrice);
         setDescription(pack.description || "");
+        setStockSyncEnabled(pack.stockSyncEnabled ?? true);
         setItems(
           pack.items.map((item) => ({
             productId: item.productVariant.product.id,
-            color: item.productVariant.color,
-            productVariantId: item.productVariant.id,
+            variantId: item.productVariant.id,
             quantity: item.quantity,
           }))
         );
@@ -90,7 +90,8 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
     setName("");
     setSalePrice("");
     setDescription("");
-    setItems([{ productId: "", color: "", productVariantId: "", quantity: 1 }]);
+    setStockSyncEnabled(true);
+    setItems([{ productId: "", variantId: "", quantity: 1 }]);
     setErrors({});
   }
 
@@ -100,7 +101,17 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
       const res = await fetch("/api/products");
       if (res.ok) {
         const data = await res.json();
-        setProducts(data);
+        setProducts(data.map((p: Record<string, unknown>) => ({
+          id: p.id,
+          name: p.name,
+          supplierCode: p.supplierCode,
+          variants: (p as { variants: { id: string; color: string | null; variantLabel?: string | null; stock: number }[] }).variants.map((v) => ({
+            id: v.id,
+            color: v.color,
+            variantLabel: v.variantLabel ?? null,
+            stock: v.stock,
+          })),
+        })));
       }
     } catch {
       toast.error("Error al cargar productos");
@@ -110,7 +121,7 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
   }
 
   function addItem() {
-    setItems([...items, { productId: "", color: "", productVariantId: "", quantity: 1 }]);
+    setItems([...items, { productId: "", variantId: "", quantity: 1 }]);
   }
 
   function removeItem(index: number) {
@@ -124,13 +135,9 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
 
     if (field === "productId") {
       item.productId = value as string;
-      item.color = "";
-      item.productVariantId = "";
-    } else if (field === "color") {
-      item.color = value as string;
-      const product = products.find((p) => p.id === item.productId);
-      const variant = product?.variants.find((v) => v.color === value);
-      item.productVariantId = variant?.id || "";
+      item.variantId = "";
+    } else if (field === "variantId") {
+      item.variantId = value as string;
     } else if (field === "quantity") {
       item.quantity = value as number;
     }
@@ -147,7 +154,7 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
     if (!salePrice || parseFloat(salePrice) < 0)
       newErrors.salePrice = "El precio debe ser mayor o igual a 0";
 
-    const validItems = items.filter((item) => item.productVariantId);
+    const validItems = items.filter((item) => item.variantId);
     if (validItems.length === 0) {
       newErrors.items = "Debe incluir al menos un item";
     }
@@ -156,8 +163,8 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
       if (!items[i].productId) {
         newErrors[`item_${i}_product`] = "Seleccione un producto";
       }
-      if (items[i].productId && !items[i].productVariantId) {
-        newErrors[`item_${i}_color`] = "Seleccione un color";
+      if (items[i].productId && !items[i].variantId) {
+        newErrors[`item_${i}_variant`] = "Seleccione una variante";
       }
       if (items[i].quantity < 1) {
         newErrors[`item_${i}_quantity`] = "La cantidad debe ser al menos 1";
@@ -178,10 +185,11 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
         name: name.trim(),
         salePrice: parseFloat(salePrice),
         description: description.trim() || undefined,
+        stockSyncEnabled,
         items: items
-          .filter((item) => item.productVariantId)
+          .filter((item) => item.variantId)
           .map((item) => ({
-            productVariantId: item.productVariantId,
+            productVariantId: item.variantId,
             quantity: item.quantity,
           })),
       };
@@ -211,7 +219,7 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
     }
   }
 
-  function getAvailableColors(productId: string): { id: string; color: string; stock: number }[] {
+  function getAvailableVariants(productId: string) {
     const product = products.find((p) => p.id === productId);
     return product?.variants || [];
   }
@@ -289,6 +297,26 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
             />
           </div>
 
+          {/* Stock Sync Toggle */}
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Sincronizar stock con ML</Label>
+              <p className="text-xs text-muted-foreground">
+                {stockSyncEnabled
+                  ? "El stock se calcula automaticamente desde las variantes"
+                  : "FULL - Stock gestionado directamente por MercadoLibre"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant={stockSyncEnabled ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStockSyncEnabled(!stockSyncEnabled)}
+            >
+              {stockSyncEnabled ? "Activado" : "Desactivado"}
+            </Button>
+          </div>
+
           <Separator />
 
           {/* Items */}
@@ -349,33 +377,36 @@ export function PackFormDialog({ open, onOpenChange, pack }: PackFormDialogProps
                       </Select>
                     </div>
 
-                    {/* Color */}
+                    {/* Variant */}
                     <div className="space-y-1">
                       {index === 0 && (
-                        <span className="text-xs text-muted-foreground">Color</span>
+                        <span className="text-xs text-muted-foreground">Variante</span>
                       )}
                       <Select
-                        value={item.color}
-                        onValueChange={(val) => updateItem(index, "color", val ?? "")}
+                        value={item.variantId}
+                        onValueChange={(val) => updateItem(index, "variantId", val ?? "")}
                         disabled={!item.productId}
                       >
                         <SelectTrigger
-                          className="w-[100px]"
-                          aria-invalid={!!errors[`item_${index}_color`]}
+                          className="w-[120px]"
+                          aria-invalid={!!errors[`item_${index}_variant`]}
                         >
-                          <SelectValue placeholder="Color" />
+                          <SelectValue placeholder="Variante" />
                         </SelectTrigger>
                         <SelectContent>
-                          {getAvailableColors(item.productId).map((v) => (
-                            <SelectItem key={v.id} value={v.color}>
-                              <span className="flex items-center gap-1.5">
-                                <span
-                                  className={`inline-block size-2.5 rounded-full ${COLOR_MAP[v.color as ColorKey]?.bg || ""}`}
-                                />
-                                {COLOR_MAP[v.color as ColorKey]?.label || v.color}
-                              </span>
-                            </SelectItem>
-                          ))}
+                          {getAvailableVariants(item.productId).map((v) => {
+                            const display = getVariantDisplay(v);
+                            return (
+                              <SelectItem key={v.id} value={v.id}>
+                                <span className="flex items-center gap-1.5">
+                                  <span
+                                    className={`inline-block size-2.5 rounded-full ${display.bg}`}
+                                  />
+                                  {display.label}
+                                </span>
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>

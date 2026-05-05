@@ -10,83 +10,101 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { COLOR_MAP, getStockColor } from "@/lib/utils";
-import type { Color } from "@/types";
-
-const COLORS: Color[] = ["AZUL", "VERDE", "ROSA", "MORADO"];
+import { getStockColor, getVariantDisplay } from "@/lib/utils";
 
 export default async function StockPage() {
   const products = await prisma.product.findMany({
     include: {
       variants: {
+        select: { id: true, color: true, variantLabel: true, stock: true },
         orderBy: { color: "asc" },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  const totals: Record<Color, number> = { AZUL: 0, VERDE: 0, ROSA: 0, MORADO: 0 };
+  // Collect all unique variant labels/colors across products
+  const allVariantKeys: string[] = [];
+  for (const product of products) {
+    for (const v of product.variants) {
+      const display = getVariantDisplay(v);
+      if (!allVariantKeys.includes(display.label)) {
+        allVariantKeys.push(display.label);
+      }
+    }
+  }
+
   let grandTotal = 0;
+  const columnTotals: Record<string, number> = {};
+  for (const key of allVariantKeys) {
+    columnTotals[key] = 0;
+  }
 
   const rows = products.map((product) => {
-    const stockByColor: Record<Color, number> = { AZUL: 0, VERDE: 0, ROSA: 0, MORADO: 0 };
+    const stockByKey: Record<string, number> = {};
     let rowTotal = 0;
 
     for (const variant of product.variants) {
-      stockByColor[variant.color] = variant.stock;
-      totals[variant.color] += variant.stock;
+      const display = getVariantDisplay(variant);
+      stockByKey[display.label] = (stockByKey[display.label] || 0) + variant.stock;
+      columnTotals[display.label] = (columnTotals[display.label] || 0) + variant.stock;
       rowTotal += variant.stock;
       grandTotal += variant.stock;
     }
 
-    return { product, stockByColor, rowTotal };
+    return { product, stockByKey, rowTotal };
   });
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Inventario"
-        description="Vista general del stock por producto y color"
+        description="Vista general del stock por producto y variante"
       />
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Producto</TableHead>
               <TableHead>Codigo</TableHead>
-              {COLORS.map((color) => (
-                <TableHead key={color} className="text-center">
-                  <span className={`flex items-center justify-center gap-1.5 ${COLOR_MAP[color].text}`}>
-                    <span className={`inline-block size-2.5 rounded-full ${COLOR_MAP[color].bg}`} />
-                    {COLOR_MAP[color].label}
-                  </span>
+              {allVariantKeys.map((key) => (
+                <TableHead key={key} className="text-center">
+                  {key}
                 </TableHead>
               ))}
               <TableHead className="text-center font-bold">Total</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(({ product, stockByColor, rowTotal }) => (
+            {rows.map(({ product, stockByKey, rowTotal }) => (
               <TableRow key={product.id}>
                 <TableCell className="font-medium">{product.name}</TableCell>
                 <TableCell className="text-muted-foreground">{product.supplierCode}</TableCell>
-                {COLORS.map((color) => (
-                  <TableCell key={color} className="text-center">
-                    <span className={`font-medium ${getStockColor(stockByColor[color])}`}>
-                      {stockByColor[color]}
-                    </span>
-                  </TableCell>
-                ))}
+                {allVariantKeys.map((key) => {
+                  const stock = stockByKey[key] ?? 0;
+                  const hasVariant = key in stockByKey;
+                  return (
+                    <TableCell key={key} className="text-center">
+                      {hasVariant ? (
+                        <span className={`font-medium ${getStockColor(stock)}`}>
+                          {stock}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  );
+                })}
                 <TableCell className="text-center font-bold">{rowTotal}</TableCell>
               </TableRow>
             ))}
             {/* Summary row */}
             <TableRow className="bg-muted/50 font-bold">
               <TableCell colSpan={2}>Total</TableCell>
-              {COLORS.map((color) => (
-                <TableCell key={color} className="text-center">
-                  <span className={COLOR_MAP[color].text}>{totals[color]}</span>
+              {allVariantKeys.map((key) => (
+                <TableCell key={key} className="text-center">
+                  {columnTotals[key]}
                 </TableCell>
               ))}
               <TableCell className="text-center">{grandTotal}</TableCell>

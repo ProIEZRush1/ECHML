@@ -10,6 +10,7 @@ const updateProductSchema = z.object({
   supplierCode: z.string().min(1).optional(),
   unitCost: z.number().min(0).optional(),
   description: z.string().nullable().optional(),
+  brand: z.string().nullable().optional(),
 });
 
 export async function GET(
@@ -34,6 +35,7 @@ export async function GET(
         select: {
           id: true,
           color: true,
+          variantLabel: true,
           stock: true,
           packItems: {
             select: {
@@ -108,7 +110,7 @@ export async function PUT(
       data: result.data,
       include: {
         variants: {
-          select: { id: true, color: true, stock: true },
+          select: { id: true, color: true, variantLabel: true, stock: true },
           orderBy: { color: "asc" },
         },
         supplier: { select: { id: true, name: true } },

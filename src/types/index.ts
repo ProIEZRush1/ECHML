@@ -7,6 +7,7 @@ export interface ProductWithVariants {
   name: string;
   supplierCode: string;
   unitCost: string;
+  brand: string | null;
   description: string | null;
   imageUrl: string | null;
   supplier: { id: string; name: string };
@@ -15,7 +16,8 @@ export interface ProductWithVariants {
 
 export interface VariantWithStock {
   id: string;
-  color: Color;
+  color: Color | null;
+  variantLabel: string | null;
   stock: number;
   productId: string;
 }
@@ -26,6 +28,7 @@ export interface PackWithDetails {
   name: string;
   salePrice: string;
   stock: number;
+  stockSyncEnabled?: boolean;
   description: string | null;
   items: PackItemDetail[];
   mlListings: ListingSummary[];
@@ -36,7 +39,8 @@ export interface PackItemDetail {
   quantity: number;
   productVariant: {
     id: string;
-    color: Color;
+    color: Color | null;
+    variantLabel?: string | null;
     stock: number;
     product: { id: string; name: string; supplierCode: string };
   };
@@ -61,7 +65,8 @@ export interface StockLogEntry {
   reason: string | null;
   createdAt: Date;
   productVariant: {
-    color: Color;
+    color: Color | null;
+    variantLabel?: string | null;
     product: { name: string; supplierCode: string };
   };
   user: { name: string } | null;
