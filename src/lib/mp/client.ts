@@ -37,19 +37,21 @@ interface MLOrdersSearchResponse {
   paging: { total: number; offset: number; limit: number };
 }
 
-interface BillingSummary {
-  period: { date_from: string; date_to: string; key: string };
-  bill_includes: {
-    total_amount: number;
-    charges: Array<{ label: string; amount: number; type: string }>;
-    bonuses: Array<{ label: string; amount: number; type: string }>;
+interface MPPaymentDetail {
+  id: number;
+  status: string;
+  transaction_amount: number;
+  net_received_amount?: number;
+  total_paid_amount?: number;
+  fee_details?: Array<{ type: string; amount: number; fee_payer: string }>;
+  transaction_details?: {
+    net_received_amount?: number;
+    total_paid_amount?: number;
   };
-  payment_collected: {
-    operation_discount: number;
-    total_payment: number;
-    total_collected: number;
-    total_debt: number;
-  };
+  money_release_date?: string;
+  operation_type?: string;
+  description?: string;
+  collector_id?: number;
 }
 
 export interface SyncResult {
@@ -57,6 +59,14 @@ export interface SyncResult {
   total: number;
   fees: number;
   revenue: number;
+}
+
+async function getPaymentDetail(paymentId: number): Promise<MPPaymentDetail | null> {
+  try {
+    return await mlFetch<MPPaymentDetail>(`/v1/payments/${paymentId}`);
+  } catch {
+    return null;
+  }
 }
 
 export async function syncOrdersFromML(): Promise<SyncResult> {
@@ -73,17 +83,15 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
   let totalRevenue = 0;
 
   while (offset < total) {
-    const data = await mlFetch<MLOrdersSearchResponse>(
-      `/orders/search`, {
-        params: {
-          seller: cred.mlUserId.toString(),
-          "order.status": "paid",
-          sort: "date_desc",
-          offset: offset.toString(),
-          limit: limit.toString(),
-        },
-      }
-    );
+    const data = await mlFetch<MLOrdersSearchResponse>(`/orders/search`, {
+      params: {
+        seller: cred.mlUserId.toString(),
+        "order.status": "paid",
+        sort: "date_desc",
+        offset: offset.toString(),
+        limit: limit.toString(),
+      },
+    });
 
     total = data.paging.total;
 
@@ -92,13 +100,29 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
       const item = order.order_items?.[0];
       if (!item) continue;
 
-      const saleFee = item.sale_fee ?? 0;
-      const marketplaceFee = payment?.marketplace_fee ?? 0;
-      const shippingCost = payment?.shipping_cost ?? 0;
-      const totalPaid = payment?.total_paid_amount ?? order.total_amount;
-      const netReceived = totalPaid - marketplaceFee - shippingCost;
+      let marketplaceFee = payment?.marketplace_fee ?? 0;
+      let shippingCost = payment?.shipping_cost ?? 0;
+      let netReceived = 0;
 
-      totalFees += marketplaceFee + shippingCost;
+      if (payment?.id) {
+        const detail = await getPaymentDetail(payment.id);
+        if (detail) {
+          if (detail.fee_details?.length) {
+            marketplaceFee = detail.fee_details.reduce((sum, f) => sum + f.amount, 0);
+          }
+          const netFromDetails = detail.transaction_details?.net_received_amount
+            ?? detail.net_received_amount;
+          if (netFromDetails && netFromDetails > 0) {
+            netReceived = netFromDetails;
+          }
+        }
+      }
+
+      if (netReceived === 0) {
+        netReceived = order.total_amount - marketplaceFee - shippingCost;
+      }
+
+      totalFees += marketplaceFee;
       totalRevenue += netReceived;
 
       let packId: string | null = null;
@@ -194,21 +218,15 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
   return { synced, total, fees: totalFees, revenue: totalRevenue };
 }
 
-export async function getBillingSummary(): Promise<BillingSummary | null> {
+export async function getBillingSummary() {
   try {
     const data = await mlFetch<{ results: Array<{ key: string }> }>(
       "/billing/integration/monthly/periods",
       { params: { group: "MP", document_type: "BILL", limit: "1" } }
     );
-
     if (!data.results?.length) return null;
-
     const key = data.results[0].key;
-    const summary = await mlFetch<BillingSummary>(
-      `/billing/integration/periods/key/${key}/summary/details`
-    );
-
-    return summary;
+    return await mlFetch(`/billing/integration/periods/key/${key}/summary/details`);
   } catch {
     return null;
   }
