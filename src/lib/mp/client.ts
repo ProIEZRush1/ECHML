@@ -145,6 +145,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
             amount: commission,
             balanceChange: -commission,
             description: `Comision ML - ${item.item.title}`,
+            packId,
             syncedAt: new Date(),
           },
         });
@@ -172,6 +173,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
             amount: shippingCost,
             balanceChange: -shippingCost,
             description: `Envio - ${item.item.title}`,
+            packId,
             syncedAt: new Date(),
           },
         });
