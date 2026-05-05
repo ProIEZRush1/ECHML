@@ -21,15 +21,30 @@ export interface StockProduct {
 }
 
 export default async function StockPage() {
-  const products = await prisma.product.findMany({
-    include: {
-      variants: {
-        select: { id: true, color: true, variantLabel: true, stock: true },
-        orderBy: { color: "asc" },
+  const [products, groups, packs] = await Promise.all([
+    prisma.product.findMany({
+      include: {
+        variants: {
+          select: { id: true, color: true, variantLabel: true, stock: true },
+          orderBy: { color: "asc" },
+        },
       },
-    },
-    orderBy: { name: "asc" },
-  });
+      orderBy: { name: "asc" },
+    }),
+    prisma.productGroup.findMany({
+      include: { items: { select: { productId: true } } },
+      orderBy: { name: "asc" },
+    }),
+    prisma.pack.findMany({
+      select: {
+        id: true,
+        sku: true,
+        name: true,
+        items: { select: { productVariant: { select: { productId: true } } } },
+      },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   // Transform data for client component
   const stockProducts: StockProduct[] = products.map((product) => {
@@ -59,6 +74,22 @@ export default async function StockPage() {
   // Collect unique brands
   const brands = [...new Set(products.map((p) => p.brand).filter(Boolean))] as string[];
 
+  // Transform groups
+  const stockGroups = groups.map((g) => ({
+    id: g.id,
+    name: g.name,
+    color: g.color,
+    productIds: g.items.map((i) => i.productId),
+  }));
+
+  // Transform packs (unique product IDs per pack)
+  const stockPacks = packs.map((p) => ({
+    id: p.id,
+    sku: p.sku,
+    name: p.name,
+    productIds: [...new Set(p.items.map((i) => i.productVariant.productId))],
+  }));
+
   // Summary stats
   const totalProducts = products.length;
   const totalVariants = products.reduce((sum, p) => sum + p.variants.length, 0);
@@ -75,6 +106,8 @@ export default async function StockPage() {
       <StockGrid
         products={stockProducts}
         brands={brands}
+        groups={stockGroups}
+        packs={stockPacks}
         totalProducts={totalProducts}
         totalVariants={totalVariants}
         totalUnits={totalUnits}

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { calculatePackStock } from "./calculator";
+import { mlFetch } from "@/lib/ml/client";
 
 const MAX_RETRIES = 3;
 
@@ -256,9 +257,23 @@ export async function recalculateAffectedPacks(
     if (pack.stockSyncEnabled) {
       for (const listing of pack.mlListings) {
         if (listing.currentStock !== newStock) {
+          let pushedToML = false;
+          try {
+            await mlFetch(`/items/${listing.mlItemId}`, {
+              method: "PUT",
+              body: JSON.stringify({ available_quantity: newStock }),
+            });
+            pushedToML = true;
+          } catch (err) {
+            console.error(`Failed to push stock to ML ${listing.mlItemId}:`, err);
+          }
+
           await prisma.mLListing.update({
             where: { id: listing.id },
-            data: { currentStock: newStock, lastSyncedAt: new Date() },
+            data: {
+              currentStock: newStock,
+              ...(pushedToML && { lastSyncedAt: new Date() }),
+            },
           });
         }
       }

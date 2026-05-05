@@ -240,6 +240,16 @@ server.tool(
   }
 );
 
+server.tool(
+  "recalculate_stock",
+  "Recalcular stock de todos los packs basado en variantes de producto y sincronizar con MercadoLibre. Usar despues de agregar stock o para forzar una actualizacion.",
+  {},
+  async () => {
+    const data = await apiRequest("/api/stock/recalculate", { method: "POST" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── ML Listings ─────────────────────────────────────────────────────────────
 
 server.tool(
@@ -567,9 +577,10 @@ server.tool(
  * Helper para llamar la API de MercadoLibre via el proxy del CRM.
  * El proxy maneja tokens y auto-inyecta userId donde se necesite.
  */
-async function mlProxy(method, endpoint, body) {
+async function mlProxy(method, endpoint, body, headers) {
   const payload = { method, endpoint };
   if (body !== undefined) payload.body = body;
+  if (headers !== undefined) payload.headers = headers;
   return apiRequest("/api/ml/proxy", {
     method: "POST",
     body: JSON.stringify(payload),
@@ -905,6 +916,272 @@ server.tool(
       }
     }
     const data = await mlProxy(method, endpoint, parsedBody);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Advertising (Product Ads) ──────────────────────────────────────────
+
+const ADS_HEADERS = { "api-version": "2" };
+
+server.tool(
+  "ml_ads_get_advertiser",
+  "Obtener el advertiser_id de Product Ads para tu cuenta de ML (requerido para otros endpoints de ads)",
+  {},
+  async () => {
+    const data = await mlProxy("GET", `/advertising/advertisers?product_id=PADS&user_id={userId}`, undefined, { "api-version": "1" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_list_campaigns",
+  "Listar campañas de Product Ads con metricas (clicks, impresiones, costo, ACOS, ROAS)",
+  {
+    advertiserId: z.string().describe("ID del advertiser (obtener con ml_ads_get_advertiser)"),
+    status: z.string().optional().describe("Filtrar por estado: active, paused"),
+    dateFrom: z.string().optional().describe("Fecha inicio para metricas (YYYY-MM-DD)"),
+    dateTo: z.string().optional().describe("Fecha fin para metricas (YYYY-MM-DD)"),
+    limit: z.number().optional().describe("Limite de resultados (default 50)"),
+  },
+  async ({ advertiserId, status, dateFrom, dateTo, limit = 50 }) => {
+    let endpoint = `/advertising/advertisers/${advertiserId}/product_ads/campaigns/search?limit=${limit}`;
+    if (status) endpoint += `&status=${status}`;
+    if (dateFrom) endpoint += `&date_from=${dateFrom}`;
+    if (dateTo) endpoint += `&date_to=${dateTo}`;
+    const data = await mlProxy("GET", endpoint, undefined, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_create_campaign",
+  "Crear una nueva campaña de Product Ads",
+  {
+    advertiserId: z.string().describe("ID del advertiser"),
+    name: z.string().describe("Nombre de la campaña"),
+    budget: z.number().describe("Presupuesto diario promedio en MXN"),
+    strategy: z.string().optional().describe("Estrategia: profitability (default), growth, visibility"),
+    acosTarget: z.number().optional().describe("ACOS objetivo (3-500, default 20)"),
+    status: z.string().optional().describe("Estado inicial: active (default), paused"),
+  },
+  async ({ advertiserId, name, budget, strategy = "profitability", acosTarget = 20, status = "active" }) => {
+    const data = await mlProxy("POST", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/campaigns`, {
+      name,
+      status,
+      budget,
+      strategy,
+      channel: "marketplace",
+      acos_target: acosTarget,
+    }, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_update_campaign",
+  "Actualizar una campaña de Product Ads (presupuesto, estado, nombre, estrategia)",
+  {
+    campaignId: z.string().describe("ID de la campaña"),
+    name: z.string().optional().describe("Nuevo nombre"),
+    budget: z.number().optional().describe("Nuevo presupuesto diario"),
+    status: z.string().optional().describe("Estado: active, paused"),
+    strategy: z.string().optional().describe("Estrategia: profitability, growth, visibility"),
+    acosTarget: z.number().optional().describe("Nuevo ACOS objetivo"),
+  },
+  async ({ campaignId, name, budget, status, strategy, acosTarget }) => {
+    const body = {};
+    if (name) body.name = name;
+    if (budget) body.budget = budget;
+    if (status) body.status = status;
+    if (strategy) body.strategy = strategy;
+    if (acosTarget) body.acos_target = acosTarget;
+    const data = await mlProxy("PUT", `/marketplace/advertising/MLM/product_ads/campaigns/${campaignId}`, body, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_add_items",
+  "Agregar publicaciones a una campaña de Product Ads (hasta 10,000 items)",
+  {
+    advertiserId: z.string().describe("ID del advertiser"),
+    campaignId: z.string().describe("ID de la campaña"),
+    itemIds: z.string().describe("IDs de publicaciones separados por coma, ej: MLM123,MLM456"),
+  },
+  async ({ advertiserId, campaignId, itemIds }) => {
+    const ids = itemIds.split(",").map((id) => id.trim());
+    const data = await mlProxy("PUT", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/ads?channel=marketplace`, {
+      target: ids,
+      payload: { campaign_id: campaignId },
+    }, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_get_item_metrics",
+  "Obtener metricas de publicidad de un item especifico (clicks, impresiones, costo, ACOS, etc.)",
+  { itemId: z.string().describe("ID de la publicacion, ej: MLM123") },
+  async ({ itemId }) => {
+    const data = await mlProxy("GET", `/advertising/product_ads/items/${itemId}`, undefined, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Promotions ─────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_promo_list",
+  "Listar todas las promociones del vendedor (deals, descuentos, ofertas del dia, etc.)",
+  {},
+  async () => {
+    const data = await mlProxy("GET", `/seller-promotions/users/{userId}?app_version=v2`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_get_item",
+  "Ver en que promociones participa un item especifico y su estado",
+  { itemId: z.string().describe("ID de la publicacion") },
+  async ({ itemId }) => {
+    const data = await mlProxy("GET", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_list_items",
+  "Listar items en una promocion con filtro de estado",
+  {
+    promotionId: z.string().describe("ID de la promocion"),
+    promotionType: z.string().describe("Tipo: DEAL, PRICE_DISCOUNT, DOD, LIGHTNING, SELLER_CAMPAIGN"),
+    status: z.string().optional().describe("Estado: candidate, started, etc."),
+  },
+  async ({ promotionId, promotionType, status }) => {
+    let endpoint = `/marketplace/seller-promotions/promotions/${promotionId}/items?promotion_type=${promotionType}&user_id={userId}`;
+    if (status) endpoint += `&status=${status}`;
+    const data = await mlProxy("GET", endpoint);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_create_discount",
+  "Crear un descuento (PRICE_DISCOUNT) en una publicacion",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    dealPrice: z.number().describe("Precio con descuento"),
+    startDate: z.string().describe("Fecha inicio (YYYY-MM-DDT00:00:00)"),
+    finishDate: z.string().describe("Fecha fin (YYYY-MM-DDT00:00:00)"),
+  },
+  async ({ itemId, dealPrice, startDate, finishDate }) => {
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`, {
+      deal_price: dealPrice,
+      promotion_type: "PRICE_DISCOUNT",
+      start_date: startDate,
+      finish_date: finishDate,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_accept_deal",
+  "Aceptar una invitacion a Deal of the Day (DOD) o Lightning Deal para un item",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    dealId: z.string().describe("ID del deal (recibido por notificacion)"),
+    originalPrice: z.number().describe("Precio original"),
+    dealPrice: z.number().describe("Precio de oferta"),
+    promotionType: z.string().describe("Tipo: DOD o LIGHTNING"),
+    stock: z.number().optional().describe("Stock para Lightning deals (requerido)"),
+  },
+  async ({ itemId, dealId, originalPrice, dealPrice, promotionType, stock }) => {
+    const body = {
+      deal_id: dealId,
+      original_price: originalPrice,
+      deal_price: dealPrice,
+      promotion_type: promotionType,
+    };
+    if (stock && promotionType === "LIGHTNING") body.stock = stock;
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`, body);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_create_campaign",
+  "Crear una campaña de vendedor (SELLER_CAMPAIGN) con descuentos por tiempo limitado (max 14 dias)",
+  {
+    name: z.string().describe("Nombre de la campaña"),
+    startDate: z.string().describe("Fecha inicio (YYYY-MM-DDT00:00:00)"),
+    finishDate: z.string().describe("Fecha fin (YYYY-MM-DDT00:00:00), max 14 dias"),
+    subType: z.string().optional().describe("Tipo: FIXED_PERCENTAGE o FLEXIBLE_PERCENTAGE (default)"),
+  },
+  async ({ name, startDate, finishDate, subType = "FLEXIBLE_PERCENTAGE" }) => {
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/seller-campaign/{userId}`, {
+      promotion_type: "SELLER_CAMPAIGN",
+      name,
+      sub_type: subType,
+      start_date: startDate,
+      finish_date: finishDate,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_add_item_to_campaign",
+  "Agregar un item a una campaña de vendedor con precio de oferta",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    promotionId: z.string().describe("ID de la campaña"),
+    dealPrice: z.number().describe("Precio de oferta"),
+  },
+  async ({ itemId, promotionId, dealPrice }) => {
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`, {
+      promotion_id: promotionId,
+      promotion_type: "SELLER_CAMPAIGN",
+      deal_price: dealPrice,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_remove_item",
+  "Quitar un item de una promocion",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    promotionType: z.string().describe("Tipo: PRICE_DISCOUNT, DOD, LIGHTNING, SELLER_CAMPAIGN"),
+    promotionId: z.string().optional().describe("ID de la promocion (requerido para DOD, MARKETPLACE_CAMPAIGN)"),
+  },
+  async ({ itemId, promotionType, promotionId }) => {
+    let endpoint = `/marketplace/seller-promotions/items/${itemId}?user_id={userId}&promotion_type=${promotionType}`;
+    if (promotionId) endpoint += `&promotion_id=${promotionId}`;
+    const data = await mlProxy("DELETE", endpoint);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_get_candidate",
+  "Ver detalle de un candidato a promocion (invitacion de ML)",
+  { candidateId: z.string().describe("ID del candidato (ej: CANDIDATE-MLM123-456)") },
+  async ({ candidateId }) => {
+    const data = await mlProxy("GET", `/marketplace/seller-promotions/promotions/candidate/${candidateId}/{userId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_promo_exclusion_list",
+  "Ver items excluidos de promociones automaticas",
+  {},
+  async () => {
+    const data = await mlProxy("GET", `/seller-promotions/exclusion-list/seller?app_version=v2`);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );

@@ -8,6 +8,7 @@ interface ProxyRequestBody {
   method: "GET" | "POST" | "PUT" | "DELETE";
   endpoint: string;
   body?: unknown;
+  headers?: Record<string, string>;
 }
 
 /**
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { method, endpoint, body } = (await request.json()) as ProxyRequestBody;
+    const { method, endpoint, body, headers: customHeaders } = (await request.json()) as ProxyRequestBody;
 
     if (!method || !endpoint) {
       return NextResponse.json(
@@ -48,8 +49,12 @@ export async function POST(request: NextRequest) {
 
     const fetchOptions: RequestInit = { method };
 
-    if (body && (method === "POST" || method === "PUT")) {
+    if (body && (method === "POST" || method === "PUT" || method === "DELETE")) {
       fetchOptions.body = JSON.stringify(body);
+    }
+
+    if (customHeaders) {
+      fetchOptions.headers = customHeaders;
     }
 
     const data = await mlFetch(resolvedEndpoint, fetchOptions);
