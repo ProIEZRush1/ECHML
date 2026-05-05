@@ -177,20 +177,26 @@ export default async function FlujoCajaPage({
 
   const totalNet = totalIncome - totalFees - totalShipping;
 
-  // Calculate balance per pack (using same date/label filters but no packId filter)
+  // Calculate balance per pack — apply same pack filter as KPI cards
   const packWhere: {
+    packId?: string | { in: string[] };
     dateCreated?: { gte?: Date; lte?: Date };
     label?: string;
   } = {};
 
-  if (params.dateFrom || params.dateTo) {
-    packWhere.dateCreated = {};
-    if (params.dateFrom) {
-      packWhere.dateCreated.gte = new Date(`${params.dateFrom}T00:00:00.000Z`);
-    }
-    if (params.dateTo) {
-      packWhere.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
-    }
+  // Apply the same pack filter to the Balance por Pack section
+  if (effectivePackIds.length === 1) {
+    packWhere.packId = effectivePackIds[0];
+  } else if (effectivePackIds.length > 1) {
+    packWhere.packId = { in: effectivePackIds };
+  } else if (productFilteredPackIds && productFilteredPackIds.length === 0) {
+    packWhere.packId = { in: [] };
+  }
+
+  packWhere.dateCreated = {};
+  packWhere.dateCreated.gte = new Date(`${effectiveDateFrom}T00:00:00.000Z`);
+  if (params.dateTo) {
+    packWhere.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
   }
 
   const packTransactions = await prisma.mPTransaction.findMany({
