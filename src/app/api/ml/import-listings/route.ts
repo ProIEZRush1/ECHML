@@ -18,6 +18,133 @@ function shortenTitle(title: string): string {
   return title.length > 80 ? title.substring(0, 77) + "..." : title;
 }
 
+interface ProductGroupInfo {
+  groupKey: string;
+  productName: string;
+  variantLabel: string;
+  brand: string;
+  skip: boolean;
+}
+
+function classifyListing(title: string): ProductGroupInfo {
+  const t = title.toLowerCase();
+
+  // Rule 3: Skip Timi's products
+  if (
+    t.includes("timi") ||
+    t.includes("biberon") ||
+    t.includes("chupon") ||
+    t.includes("sujetador") ||
+    t.includes("dispensador") ||
+    t.includes("vaso")
+  ) {
+    return { groupKey: "", productName: "", variantLabel: "", brand: "", skip: true };
+  }
+
+  // Rule 1: Bluemango products
+  if (t.includes("bluemango")) {
+    const productName = "Bluemango Termo Deportivo";
+    const brand = "Bluemango";
+    // Extract variant from title - look for "Color X" pattern or remaining text after removing "Bluemango"
+    let variantLabel = "Default";
+    const colorMatch = title.match(/color\s+(.+)/i);
+    if (colorMatch) {
+      variantLabel = colorMatch[1].trim();
+    } else {
+      // Remove "Bluemango" and common filler words to get variant
+      const cleaned = title
+        .replace(/bluemango/gi, "")
+        .replace(/termo\s*deportivo/gi, "")
+        .trim();
+      if (cleaned.length > 0) {
+        variantLabel = cleaned;
+      }
+    }
+    return {
+      groupKey: "bluemango-termo",
+      productName,
+      variantLabel,
+      brand,
+      skip: false,
+    };
+  }
+
+  // Rule 2: Magimag / Magnesio / NaturalSlim products
+  if (t.includes("magimag") || t.includes("magnesio") || t.includes("naturalslim")) {
+    const brand = "NaturalSlim";
+    // Extract base product name and flavor/variant
+    let productName = "Magimag Citrato de Magnesio";
+    let variantLabel = "Default";
+
+    // Try to find "Sabor X" pattern
+    const saborMatch = title.match(/sabor\s+(.+)/i);
+    if (saborMatch) {
+      variantLabel = saborMatch[1].trim();
+      // Product name is everything before "Sabor"
+      const beforeSabor = title.replace(/sabor\s+.*/i, "").trim();
+      // Clean up the product name
+      const cleanedName = beforeSabor
+        .replace(/naturalslim/gi, "")
+        .replace(/en\s+polvo/gi, "")
+        .trim();
+      if (cleanedName.length > 5) {
+        productName = cleanedName;
+      }
+    } else {
+      // No sabor pattern - use a cleaned version of the title as product name
+      productName = title
+        .replace(/naturalslim/gi, "")
+        .replace(/en\s+polvo/gi, "")
+        .trim();
+      if (productName.length > 60) {
+        productName = productName.substring(0, 60).trim();
+      }
+    }
+
+    // Normalize the group key based on the core product
+    let groupKey = "naturalslim-";
+    if (t.includes("magimag") || t.includes("citrato")) {
+      groupKey += "magimag-citrato";
+      productName = "Magimag Citrato de Magnesio";
+    } else if (t.includes("magnesio")) {
+      groupKey += "magnesio";
+    } else {
+      groupKey += "other";
+    }
+
+    return { groupKey, productName, variantLabel, brand, skip: false };
+  }
+
+  // Rule 4: Everything else - individual product
+  const words = title.split(/\s+/);
+  const brand = words[0] || "Generico";
+  const productName = shortenTitle(title);
+  const groupKey = `individual-${title.toLowerCase().replace(/\s+/g, "-").substring(0, 50)}`;
+
+  return {
+    groupKey,
+    productName,
+    variantLabel: "Default",
+    brand,
+    skip: false,
+  };
+}
+
+async function getOrCreateAutoSupplier(): Promise<string> {
+  let supplier = await prisma.supplier.findUnique({
+    where: { name: "ML-AUTO" },
+  });
+  if (!supplier) {
+    supplier = await prisma.supplier.create({
+      data: {
+        name: "ML-AUTO",
+        notes: "Auto-created supplier for ML imported products",
+      },
+    });
+  }
+  return supplier.id;
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const session = await verifyAnyAuth(request);
   if (!session) {
@@ -59,6 +186,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let created = 0;
     let updated = 0;
     let packsCreated = 0;
+    let productsCreated = 0;
+    let variantsCreated = 0;
+
+    // Get or create the ML-AUTO supplier once
+    const autoSupplierId = await getOrCreateAutoSupplier();
+
+    // Cache for product lookups by groupKey to avoid repeated queries
+    const productCache = new Map<string, { productId: string; variants: Map<string, string> }>();
 
     for (const item of items) {
       const statusMap: Record<string, string> = {
@@ -89,6 +224,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             lastSyncedAt: new Date(),
           },
         });
+
+        // Update pack thumbnail if available
+        if (item.thumbnail) {
+          const listing = await prisma.mLListing.findUnique({
+            where: { mlItemId: item.id },
+            select: { packId: true },
+          });
+          if (listing) {
+            await prisma.pack.update({
+              where: { id: listing.packId },
+              data: { imageUrl: item.thumbnail },
+            });
+          }
+        }
+
         updated++;
       } else {
         // Auto-create a pack for this listing
@@ -103,9 +253,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               salePrice: item.price || 0,
               stock: item.available_quantity || 0,
               description: `Auto-importado de ML: ${item.id}`,
+              imageUrl: item.thumbnail || null,
             },
           });
           packsCreated++;
+        } else if (item.thumbnail && !pack.imageUrl) {
+          await prisma.pack.update({
+            where: { id: pack.id },
+            data: { imageUrl: item.thumbnail },
+          });
         }
 
         await prisma.mLListing.create({
@@ -121,6 +277,86 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
         });
         created++;
+
+        // --- Smart Product Auto-Import ---
+        const classification = classifyListing(item.title);
+
+        if (!classification.skip) {
+          let cachedProduct = productCache.get(classification.groupKey);
+
+          if (!cachedProduct) {
+            // Try to find existing product with this group key
+            let product = await prisma.product.findFirst({
+              where: {
+                supplierId: autoSupplierId,
+                name: classification.productName,
+                brand: classification.brand,
+              },
+              include: { variants: true },
+            });
+
+            if (!product) {
+              // Create new product
+              product = await prisma.product.create({
+                data: {
+                  name: classification.productName,
+                  supplierCode: `AUTO-${classification.groupKey.substring(0, 30)}-${Date.now()}`,
+                  unitCost: 0,
+                  supplierId: autoSupplierId,
+                  brand: classification.brand,
+                },
+                include: { variants: true },
+              });
+              productsCreated++;
+            }
+
+            const variantsMap = new Map<string, string>();
+            for (const v of product.variants) {
+              if (v.variantLabel) {
+                variantsMap.set(v.variantLabel.toLowerCase(), v.id);
+              }
+            }
+            cachedProduct = { productId: product.id, variants: variantsMap };
+            productCache.set(classification.groupKey, cachedProduct);
+          }
+
+          // Find or create the variant
+          const variantKey = classification.variantLabel.toLowerCase();
+          let variantId = cachedProduct.variants.get(variantKey);
+
+          if (!variantId) {
+            const variant = await prisma.productVariant.create({
+              data: {
+                productId: cachedProduct.productId,
+                variantLabel: classification.variantLabel,
+                stock: item.available_quantity || 0,
+              },
+            });
+            variantId = variant.id;
+            cachedProduct.variants.set(variantKey, variantId);
+            variantsCreated++;
+          }
+
+          // Link the Pack to the ProductVariant via PackItem (if not already linked)
+          const existingPackItem = await prisma.packItem.findUnique({
+            where: {
+              packId_productVariantId: {
+                packId: pack.id,
+                productVariantId: variantId,
+              },
+            },
+          });
+
+          if (!existingPackItem) {
+            await prisma.packItem.create({
+              data: {
+                packId: pack.id,
+                productVariantId: variantId,
+                quantity: 1,
+              },
+            });
+          }
+        }
       }
     }
 
@@ -167,11 +403,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       mode: "api",
-      message: `Sincronizacion completa: ${created} nuevas, ${updated} actualizadas, ${packsCreated} packs creados de ${itemIds.length} publicaciones`,
+      message: `Sincronizacion completa: ${created} nuevas, ${updated} actualizadas, ${packsCreated} packs creados, ${productsCreated} productos, ${variantsCreated} variantes de ${itemIds.length} publicaciones`,
       count: itemIds.length,
       created,
       updated,
       packsCreated,
+      productsCreated,
+      variantsCreated,
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {

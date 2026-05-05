@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Filter, X } from "lucide-react";
+import { Filter, X, Check, ChevronDown } from "lucide-react";
 
 interface PackOption {
   id: string;
@@ -27,10 +27,16 @@ export function CashflowFilters() {
   const searchParams = useSearchParams();
 
   const [packs, setPacks] = useState<PackOption[]>([]);
-  const [packId, setPackId] = useState(searchParams.get("packId") || "");
+  const [selectedPackIds, setSelectedPackIds] = useState<string[]>(() => {
+    const param = searchParams.get("packIds") || searchParams.get("packId") || "";
+    return param ? param.split(",").filter(Boolean) : [];
+  });
   const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") || "");
   const [dateTo, setDateTo] = useState(searchParams.get("dateTo") || "");
   const [label, setLabel] = useState(searchParams.get("label") || "");
+  const [packDropdownOpen, setPackDropdownOpen] = useState(false);
+  const [packSearch, setPackSearch] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/packs")
@@ -49,9 +55,28 @@ export function CashflowFilters() {
       .catch(() => {});
   }, []);
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setPackDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  function togglePack(packId: string) {
+    setSelectedPackIds((prev) =>
+      prev.includes(packId)
+        ? prev.filter((id) => id !== packId)
+        : [...prev, packId]
+    );
+  }
+
   function applyFilters() {
     const params = new URLSearchParams();
-    if (packId && packId !== "all") params.set("packId", packId);
+    if (selectedPackIds.length > 0) params.set("packIds", selectedPackIds.join(","));
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (label && label !== "all") params.set("label", label);
@@ -61,22 +86,29 @@ export function CashflowFilters() {
   }
 
   function clearFilters() {
-    setPackId("");
+    setSelectedPackIds([]);
     setDateFrom("");
     setDateTo("");
     setLabel("");
     router.push("/flujo-caja");
   }
 
-  const hasActiveFilters = (packId && packId !== "all") || dateFrom || dateTo || (label && label !== "all");
+  const hasActiveFilters = selectedPackIds.length > 0 || dateFrom || dateTo || (label && label !== "all");
 
   const activeFilters: { key: string; label: string }[] = [];
-  if (packId && packId !== "all") {
-    const pack = packs.find((p) => p.id === packId);
-    activeFilters.push({
-      key: "packId",
-      label: `Pack: ${pack ? pack.sku : packId.slice(0, 8)}`,
-    });
+  if (selectedPackIds.length > 0) {
+    if (selectedPackIds.length === 1) {
+      const pack = packs.find((p) => p.id === selectedPackIds[0]);
+      activeFilters.push({
+        key: "packIds",
+        label: `Pack: ${pack ? pack.sku : selectedPackIds[0].slice(0, 8)}`,
+      });
+    } else {
+      activeFilters.push({
+        key: "packIds",
+        label: `Packs: ${selectedPackIds.length} seleccionados`,
+      });
+    }
   }
   if (dateFrom) activeFilters.push({ key: "dateFrom", label: `Desde: ${dateFrom}` });
   if (dateTo) activeFilters.push({ key: "dateTo", label: `Hasta: ${dateTo}` });
@@ -92,13 +124,23 @@ export function CashflowFilters() {
   function removeFilter(key: string) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete(key);
-    if (key === "packId") setPackId("");
+    // Also remove legacy single packId param
+    params.delete("packId");
+    if (key === "packIds") setSelectedPackIds([]);
     if (key === "dateFrom") setDateFrom("");
     if (key === "dateTo") setDateTo("");
     if (key === "label") setLabel("");
     const query = params.toString();
     router.push(`/flujo-caja${query ? `?${query}` : ""}`);
   }
+
+  const filteredPacks = packSearch
+    ? packs.filter(
+        (p) =>
+          p.name.toLowerCase().includes(packSearch.toLowerCase()) ||
+          p.sku.toLowerCase().includes(packSearch.toLowerCase())
+      )
+    : packs;
 
   return (
     <Card className="bg-muted/30 border-dashed">
@@ -109,22 +151,78 @@ export function CashflowFilters() {
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {/* Pack selector */}
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Pack</Label>
-            <Select value={packId} onValueChange={(v) => setPackId(v ?? "")}>
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Todos los packs" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los packs</SelectItem>
-                {packs.map((pack) => (
-                  <SelectItem key={pack.id} value={pack.id}>
-                    {pack.sku} — {pack.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Multi-Pack selector */}
+          <div className="space-y-1 relative" ref={dropdownRef}>
+            <Label className="text-xs text-muted-foreground">Packs</Label>
+            <button
+              type="button"
+              onClick={() => setPackDropdownOpen(!packDropdownOpen)}
+              className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            >
+              <span className="truncate text-left">
+                {selectedPackIds.length === 0
+                  ? "Todos los packs"
+                  : `${selectedPackIds.length} pack${selectedPackIds.length > 1 ? "s" : ""}`}
+              </span>
+              <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+            </button>
+
+            {packDropdownOpen && (
+              <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+                <div className="p-2 border-b">
+                  <Input
+                    placeholder="Buscar pack..."
+                    value={packSearch}
+                    onChange={(e) => setPackSearch(e.target.value)}
+                    className="h-8 text-xs"
+                    autoFocus
+                  />
+                </div>
+                <div className="max-h-48 overflow-y-auto p-1">
+                  {filteredPacks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      Sin resultados
+                    </p>
+                  ) : (
+                    filteredPacks.map((pack) => {
+                      const isSelected = selectedPackIds.includes(pack.id);
+                      return (
+                        <button
+                          key={pack.id}
+                          type="button"
+                          onClick={() => togglePack(pack.id)}
+                          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                        >
+                          <div
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border ${
+                              isSelected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/30"
+                            }`}
+                          >
+                            {isSelected && <Check className="h-3 w-3" />}
+                          </div>
+                          <span className="truncate">
+                            {pack.sku} — {pack.name}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+                {selectedPackIds.length > 0 && (
+                  <div className="border-t p-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPackIds([])}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar seleccion
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Date from */}

@@ -23,11 +23,13 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
 import { CashflowFilters } from "./cashflow-filters";
 import Link from "next/link";
+import Image from "next/image";
 
 interface PackBalance {
   id: string;
   sku: string;
   name: string;
+  imageUrl: string | null;
   income: number;
   fees: number;
   shipping: number;
@@ -40,6 +42,7 @@ export default async function FlujoCajaPage({
 }: {
   searchParams: Promise<{
     packId?: string;
+    packIds?: string;
     dateFrom?: string;
     dateTo?: string;
     label?: string;
@@ -50,15 +53,25 @@ export default async function FlujoCajaPage({
   const currentPage = Math.max(1, parseInt(params.page || "1", 10));
   const pageSize = 50;
 
+  // Parse multiple pack IDs (support both legacy packId and new packIds)
+  const packIdList: string[] = [];
+  if (params.packIds) {
+    packIdList.push(...params.packIds.split(",").filter(Boolean));
+  } else if (params.packId) {
+    packIdList.push(params.packId);
+  }
+
   // Build filter conditions for MPTransactions
   const where: {
-    packId?: string;
+    packId?: string | { in: string[] };
     dateCreated?: { gte?: Date; lte?: Date };
     label?: string;
   } = {};
 
-  if (params.packId) {
-    where.packId = params.packId;
+  if (packIdList.length === 1) {
+    where.packId = packIdList[0];
+  } else if (packIdList.length > 1) {
+    where.packId = { in: packIdList };
   }
 
   if (params.dateFrom || params.dateTo) {
@@ -83,12 +96,12 @@ export default async function FlujoCajaPage({
       skip: (currentPage - 1) * pageSize,
       take: pageSize,
       include: {
-        pack: { select: { id: true, sku: true, name: true } },
+        pack: { select: { id: true, sku: true, name: true, imageUrl: true } },
       },
     }),
     prisma.mPTransaction.count({ where }),
     prisma.pack.findMany({
-      select: { id: true, sku: true, name: true },
+      select: { id: true, sku: true, name: true, imageUrl: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -180,6 +193,7 @@ export default async function FlujoCajaPage({
       id: pack.id,
       sku: pack.sku,
       name: pack.name,
+      imageUrl: pack.imageUrl,
       income: data.income,
       fees: data.fees,
       shipping: data.shipping,
@@ -191,7 +205,7 @@ export default async function FlujoCajaPage({
   packBalances.sort((a, b) => b.income - a.income);
 
   // Determine if any filters are active
-  const hasFilters = !!(params.packId || params.dateFrom || params.dateTo || params.label);
+  const hasFilters = !!(packIdList.length > 0 || params.dateFrom || params.dateTo || params.label);
 
   return (
     <div className="space-y-6">
@@ -297,23 +311,37 @@ export default async function FlujoCajaPage({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {packBalances.map((pack) => {
               const feeRatio = pack.income > 0 ? ((pack.fees + pack.shipping) / pack.income) * 100 : 0;
-              const isSelected = params.packId === pack.id;
+              const isSelected = packIdList.includes(pack.id);
 
               return (
                 <Link
                   key={pack.id}
-                  href={`/flujo-caja?packId=${pack.id}${params.dateFrom ? `&dateFrom=${params.dateFrom}` : ""}${params.dateTo ? `&dateTo=${params.dateTo}` : ""}`}
+                  href={`/flujo-caja?packIds=${pack.id}${params.dateFrom ? `&dateFrom=${params.dateFrom}` : ""}${params.dateTo ? `&dateTo=${params.dateTo}` : ""}`}
                   className="block"
                 >
                   <Card className={`transition-all hover:shadow-md hover:border-primary/30 cursor-pointer ${isSelected ? "border-primary ring-2 ring-primary/20" : ""}`}>
                     <CardContent className="pt-6">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-sm">{pack.name}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{pack.sku}</p>
+                          <div className="flex items-center gap-3 min-w-0">
+                            {pack.imageUrl && (
+                              <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">
+                                <Image
+                                  src={pack.imageUrl}
+                                  alt={pack.name}
+                                  width={40}
+                                  height={40}
+                                  className="h-full w-full object-cover"
+                                  unoptimized
+                                />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-medium text-sm truncate">{pack.name}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{pack.sku}</p>
+                            </div>
                           </div>
-                          <div className={`text-lg font-bold ${pack.netIncome >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          <div className={`text-lg font-bold shrink-0 ${pack.netIncome >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                             {formatCurrency(pack.netIncome)}
                           </div>
                         </div>
@@ -438,14 +466,28 @@ export default async function FlujoCajaPage({
                         </TableCell>
                         <TableCell className="text-sm">
                           {tx.pack ? (
-                            <Link
-                              href={`/flujo-caja?packId=${tx.pack.id}`}
-                              className="text-primary hover:underline font-mono text-xs"
-                            >
-                              {tx.pack.sku}
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              {tx.pack.imageUrl && (
+                                <div className="shrink-0 h-6 w-6 rounded overflow-hidden border bg-muted">
+                                  <Image
+                                    src={tx.pack.imageUrl}
+                                    alt={tx.pack.name}
+                                    width={24}
+                                    height={24}
+                                    className="h-full w-full object-cover"
+                                    unoptimized
+                                  />
+                                </div>
+                              )}
+                              <Link
+                                href={`/flujo-caja?packIds=${tx.pack.id}`}
+                                className="text-primary hover:underline font-mono text-xs"
+                              >
+                                {tx.pack.sku}
+                              </Link>
+                            </div>
                           ) : (
-                            <span className="text-muted-foreground text-xs">—</span>
+                            <span className="text-muted-foreground text-xs">-</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
@@ -517,11 +559,12 @@ export default async function FlujoCajaPage({
 }
 
 function buildPageUrl(
-  params: { packId?: string; dateFrom?: string; dateTo?: string; label?: string },
+  params: { packId?: string; packIds?: string; dateFrom?: string; dateTo?: string; label?: string },
   page: number
 ): string {
   const searchParams = new URLSearchParams();
-  if (params.packId) searchParams.set("packId", params.packId);
+  if (params.packIds) searchParams.set("packIds", params.packIds);
+  else if (params.packId) searchParams.set("packIds", params.packId);
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.label) searchParams.set("label", params.label);
