@@ -278,9 +278,9 @@ export default async function FlujoCajaPage() {
       </div>
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 overflow-hidden">
         {kpis.map((kpi) => (
-          <Card key={kpi.title}>
+          <Card key={kpi.title} className="overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {kpi.title}
@@ -290,7 +290,7 @@ export default async function FlujoCajaPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${kpi.valueColor}`}>
+              <div className={`text-xl font-bold truncate ${kpi.valueColor}`}>
                 {kpi.value}
               </div>
             </CardContent>
