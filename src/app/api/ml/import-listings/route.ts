@@ -212,6 +212,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         where: { mlItemId: item.id },
       });
 
+      // Step 1: Upsert the listing and get the pack
+      let packId: string;
+
       if (existing) {
         await prisma.mLListing.update({
           where: { mlItemId: item.id },
@@ -224,24 +227,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             lastSyncedAt: new Date(),
           },
         });
+        packId = existing.packId;
 
-        // Update pack thumbnail if available
         if (item.thumbnail) {
-          const listing = await prisma.mLListing.findUnique({
-            where: { mlItemId: item.id },
-            select: { packId: true },
+          await prisma.pack.update({
+            where: { id: packId },
+            data: { imageUrl: item.thumbnail },
           });
-          if (listing) {
-            await prisma.pack.update({
-              where: { id: listing.packId },
-              data: { imageUrl: item.thumbnail },
-            });
-          }
         }
 
         updated++;
       } else {
-        // Auto-create a pack for this listing
         const sku = generateSku(item.id);
         let pack = await prisma.pack.findUnique({ where: { sku } });
 
@@ -276,86 +272,83 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             lastSyncedAt: new Date(),
           },
         });
+        packId = pack.id;
         created++;
+      }
 
-        // --- Smart Product Auto-Import ---
-        const classification = classifyListing(item.title);
+      // Step 2: Smart Product Auto-Import (runs for ALL items, not just new)
+      const classification = classifyListing(item.title);
 
-        if (!classification.skip) {
-          let cachedProduct = productCache.get(classification.groupKey);
+      if (!classification.skip) {
+        let cachedProduct = productCache.get(classification.groupKey);
 
-          if (!cachedProduct) {
-            // Try to find existing product with this group key
-            let product = await prisma.product.findFirst({
-              where: {
-                supplierId: autoSupplierId,
+        if (!cachedProduct) {
+          let product = await prisma.product.findFirst({
+            where: {
+              supplierId: autoSupplierId,
+              name: classification.productName,
+              brand: classification.brand,
+            },
+            include: { variants: true },
+          });
+
+          if (!product) {
+            product = await prisma.product.create({
+              data: {
                 name: classification.productName,
+                supplierCode: `AUTO-${classification.groupKey.substring(0, 30)}-${Date.now()}`,
+                unitCost: 0,
+                supplierId: autoSupplierId,
                 brand: classification.brand,
               },
               include: { variants: true },
             });
-
-            if (!product) {
-              // Create new product
-              product = await prisma.product.create({
-                data: {
-                  name: classification.productName,
-                  supplierCode: `AUTO-${classification.groupKey.substring(0, 30)}-${Date.now()}`,
-                  unitCost: 0,
-                  supplierId: autoSupplierId,
-                  brand: classification.brand,
-                },
-                include: { variants: true },
-              });
-              productsCreated++;
-            }
-
-            const variantsMap = new Map<string, string>();
-            for (const v of product.variants) {
-              if (v.variantLabel) {
-                variantsMap.set(v.variantLabel.toLowerCase(), v.id);
-              }
-            }
-            cachedProduct = { productId: product.id, variants: variantsMap };
-            productCache.set(classification.groupKey, cachedProduct);
+            productsCreated++;
           }
 
-          // Find or create the variant
-          const variantKey = classification.variantLabel.toLowerCase();
-          let variantId = cachedProduct.variants.get(variantKey);
-
-          if (!variantId) {
-            const variant = await prisma.productVariant.create({
-              data: {
-                productId: cachedProduct.productId,
-                variantLabel: classification.variantLabel,
-                stock: item.available_quantity || 0,
-              },
-            });
-            variantId = variant.id;
-            cachedProduct.variants.set(variantKey, variantId);
-            variantsCreated++;
+          const variantsMap = new Map<string, string>();
+          for (const v of product.variants) {
+            if (v.variantLabel) {
+              variantsMap.set(v.variantLabel.toLowerCase(), v.id);
+            }
           }
+          cachedProduct = { productId: product.id, variants: variantsMap };
+          productCache.set(classification.groupKey, cachedProduct);
+        }
 
-          // Link the Pack to the ProductVariant via PackItem (if not already linked)
-          const existingPackItem = await prisma.packItem.findUnique({
-            where: {
-              packId_productVariantId: {
-                packId: pack.id,
-                productVariantId: variantId,
-              },
+        const variantKey = classification.variantLabel.toLowerCase();
+        let variantId = cachedProduct.variants.get(variantKey);
+
+        if (!variantId) {
+          const variant = await prisma.productVariant.create({
+            data: {
+              productId: cachedProduct.productId,
+              variantLabel: classification.variantLabel,
+              stock: item.available_quantity || 0,
             },
           });
+          variantId = variant.id;
+          cachedProduct.variants.set(variantKey, variantId);
+          variantsCreated++;
+        }
 
-          if (!existingPackItem) {
-            await prisma.packItem.create({
-              data: {
-                packId: pack.id,
-                productVariantId: variantId,
-                quantity: 1,
-              },
-            });
-          }
+        const existingPackItem = await prisma.packItem.findUnique({
+          where: {
+            packId_productVariantId: {
+              packId,
+              productVariantId: variantId,
+            },
+          },
+        });
+
+        if (!existingPackItem) {
+          await prisma.packItem.create({
+            data: {
+              packId,
+              productVariantId: variantId,
+              quantity: 1,
+            },
+          });
         }
       }
     }
