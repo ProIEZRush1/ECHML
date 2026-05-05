@@ -957,14 +957,9 @@ server.tool(
     n: z.number().optional().describe("Numero de imagenes a generar (default 1)"),
   },
   async ({ prompt, model = "gpt-image-1", size = "1024x1024", quality = "auto", n = 1 }) => {
-    const data = await openaiProxy("/images/generations", {
-      model,
-      prompt,
-      size,
-      quality,
-      n,
-      response_format: "url",
-    });
+    const payload = { model, prompt, size, quality, n };
+    if (model.startsWith("dall-e")) payload.response_format = "url";
+    const data = await openaiProxy("/images/generations", payload);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -985,7 +980,6 @@ server.tool(
       prompt,
       image: imageUrl,
       size,
-      response_format: "url",
     });
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
@@ -1239,14 +1233,16 @@ server.tool(
     prompt: z.string().describe("Descripcion del video a generar"),
     model: z.string().optional().describe("Modelo: sora-2 (default, rapido), sora-2-pro (alta calidad)"),
     size: z.string().optional().describe("Tamaño: 1280x720 (default), 1920x1080"),
-    seconds: z.number().optional().describe("Duracion en segundos (5-16, default 10)"),
+    seconds: z.number().optional().describe("Duracion en segundos: 4, 8 o 12 (default 8)"),
   },
-  async ({ prompt, model = "sora-2", size = "1280x720", seconds = 10 }) => {
-    const data = await openaiProxy("/videos", {
+  async ({ prompt, model = "sora-2", size = "1280x720", seconds = 8 }) => {
+    const validSeconds = [4, 8, 12];
+    const nearest = validSeconds.reduce((prev, curr) => Math.abs(curr - seconds) < Math.abs(prev - seconds) ? curr : prev);
+    const data = await openaiProxy("/videos/generations", {
       model,
       prompt,
       size,
-      seconds: Math.min(Math.max(seconds, 5), 16),
+      seconds: String(nearest),
     });
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
