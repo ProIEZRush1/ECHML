@@ -1011,8 +1011,9 @@ server.tool(
   },
   async ({ advertiserId, campaignId, itemIds }) => {
     const ids = itemIds.split(",").map((id) => id.trim());
-    const data = await mlProxy("POST", `/advertising/advertisers/${advertiserId}/product_ads/campaigns/${campaignId}/ads`, {
+    const data = await mlProxy("PUT", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/ads?channel=marketplace`, {
       target: ids,
+      payload: { campaign_id: campaignId },
     }, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
