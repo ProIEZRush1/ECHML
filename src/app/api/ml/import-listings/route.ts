@@ -82,19 +82,9 @@ function classifyListing(item: MLItemData): ProductGroupInfo {
   const variantLabel = extractVariantFromML(item);
   const brand = extractBrandFromML(item);
 
-  // Group by catalog_product_id if available (ML groups variants this way)
-  if (item.catalog_product_id) {
-    const productName = shortenTitle(item.title.replace(/\s+(color|sabor)\s+.*/i, "").trim());
-    return {
-      groupKey: `catalog-${item.catalog_product_id}`,
-      productName,
-      variantLabel,
-      brand,
-      skip: false,
-    };
-  }
+  // Brand-specific rules FIRST (override catalog_product_id grouping)
 
-  // Bluemango grouping
+  // Bluemango — ALL are 1 product regardless of catalog_product_id
   if (t.includes("bluemango")) {
     return {
       groupKey: "bluemango-termo",
@@ -105,7 +95,7 @@ function classifyListing(item: MLItemData): ProductGroupInfo {
     };
   }
 
-  // NaturalSlim / Magimag grouping
+  // NaturalSlim / Magimag — group by sub-product
   if (t.includes("magimag") || t.includes("magnesio") || t.includes("naturalslim")) {
     let productName = "Magimag Citrato de Magnesio";
     let groupKey = "naturalslim-other";
@@ -125,6 +115,18 @@ function classifyListing(item: MLItemData): ProductGroupInfo {
     }
 
     return { groupKey, productName, variantLabel, brand: "NaturalSlim", skip: false };
+  }
+
+  // Group by catalog_product_id if available (for non-brand-specific items)
+  if (item.catalog_product_id) {
+    const productName = shortenTitle(item.title.replace(/\s+(color|sabor)\s+.*/i, "").trim());
+    return {
+      groupKey: `catalog-${item.catalog_product_id}`,
+      productName,
+      variantLabel,
+      brand,
+      skip: false,
+    };
   }
 
   // Everything else — individual product
@@ -199,17 +201,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Get or create the ML-AUTO supplier once
     const autoSupplierId = await getOrCreateAutoSupplier();
 
-    // Clean up old bad variants for Bluemango (will be re-created with ML data)
-    const bluemangoProd = await prisma.product.findFirst({
+    // Clean up ALL old Bluemango products (merge into single product on re-sync)
+    const bluemangoProds = await prisma.product.findMany({
       where: { brand: "Bluemango", supplierId: autoSupplierId },
     });
-    if (bluemangoProd) {
+    for (const prod of bluemangoProds) {
       await prisma.packItem.deleteMany({
-        where: { productVariant: { productId: bluemangoProd.id } },
+        where: { productVariant: { productId: prod.id } },
       });
       await prisma.productVariant.deleteMany({
-        where: { productId: bluemangoProd.id },
+        where: { productId: prod.id },
       });
+      await prisma.product.delete({ where: { id: prod.id } });
     }
 
     // Cache for product lookups by groupKey to avoid repeated queries
