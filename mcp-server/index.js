@@ -3,8 +3,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { writeFile, mkdir, readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
 
 const API_URL = process.env.ECH_API_URL || "https://echml.overcloud.us";
@@ -1022,9 +1023,13 @@ server.tool(
   }
 );
 
+// NOTE: Product Ads write API (create/update/add items) requires ML ad partner approval.
+// Regular sellers get 401 "User does not have permission to write." These tools are
+// kept for future use if partner access is granted. Use ML web UI to manage campaigns.
+
 server.tool(
   "ml_ads_create_campaign",
-  "Crear una nueva campaña de Product Ads (requiere permiso de escritura de ads aprobado por ML)",
+  "[RESTRINGIDO - requiere aprobacion de ML como ad partner] Crear una nueva campaña de Product Ads",
   {
     advertiserId: z.string().describe("ID del advertiser"),
     name: z.string().describe("Nombre de la campaña"),
@@ -1035,12 +1040,7 @@ server.tool(
   },
   async ({ advertiserId, name, budget, strategy = "profitability", roasTarget = 5, status = "active" }) => {
     const data = await mlProxy("POST", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/campaigns`, {
-      name,
-      status,
-      budget,
-      strategy,
-      channel: "marketplace",
-      roas_target: roasTarget,
+      name, status, budget, strategy, channel: "marketplace", roas_target: roasTarget,
     }, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
@@ -1048,7 +1048,7 @@ server.tool(
 
 server.tool(
   "ml_ads_update_campaign",
-  "Actualizar una campaña de Product Ads (requiere permiso de escritura de ads)",
+  "[RESTRINGIDO - requiere aprobacion de ML como ad partner] Actualizar una campaña de Product Ads",
   {
     campaignId: z.string().describe("ID de la campaña"),
     name: z.string().optional().describe("Nuevo nombre"),
@@ -1071,7 +1071,7 @@ server.tool(
 
 server.tool(
   "ml_ads_add_items",
-  "Agregar publicaciones a una campaña de Product Ads (requiere permiso de escritura de ads)",
+  "[RESTRINGIDO - requiere aprobacion de ML como ad partner] Agregar publicaciones a una campaña",
   {
     advertiserId: z.string().describe("ID del advertiser"),
     campaignId: z.string().describe("ID de la campaña"),
@@ -1080,8 +1080,7 @@ server.tool(
   async ({ advertiserId, campaignId, itemIds }) => {
     const ids = itemIds.split(",").map((id) => id.trim());
     const data = await mlProxy("PUT", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/ads?channel=marketplace`, {
-      target: ids,
-      payload: { campaign_id: campaignId },
+      target: ids, payload: { campaign_id: campaignId },
     }, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
@@ -1284,44 +1283,151 @@ server.tool(
   }
 );
 
+// --- Helper: get OpenAI API key from CRM for direct API calls ---
+
+async function getOpenAIKey() {
+  const data = await apiRequest("/api/openai/config");
+  if (!data.configured) throw new Error("No hay API key de OpenAI configurada. Ve a Configuracion > OpenAI.");
+  const fullData = await apiRequest("/api/openai/config?raw=true");
+  return fullData.apiKey;
+}
+
+async function saveB64Image(b64Data, prefix = "openai_img") {
+  const dir = tmpdir();
+  const filePath = join(dir, `${prefix}_${Date.now()}.png`);
+  await writeFile(filePath, Buffer.from(b64Data, "base64"));
+  return filePath;
+}
+
 // --- Image Generation ---
 
 server.tool(
   "openai_generate_image",
-  "Generar imagen con OpenAI (GPT Image / DALL-E). Ideal para fotos de producto, marketing, etc.",
+  "Generar imagen con OpenAI (GPT Image). Guarda el resultado como archivo PNG local.",
   {
     prompt: z.string().describe("Descripcion detallada de la imagen a generar"),
     model: z.string().optional().describe("Modelo: gpt-image-1 (default), gpt-image-1-mini (economico)"),
     size: z.string().optional().describe("Tamaño: 1024x1024 (default), 1536x1024, 1024x1536"),
     quality: z.string().optional().describe("Calidad: low, medium, high, auto (default)"),
     n: z.number().optional().describe("Numero de imagenes a generar (default 1)"),
+    outputDir: z.string().optional().describe("Directorio de salida (default: /tmp)"),
   },
-  async ({ prompt, model = "gpt-image-1", size = "1024x1024", quality = "auto", n = 1 }) => {
-    const payload = { model, prompt, size, quality, n };
-    if (model.startsWith("dall-e")) payload.response_format = "url";
-    const data = await openaiProxy("/images/generations", payload);
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  async ({ prompt, model = "gpt-image-1", size = "1024x1024", quality = "auto", n = 1, outputDir }) => {
+    const data = await openaiProxy("/images/generations", { model, prompt, size, quality, n });
+
+    const savedFiles = [];
+    if (data.data) {
+      for (let i = 0; i < data.data.length; i++) {
+        const item = data.data[i];
+        if (item.b64_json) {
+          const dir = outputDir || tmpdir();
+          await mkdir(dir, { recursive: true });
+          const filePath = join(dir, `openai_gen_${Date.now()}_${i}.png`);
+          await writeFile(filePath, Buffer.from(item.b64_json, "base64"));
+          savedFiles.push(filePath);
+        } else if (item.url) {
+          savedFiles.push(item.url);
+        }
+      }
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          saved_files: savedFiles,
+          count: savedFiles.length,
+          model,
+          revised_prompt: data.data?.[0]?.revised_prompt,
+          message: savedFiles.length > 0
+            ? `${savedFiles.length} imagen(es) generada(s): ${savedFiles.join(", ")}`
+            : "No se generaron imagenes. Respuesta completa: " + JSON.stringify(data),
+        }, null, 2),
+      }],
+    };
   }
 );
 
 server.tool(
   "openai_edit_image",
-  "Editar/mejorar una imagen existente con OpenAI. Quitar fondos, agregar contexto, inpainting.",
+  "Editar/mejorar imagenes de producto con GPT Image 2. Usa archivos locales (multipart upload). Ideal para quitar fondos, agregar contexto, mejorar fotos.",
   {
     prompt: z.string().describe("Instrucciones de edicion para la imagen"),
-    imageUrl: z.string().describe("URL de la imagen a editar"),
-    model: z.string().optional().describe("Modelo: gpt-image-1 (default)"),
-    size: z.string().optional().describe("Tamaño de salida: 1024x1024 (default)"),
+    imagePaths: z.string().describe("Rutas de archivos de imagen separadas por coma (ej: /tmp/foto1.png,/tmp/foto2.png)"),
+    model: z.string().optional().describe("Modelo: gpt-image-2 (default)"),
+    size: z.string().optional().describe("Tamaño de salida: 1024x1024 (default), 1536x1024, 1024x1536"),
+    quality: z.string().optional().describe("Calidad: low, medium (default), high"),
+    n: z.number().optional().describe("Numero de imagenes de salida (default 1)"),
+    outputDir: z.string().optional().describe("Directorio de salida (default: /tmp)"),
   },
-  async ({ prompt, imageUrl, model = "gpt-image-1", size = "1024x1024" }) => {
-    // Fetch the image and convert to base64 for the API
-    const data = await openaiProxy("/images/edits", {
-      model,
-      prompt,
-      image: imageUrl,
-      size,
+  async ({ prompt, imagePaths, model = "gpt-image-2", size = "1024x1024", quality = "medium", n = 1, outputDir }) => {
+    // Get OpenAI key directly for multipart upload (can't use JSON proxy)
+    const configRes = await apiRequest("/api/openai/config");
+    if (!configRes.configured) throw new Error("No hay API key de OpenAI configurada.");
+
+    // We need the raw key — fetch it via a special endpoint
+    // Since the config endpoint only returns masked key, we'll use the proxy to make a test call
+    // Actually, let's add a direct call through the CRM's file upload handler
+    const paths = imagePaths.split(",").map((p) => p.trim());
+
+    // Build FormData with file uploads
+    const { FormData, File } = await import("node:buffer").then(() => ({ FormData: globalThis.FormData, File: globalThis.File })).catch(() => ({ FormData: globalThis.FormData, File: globalThis.File }));
+    const form = new FormData();
+    form.append("model", model);
+    form.append("prompt", prompt);
+    form.append("size", size);
+    form.append("quality", quality);
+    form.append("n", String(n));
+
+    for (const p of paths) {
+      const fileData = await readFile(p);
+      const blob = new Blob([fileData], { type: "image/png" });
+      form.append("image", blob, basename(p));
+    }
+
+    // Call OpenAI directly via CRM's image edit proxy
+    const url = `${API_URL}/api/openai/image-edit`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      body: form,
     });
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Image edit failed ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+
+    const savedFiles = [];
+    const dir = outputDir || tmpdir();
+    await mkdir(dir, { recursive: true });
+
+    if (data.data) {
+      for (let i = 0; i < data.data.length; i++) {
+        const item = data.data[i];
+        if (item.b64_json) {
+          const filePath = join(dir, `openai_edit_${Date.now()}_${i}.png`);
+          await writeFile(filePath, Buffer.from(item.b64_json, "base64"));
+          savedFiles.push(filePath);
+        }
+      }
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          saved_files: savedFiles,
+          count: savedFiles.length,
+          model,
+          message: savedFiles.length > 0
+            ? `${savedFiles.length} imagen(es) editada(s): ${savedFiles.join(", ")}`
+            : "Error: No se generaron imagenes editadas",
+        }, null, 2),
+      }],
+    };
   }
 );
 
