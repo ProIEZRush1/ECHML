@@ -518,6 +518,394 @@ server.tool(
   }
 );
 
+// ─── Product Groups ────────────────────────────────────────────────────────
+
+server.tool(
+  "list_product_groups",
+  "Listar todos los grupos de productos con sus productos asignados",
+  {},
+  async () => {
+    const data = await apiRequest("/api/product-groups");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "seed_product_groups",
+  "Crear grupos de productos predeterminados (Magnesios Isaac, Magnesios Eduardo, Bluemango, Timi's)",
+  {},
+  async () => {
+    const data = await apiRequest("/api/product-groups/seed", { method: "POST" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_cashflow_report",
+  "Obtener reporte de flujo de caja con filtro de fechas opcional",
+  {
+    from: z.string().optional().describe("Fecha inicio (YYYY-MM-DD)"),
+    to: z.string().optional().describe("Fecha fin (YYYY-MM-DD)"),
+  },
+  async ({ from, to }) => {
+    let path = "/api/cashflow";
+    const params = [];
+    if (from) params.push(`from=${from}`);
+    if (to) params.push(`to=${to}`);
+    if (params.length > 0) path += `?${params.join("&")}`;
+    const data = await apiRequest(path);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML API Direct (via Proxy) ─────────────────────────────────────────────
+
+/**
+ * Helper para llamar la API de MercadoLibre via el proxy del CRM.
+ * El proxy maneja tokens y auto-inyecta userId donde se necesite.
+ */
+async function mlProxy(method, endpoint, body) {
+  const payload = { method, endpoint };
+  if (body !== undefined) payload.body = body;
+  return apiRequest("/api/ml/proxy", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// ─── ML Items/Listings ──────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_item",
+  "Obtener detalle completo de una publicacion de MercadoLibre",
+  { itemId: z.string().describe("ID de la publicacion, ej: MLM5259271618") },
+  async ({ itemId }) => {
+    const data = await mlProxy("GET", `/items/${itemId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_get_items",
+  "Obtener multiples publicaciones a la vez (batch, max 20)",
+  { itemIds: z.string().describe("IDs separados por coma, ej: MLM123,MLM456") },
+  async ({ itemIds }) => {
+    const data = await mlProxy("GET", `/items?ids=${itemIds}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_create_item",
+  "Crear una nueva publicacion en MercadoLibre",
+  {
+    title: z.string().describe("Titulo de la publicacion"),
+    price: z.number().describe("Precio de venta"),
+    category_id: z.string().describe("ID de la categoria, ej: MLM1234"),
+    currency_id: z.string().describe("Moneda, ej: MXN"),
+    available_quantity: z.number().describe("Cantidad disponible"),
+    buying_mode: z.string().describe("Modo de compra: buy_it_now o auction"),
+    listing_type_id: z.string().describe("Tipo de publicacion: gold_special, gold_pro, etc"),
+    condition: z.string().describe("Condicion: new o used"),
+    description: z.string().optional().describe("Descripcion en texto plano"),
+    pictures: z.string().optional().describe("JSON array de URLs de imagenes, ej: [\"https://...\"]"),
+  },
+  async ({ title, price, category_id, currency_id, available_quantity, buying_mode, listing_type_id, condition, description, pictures }) => {
+    const body = {
+      title,
+      price,
+      category_id,
+      currency_id,
+      available_quantity,
+      buying_mode,
+      listing_type_id,
+      condition,
+    };
+    if (description) body.description = { plain_text: description };
+    if (pictures) {
+      try {
+        body.pictures = JSON.parse(pictures).map((url) => ({ source: url }));
+      } catch {
+        body.pictures = [];
+      }
+    }
+    const data = await mlProxy("POST", "/items", body);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_update_item",
+  "Actualizar una publicacion existente (precio, stock, status, titulo, etc.)",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    updates: z.string().describe("JSON con los campos a actualizar, ej: {\"price\": 299, \"title\": \"...\"}"),
+  },
+  async ({ itemId, updates }) => {
+    let body;
+    try {
+      body = JSON.parse(updates);
+    } catch {
+      return { content: [{ type: "text", text: "Error: 'updates' debe ser JSON valido" }] };
+    }
+    const data = await mlProxy("PUT", `/items/${itemId}`, body);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_update_item_stock",
+  "Actualizar stock de una publicacion rapidamente",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    available_quantity: z.number().describe("Nueva cantidad disponible"),
+  },
+  async ({ itemId, available_quantity }) => {
+    const data = await mlProxy("PUT", `/items/${itemId}`, { available_quantity });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_update_item_price",
+  "Actualizar precio de una publicacion rapidamente",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    price: z.number().describe("Nuevo precio"),
+  },
+  async ({ itemId, price }) => {
+    const data = await mlProxy("PUT", `/items/${itemId}`, { price });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_pause_item",
+  "Pausar una publicacion de MercadoLibre",
+  { itemId: z.string().describe("ID de la publicacion") },
+  async ({ itemId }) => {
+    const data = await mlProxy("PUT", `/items/${itemId}`, { status: "paused" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_activate_item",
+  "Reactivar una publicacion pausada de MercadoLibre",
+  { itemId: z.string().describe("ID de la publicacion") },
+  async ({ itemId }) => {
+    const data = await mlProxy("PUT", `/items/${itemId}`, { status: "active" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_close_item",
+  "Cerrar una publicacion de MercadoLibre permanentemente",
+  { itemId: z.string().describe("ID de la publicacion") },
+  async ({ itemId }) => {
+    const data = await mlProxy("PUT", `/items/${itemId}`, { status: "closed" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_get_item_description",
+  "Obtener la descripcion de una publicacion",
+  { itemId: z.string().describe("ID de la publicacion") },
+  async ({ itemId }) => {
+    const data = await mlProxy("GET", `/items/${itemId}/description`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_update_item_description",
+  "Actualizar la descripcion de una publicacion",
+  {
+    itemId: z.string().describe("ID de la publicacion"),
+    plain_text: z.string().describe("Nuevo texto de la descripcion"),
+  },
+  async ({ itemId, plain_text }) => {
+    const data = await mlProxy("PUT", `/items/${itemId}/description`, { plain_text });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Orders ──────────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_order",
+  "Obtener detalle de una orden de MercadoLibre",
+  { orderId: z.string().describe("ID de la orden") },
+  async ({ orderId }) => {
+    const data = await mlProxy("GET", `/orders/${orderId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_search_orders",
+  "Buscar ordenes de MercadoLibre con filtros",
+  {
+    status: z.string().optional().describe("Estado: paid, cancelled, etc."),
+    dateFrom: z.string().optional().describe("Fecha desde (ISO 8601, ej: 2024-01-01T00:00:00.000-00:00)"),
+    dateTo: z.string().optional().describe("Fecha hasta (ISO 8601)"),
+    limit: z.number().optional().describe("Limite de resultados (default 50)"),
+  },
+  async ({ status, dateFrom, dateTo, limit = 50 }) => {
+    let endpoint = `/orders/search?seller={userId}&limit=${limit}`;
+    if (status) endpoint += `&order.status=${status}`;
+    if (dateFrom) endpoint += `&order.date_created.from=${encodeURIComponent(dateFrom)}`;
+    if (dateTo) endpoint += `&order.date_created.to=${encodeURIComponent(dateTo)}`;
+    const data = await mlProxy("GET", endpoint);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_get_order_items",
+  "Obtener los items de una orden",
+  { orderId: z.string().describe("ID de la orden") },
+  async ({ orderId }) => {
+    const data = await mlProxy("GET", `/orders/${orderId}`);
+    const items = data?.order_items || [];
+    return { content: [{ type: "text", text: JSON.stringify(items, null, 2) }] };
+  }
+);
+
+// ─── ML User/Account ────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_me",
+  "Obtener informacion de la cuenta de MercadoLibre conectada",
+  {},
+  async () => {
+    const data = await mlProxy("GET", "/users/me");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_get_user_items",
+  "Listar todas las publicaciones del vendedor en MercadoLibre",
+  {
+    status: z.string().optional().describe("Filtrar por estado: active, paused, closed"),
+    limit: z.number().optional().describe("Limite de resultados (default 50)"),
+  },
+  async ({ status, limit = 50 }) => {
+    let endpoint = `/users/{userId}/items/search?limit=${limit}`;
+    if (status) endpoint += `&status=${status}`;
+    const data = await mlProxy("GET", endpoint);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Shipping ────────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_shipment",
+  "Obtener detalle de un envio de MercadoLibre",
+  { shipmentId: z.string().describe("ID del envio") },
+  async ({ shipmentId }) => {
+    const data = await mlProxy("GET", `/shipments/${shipmentId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Questions ───────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_questions",
+  "Obtener preguntas de una publicacion de MercadoLibre",
+  { itemId: z.string().describe("ID de la publicacion") },
+  async ({ itemId }) => {
+    const data = await mlProxy("GET", `/questions/search?item_id=${itemId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_answer_question",
+  "Responder una pregunta de un comprador en MercadoLibre",
+  {
+    questionId: z.string().describe("ID de la pregunta"),
+    text: z.string().describe("Texto de la respuesta"),
+  },
+  async ({ questionId, text }) => {
+    const data = await mlProxy("POST", "/answers", { question_id: questionId, text });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Categories ──────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_categories",
+  "Listar todas las categorias principales de MercadoLibre Mexico",
+  {},
+  async () => {
+    const data = await mlProxy("GET", "/sites/MLM/categories");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_search_category",
+  "Buscar categoria por palabra clave en MercadoLibre Mexico",
+  { query: z.string().describe("Palabra clave para buscar, ej: 'termos'") },
+  async ({ query }) => {
+    const data = await mlProxy("GET", `/sites/MLM/domain_discovery/search?q=${encodeURIComponent(query)}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_get_category",
+  "Obtener detalle de una categoria de MercadoLibre",
+  { categoryId: z.string().describe("ID de la categoria, ej: MLM1234") },
+  async ({ categoryId }) => {
+    const data = await mlProxy("GET", `/categories/${categoryId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Messaging ───────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_messages",
+  "Obtener mensajes de una venta en MercadoLibre",
+  { packId: z.string().describe("ML pack_id de la venta (no el ID del CRM)") },
+  async ({ packId }) => {
+    const data = await mlProxy("GET", `/messages/packs/${packId}/sellers/{userId}`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// ─── ML Generic API ─────────────────────────────────────────────────────────
+
+server.tool(
+  "ml_api_call",
+  "Hacer cualquier llamada a la API de MercadoLibre (proxy generico). Usa {userId} en el endpoint para auto-inyectar el ID del vendedor.",
+  {
+    method: z.enum(["GET", "POST", "PUT", "DELETE"]).describe("Metodo HTTP"),
+    endpoint: z.string().describe("Endpoint de la API, ej: /items/MLM123 o /users/{userId}/items/search"),
+    body: z.string().optional().describe("Body en JSON (para POST/PUT)"),
+  },
+  async ({ method, endpoint, body }) => {
+    let parsedBody;
+    if (body) {
+      try {
+        parsedBody = JSON.parse(body);
+      } catch {
+        return { content: [{ type: "text", text: "Error: 'body' debe ser JSON valido" }] };
+      }
+    }
+    const data = await mlProxy(method, endpoint, parsedBody);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── Start Server ────────────────────────────────────────────────────────────
 
 async function main() {
