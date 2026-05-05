@@ -20,12 +20,21 @@ interface ProductOption {
   brand: string | null;
 }
 
+interface ProductGroupOption {
+  id: string;
+  name: string;
+  color: string;
+  products: { id: string; name: string; brand: string | null }[];
+}
+
 export function CashflowFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [packs, setPacks] = useState<PackOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
+  const [groups, setGroups] = useState<ProductGroupOption[]>([]);
+  const [activeGroupIds, setActiveGroupIds] = useState<Set<string>>(new Set());
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>(() => {
     const p = searchParams.get("packIds") || searchParams.get("packId") || "";
     return p ? p.split(",").filter(Boolean) : [];
@@ -53,6 +62,9 @@ export function CashflowFilters() {
         id: p.id, name: p.name, brand: p.brand,
       })));
     });
+    fetch("/api/product-groups").then(r => r.ok ? r.json() : []).then(data => {
+      setGroups(data || []);
+    });
   }, []);
 
   function apply() {
@@ -68,12 +80,34 @@ export function CashflowFilters() {
   function clear() {
     setSelectedPackIds([]);
     setSelectedProductIds([]);
+    setActiveGroupIds(new Set());
     setDateFrom("");
     setDateTo("");
     setLabel("");
     setPackSearch("");
     setProductSearch("");
     router.push("/flujo-caja");
+  }
+
+  function toggleGroup(groupId: string) {
+    setActiveGroupIds(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      // Recompute selected products from all active groups (union)
+      const newProductIds = new Set<string>();
+      for (const gid of next) {
+        const g = groups.find(gr => gr.id === gid);
+        if (g) {
+          g.products.forEach(p => newProductIds.add(p.id));
+        }
+      }
+      setSelectedProductIds(Array.from(newProductIds));
+      return next;
+    });
   }
 
   function togglePack(id: string) {
@@ -99,7 +133,7 @@ export function CashflowFilters() {
   );
 
   const hasFilters = selectedPackIds.length > 0 || selectedProductIds.length > 0 ||
-    dateFrom || dateTo || label;
+    activeGroupIds.size > 0 || dateFrom || dateTo || label;
 
   return (
     <Card>
@@ -144,7 +178,40 @@ export function CashflowFilters() {
           </div>
         </div>
 
-        {/* Row 2: Pack + Product selectors */}
+        {/* Row 2: Product Groups quick-select */}
+        {groups.length > 0 && (
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground block">Grupos</label>
+            <div className="flex flex-wrap gap-1.5">
+              {groups.map(g => (
+                <button
+                  key={g.id}
+                  onClick={() => toggleGroup(g.id)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                    activeGroupIds.has(g.id)
+                      ? "ring-2 ring-offset-1 ring-offset-background"
+                      : "opacity-75 hover:opacity-100"
+                  }`}
+                  style={{
+                    borderColor: g.color,
+                    backgroundColor: activeGroupIds.has(g.id) ? g.color + "20" : "transparent",
+                    color: g.color,
+                    ...(activeGroupIds.has(g.id) && { boxShadow: `0 0 0 2px ${g.color}40` }),
+                  }}
+                >
+                  <span
+                    className="inline-block w-2 h-2 rounded-full"
+                    style={{ backgroundColor: g.color }}
+                  />
+                  {g.name}
+                  <span className="text-[10px] opacity-70">({g.products.length})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: Pack + Product selectors */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Packs multi-select */}
           <div>

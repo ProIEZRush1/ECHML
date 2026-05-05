@@ -109,6 +109,7 @@ model Product {
   supplier              Supplier               @relation(fields: [supplierId], references: [id])
   variants              ProductVariant[]
   withdrawalAllocations WithdrawalAllocation[]
+  groupItems            ProductGroupItem[]
 
   @@unique([supplierId, supplierCode])
   @@index([supplierCode])
@@ -337,4 +338,25 @@ model MPTransaction {
   @@index([dateCreated])
   @@index([label])
   @@index([packId])
+}
+
+model ProductGroup {
+  id        String @id @default(cuid())
+  name      String @unique
+  color     String @default("#6b7280")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items ProductGroupItem[]
+}
+
+model ProductGroupItem {
+  id             String @id @default(cuid())
+  productGroupId String
+  productId      String
+
+  productGroup ProductGroup @relation(fields: [productGroupId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productGroupId, productId])
 }

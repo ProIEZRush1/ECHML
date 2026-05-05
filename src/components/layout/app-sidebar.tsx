@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Settings,
   Key,
+  FolderOpen,
   ChevronDown,
   TrendingUp,
   ArrowDownToLine,
@@ -66,6 +67,11 @@ const finanzasNavItems = [
 ];
 
 const configNavItems = [
+  {
+    title: "Grupos",
+    href: "/configuracion/grupos",
+    icon: FolderOpen,
+  },
   {
     title: "Configuracion ML",
     href: "/configuracion/mercadolibre",
