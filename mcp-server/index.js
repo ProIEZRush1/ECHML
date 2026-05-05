@@ -942,13 +942,81 @@ server.tool(
     status: z.string().optional().describe("Filtrar por estado: active, paused"),
     dateFrom: z.string().optional().describe("Fecha inicio para metricas (YYYY-MM-DD)"),
     dateTo: z.string().optional().describe("Fecha fin para metricas (YYYY-MM-DD)"),
+    metrics: z.string().optional().describe("Metricas separadas por coma: clicks,prints,cost,cpc,acos,roas,total_amount,units_quantity"),
     limit: z.number().optional().describe("Limite de resultados (default 50)"),
   },
-  async ({ advertiserId, status, dateFrom, dateTo, limit = 50 }) => {
-    let endpoint = `/advertising/advertisers/${advertiserId}/product_ads/campaigns/search?limit=${limit}`;
+  async ({ advertiserId, status, dateFrom, dateTo, metrics, limit = 50 }) => {
+    let endpoint = `/advertising/MLM/advertisers/${advertiserId}/product_ads/campaigns/search?limit=${limit}`;
     if (status) endpoint += `&status=${status}`;
     if (dateFrom) endpoint += `&date_from=${dateFrom}`;
     if (dateTo) endpoint += `&date_to=${dateTo}`;
+    if (metrics) endpoint += `&metrics=${metrics}`;
+    const data = await mlProxy("GET", endpoint, undefined, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_get_campaign",
+  "Obtener detalle y metricas de una campaña especifica de Product Ads",
+  {
+    campaignId: z.string().describe("ID de la campaña"),
+    dateFrom: z.string().optional().describe("Fecha inicio (YYYY-MM-DD)"),
+    dateTo: z.string().optional().describe("Fecha fin (YYYY-MM-DD)"),
+    metrics: z.string().optional().describe("Metricas: clicks,prints,cost,cpc,acos,roas,total_amount"),
+  },
+  async ({ campaignId, dateFrom, dateTo, metrics }) => {
+    let endpoint = `/advertising/MLM/product_ads/campaigns/${campaignId}`;
+    const params = [];
+    if (dateFrom) params.push(`date_from=${dateFrom}`);
+    if (dateTo) params.push(`date_to=${dateTo}`);
+    if (metrics) params.push(`metrics=${metrics}`);
+    if (params.length) endpoint += `?${params.join("&")}`;
+    const data = await mlProxy("GET", endpoint, undefined, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_list_ads",
+  "Listar todos los anuncios (items publicitados) con metricas",
+  {
+    advertiserId: z.string().describe("ID del advertiser"),
+    campaignId: z.string().optional().describe("Filtrar por campaña"),
+    status: z.string().optional().describe("Estado: active, paused, hold, idle"),
+    dateFrom: z.string().optional().describe("Fecha inicio (YYYY-MM-DD)"),
+    dateTo: z.string().optional().describe("Fecha fin (YYYY-MM-DD)"),
+    metrics: z.string().optional().describe("Metricas: clicks,prints,cost,cpc,acos,roas,total_amount"),
+    limit: z.number().optional().describe("Limite (default 50)"),
+  },
+  async ({ advertiserId, campaignId, status, dateFrom, dateTo, metrics, limit = 50 }) => {
+    let endpoint = `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}`;
+    if (campaignId) endpoint += `&filters[campaign_id]=${campaignId}`;
+    if (status) endpoint += `&filters[statuses]=${status}`;
+    if (dateFrom) endpoint += `&date_from=${dateFrom}`;
+    if (dateTo) endpoint += `&date_to=${dateTo}`;
+    if (metrics) endpoint += `&metrics=${metrics}`;
+    const data = await mlProxy("GET", endpoint, undefined, ADS_HEADERS);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_ads_get_item_metrics",
+  "Obtener detalle y metricas de un anuncio especifico",
+  {
+    itemId: z.string().describe("ID de la publicacion, ej: MLM123"),
+    dateFrom: z.string().optional().describe("Fecha inicio (YYYY-MM-DD)"),
+    dateTo: z.string().optional().describe("Fecha fin (YYYY-MM-DD)"),
+    metrics: z.string().optional().describe("Metricas: clicks,prints,cost,cpc,acos,roas,total_amount"),
+  },
+  async ({ itemId, dateFrom, dateTo, metrics }) => {
+    let endpoint = `/advertising/MLM/product_ads/ads/${itemId}`;
+    const params = [];
+    if (dateFrom) params.push(`date_from=${dateFrom}`);
+    if (dateTo) params.push(`date_to=${dateTo}`);
+    if (metrics) params.push(`metrics=${metrics}`);
+    if (params.length) endpoint += `?${params.join("&")}`;
     const data = await mlProxy("GET", endpoint, undefined, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
@@ -956,23 +1024,23 @@ server.tool(
 
 server.tool(
   "ml_ads_create_campaign",
-  "Crear una nueva campaña de Product Ads",
+  "Crear una nueva campaña de Product Ads (requiere permiso de escritura de ads aprobado por ML)",
   {
     advertiserId: z.string().describe("ID del advertiser"),
     name: z.string().describe("Nombre de la campaña"),
     budget: z.number().describe("Presupuesto diario promedio en MXN"),
     strategy: z.string().optional().describe("Estrategia: profitability (default), growth, visibility"),
-    acosTarget: z.number().optional().describe("ACOS objetivo (3-500, default 20)"),
+    roasTarget: z.number().optional().describe("ROAS objetivo (1-35, default 5)"),
     status: z.string().optional().describe("Estado inicial: active (default), paused"),
   },
-  async ({ advertiserId, name, budget, strategy = "profitability", acosTarget = 20, status = "active" }) => {
+  async ({ advertiserId, name, budget, strategy = "profitability", roasTarget = 5, status = "active" }) => {
     const data = await mlProxy("POST", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/campaigns`, {
       name,
       status,
       budget,
       strategy,
       channel: "marketplace",
-      acos_target: acosTarget,
+      roas_target: roasTarget,
     }, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
@@ -980,30 +1048,30 @@ server.tool(
 
 server.tool(
   "ml_ads_update_campaign",
-  "Actualizar una campaña de Product Ads (presupuesto, estado, nombre, estrategia)",
+  "Actualizar una campaña de Product Ads (requiere permiso de escritura de ads)",
   {
     campaignId: z.string().describe("ID de la campaña"),
     name: z.string().optional().describe("Nuevo nombre"),
     budget: z.number().optional().describe("Nuevo presupuesto diario"),
     status: z.string().optional().describe("Estado: active, paused"),
     strategy: z.string().optional().describe("Estrategia: profitability, growth, visibility"),
-    acosTarget: z.number().optional().describe("Nuevo ACOS objetivo"),
+    roasTarget: z.number().optional().describe("Nuevo ROAS objetivo (1-35)"),
   },
-  async ({ campaignId, name, budget, status, strategy, acosTarget }) => {
+  async ({ campaignId, name, budget, status, strategy, roasTarget }) => {
     const body = {};
     if (name) body.name = name;
     if (budget) body.budget = budget;
     if (status) body.status = status;
     if (strategy) body.strategy = strategy;
-    if (acosTarget) body.acos_target = acosTarget;
-    const data = await mlProxy("PUT", `/marketplace/advertising/MLM/product_ads/campaigns/${campaignId}`, body, ADS_HEADERS);
+    if (roasTarget) body.roas_target = roasTarget;
+    const data = await mlProxy("PUT", `/advertising/MLM/product_ads/campaigns/${campaignId}`, body, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
 
 server.tool(
   "ml_ads_add_items",
-  "Agregar publicaciones a una campaña de Product Ads (hasta 10,000 items)",
+  "Agregar publicaciones a una campaña de Product Ads (requiere permiso de escritura de ads)",
   {
     advertiserId: z.string().describe("ID del advertiser"),
     campaignId: z.string().describe("ID de la campaña"),
@@ -1015,16 +1083,6 @@ server.tool(
       target: ids,
       payload: { campaign_id: campaignId },
     }, ADS_HEADERS);
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
-  }
-);
-
-server.tool(
-  "ml_ads_get_item_metrics",
-  "Obtener metricas de publicidad de un item especifico (clicks, impresiones, costo, ACOS, etc.)",
-  { itemId: z.string().describe("ID de la publicacion, ej: MLM123") },
-  async ({ itemId }) => {
-    const data = await mlProxy("GET", `/advertising/product_ads/items/${itemId}`, undefined, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
