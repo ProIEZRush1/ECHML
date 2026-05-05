@@ -353,6 +353,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           variantId = variant.id;
           cachedProduct.variants.set(variantKey, variantId);
           variantsCreated++;
+        } else {
+          // Accumulate stock from additional listings for the same variant
+          await prisma.productVariant.update({
+            where: { id: variantId },
+            data: { stock: { increment: item.available_quantity || 0 } },
+          });
         }
 
         const existingPackItem = await prisma.packItem.findUnique({
