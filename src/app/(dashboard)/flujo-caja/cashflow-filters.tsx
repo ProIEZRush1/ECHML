@@ -43,7 +43,12 @@ export function CashflowFilters() {
     const p = searchParams.get("productIds") || searchParams.get("productId") || "";
     return p ? p.split(",").filter(Boolean) : [];
   });
-  const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") || "");
+  const [dateFrom, setDateFrom] = useState(() => {
+    if (searchParams.get("dateFrom")) return searchParams.get("dateFrom")!;
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
   const [dateTo, setDateTo] = useState(searchParams.get("dateTo") || "");
   const [label, setLabel] = useState(searchParams.get("label") || "");
   const [packSearch, setPackSearch] = useState("");
@@ -90,24 +95,30 @@ export function CashflowFilters() {
   }
 
   function toggleGroup(groupId: string) {
-    setActiveGroupIds(prev => {
-      const next = new Set(prev);
-      if (next.has(groupId)) {
-        next.delete(groupId);
-      } else {
-        next.add(groupId);
-      }
-      // Recompute selected products from all active groups (union)
-      const newProductIds = new Set<string>();
-      for (const gid of next) {
-        const g = groups.find(gr => gr.id === gid);
-        if (g) {
-          g.products.forEach(p => newProductIds.add(p.id));
-        }
-      }
-      setSelectedProductIds(Array.from(newProductIds));
-      return next;
-    });
+    const next = new Set(activeGroupIds);
+    if (next.has(groupId)) {
+      next.delete(groupId);
+    } else {
+      next.add(groupId);
+    }
+    setActiveGroupIds(next);
+
+    // Collect all product IDs from active groups
+    const newProductIds = new Set<string>();
+    for (const gid of next) {
+      const g = groups.find(gr => gr.id === gid);
+      if (g) g.products.forEach(p => newProductIds.add(p.id));
+    }
+    const ids = Array.from(newProductIds);
+    setSelectedProductIds(ids);
+
+    // Auto-apply immediately
+    const p = new URLSearchParams();
+    if (ids.length) p.set("productIds", ids.join(","));
+    if (dateFrom) p.set("dateFrom", dateFrom);
+    if (dateTo) p.set("dateTo", dateTo);
+    if (label) p.set("label", label);
+    router.push(`/flujo-caja?${p.toString()}`);
   }
 
   function togglePack(id: string) {

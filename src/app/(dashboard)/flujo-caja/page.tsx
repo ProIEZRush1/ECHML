@@ -114,14 +114,15 @@ export default async function FlujoCajaPage({
     where.packId = { in: [] };
   }
 
-  if (params.dateFrom || params.dateTo) {
-    where.dateCreated = {};
-    if (params.dateFrom) {
-      where.dateCreated.gte = new Date(`${params.dateFrom}T00:00:00.000Z`);
-    }
-    if (params.dateTo) {
-      where.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
-    }
+  // Default to last 30 days if no date filter set
+  const defaultDateFrom = new Date();
+  defaultDateFrom.setDate(defaultDateFrom.getDate() - 30);
+  const effectiveDateFrom = params.dateFrom || defaultDateFrom.toISOString().split("T")[0];
+
+  where.dateCreated = {};
+  where.dateCreated.gte = new Date(`${effectiveDateFrom}T00:00:00.000Z`);
+  if (params.dateTo) {
+    where.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
   }
 
   if (params.label) {
