@@ -3,6 +3,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { writeFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const API_URL = process.env.ECH_API_URL || "https://echml.overcloud.us";
 const API_KEY = process.env.ECH_API_KEY;
@@ -1216,11 +1219,42 @@ server.tool(
 
 server.tool(
   "openai_get_file_content",
-  "Descargar el contenido de un archivo de OpenAI (resultados de batch, etc.)",
-  { fileId: z.string().describe("ID del archivo (file-xxx)") },
-  async ({ fileId }) => {
-    const data = await openaiProxy(`/files/${fileId}/content`, undefined, "GET");
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  "Descargar el contenido de un archivo de OpenAI a disco local. Para batch outputs (JSONL grande, 30MB+), guarda a /tmp/ y retorna la ruta del archivo.",
+  {
+    fileId: z.string().describe("ID del archivo (file-xxx)"),
+    outputDir: z.string().optional().describe("Directorio de salida (default: /tmp)"),
+  },
+  async ({ fileId, outputDir }) => {
+    const dir = outputDir || tmpdir();
+    const filePath = join(dir, `openai_${fileId}.jsonl`);
+
+    const url = `${API_URL}/api/openai/files/${fileId}/content`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Download failed ${res.status}: ${errorText || res.statusText}`);
+    }
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await mkdir(dir, { recursive: true });
+    await writeFile(filePath, buffer);
+
+    const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          saved_to: filePath,
+          size_bytes: buffer.length,
+          size_mb: sizeMB,
+          file_id: fileId,
+          message: `Archivo descargado a ${filePath} (${sizeMB} MB). Procesa con: python3 -c "for line in open('${filePath}'): import json; obj=json.loads(line); print(obj['custom_id'])"`,
+        }, null, 2),
+      }],
+    };
   }
 );
 
@@ -1260,10 +1294,10 @@ server.tool(
 
 server.tool(
   "openai_get_video_content",
-  "Descargar el contenido (URL del MP4) de un video generado con Sora",
+  "Obtener la URL de descarga del MP4 de un video generado con Sora (el video debe estar en status 'completed'). Retorna toda la metadata del video incluyendo la URL de descarga.",
   { videoId: z.string().describe("ID del video") },
   async ({ videoId }) => {
-    const data = await openaiProxy(`/videos/${videoId}/content`, undefined, "GET");
+    const data = await openaiProxy(`/videos/${videoId}`, undefined, "GET");
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
