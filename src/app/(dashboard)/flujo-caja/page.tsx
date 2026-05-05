@@ -45,6 +45,7 @@ export default async function FlujoCajaPage({
     packId?: string;
     packIds?: string;
     productId?: string;
+    productIds?: string;
     dateFrom?: string;
     dateTo?: string;
     label?: string;
@@ -63,17 +64,24 @@ export default async function FlujoCajaPage({
     packIdList.push(params.packId);
   }
 
-  // If productId is set, find all packs linked to that product's variants
+  // If productId(s) set, find all packs linked to those products' variants
+  const productIdList: string[] = [];
+  if (params.productIds) {
+    productIdList.push(...params.productIds.split(",").filter(Boolean));
+  } else if (params.productId) {
+    productIdList.push(params.productId);
+  }
+
   let productFilteredPackIds: string[] | null = null;
   let filteredProductName: string | null = null;
-  if (params.productId) {
+  if (productIdList.length > 0) {
     const [packItems, product] = await Promise.all([
       prisma.packItem.findMany({
-        where: { productVariant: { productId: params.productId } },
+        where: { productVariant: { productId: { in: productIdList } } },
         select: { packId: true },
       }),
       prisma.product.findFirst({
-        where: { id: params.productId },
+        where: { id: { in: productIdList } },
         select: { name: true, brand: true },
       }),
     ]);
@@ -237,7 +245,7 @@ export default async function FlujoCajaPage({
   packBalances.sort((a, b) => b.income - a.income);
 
   // Determine if any filters are active
-  const hasFilters = !!(packIdList.length > 0 || params.productId || params.dateFrom || params.dateTo || params.label);
+  const hasFilters = !!(packIdList.length > 0 || productIdList.length > 0 || params.dateFrom || params.dateTo || params.label);
 
   return (
     <div className="space-y-6">
@@ -606,13 +614,14 @@ export default async function FlujoCajaPage({
 }
 
 function buildPageUrl(
-  params: { packId?: string; packIds?: string; productId?: string; dateFrom?: string; dateTo?: string; label?: string },
+  params: { packId?: string; packIds?: string; productId?: string; productIds?: string; dateFrom?: string; dateTo?: string; label?: string },
   page: number
 ): string {
   const searchParams = new URLSearchParams();
   if (params.packIds) searchParams.set("packIds", params.packIds);
   else if (params.packId) searchParams.set("packIds", params.packId);
-  if (params.productId) searchParams.set("productId", params.productId);
+  if (params.productIds) searchParams.set("productIds", params.productIds);
+  else if (params.productId) searchParams.set("productId", params.productId);
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.label) searchParams.set("label", params.label);
