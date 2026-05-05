@@ -1294,11 +1294,42 @@ server.tool(
 
 server.tool(
   "openai_get_video_content",
-  "Obtener la URL de descarga del MP4 de un video generado con Sora (el video debe estar en status 'completed'). Retorna toda la metadata del video incluyendo la URL de descarga.",
-  { videoId: z.string().describe("ID del video") },
-  async ({ videoId }) => {
-    const data = await openaiProxy(`/videos/${videoId}`, undefined, "GET");
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  "Descargar el video MP4 generado con Sora a disco local. El video debe estar en status 'completed'.",
+  {
+    videoId: z.string().describe("ID del video"),
+    outputDir: z.string().optional().describe("Directorio de salida (default: /tmp)"),
+  },
+  async ({ videoId, outputDir }) => {
+    const dir = outputDir || tmpdir();
+    const filePath = join(dir, `openai_video_${videoId}.mp4`);
+
+    const url = `${API_URL}/api/openai/videos/${videoId}/content`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${API_KEY}` },
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new Error(`Download failed ${res.status}: ${errorText || res.statusText}`);
+    }
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    await mkdir(dir, { recursive: true });
+    await writeFile(filePath, buffer);
+
+    const sizeMB = (buffer.length / 1024 / 1024).toFixed(2);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          saved_to: filePath,
+          size_bytes: buffer.length,
+          size_mb: sizeMB,
+          video_id: videoId,
+          message: `Video MP4 descargado a ${filePath} (${sizeMB} MB)`,
+        }, null, 2),
+      }],
+    };
   }
 );
 
