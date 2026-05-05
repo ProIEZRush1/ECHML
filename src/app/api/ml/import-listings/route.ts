@@ -10,6 +10,14 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function generateSku(mlItemId: string): string {
+  return `ML-${mlItemId.replace("MLM", "")}`;
+}
+
+function shortenTitle(title: string): string {
+  return title.length > 80 ? title.substring(0, 77) + "..." : title;
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const session = await verifyAnyAuth(request);
   if (!session) {
@@ -27,15 +35,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const tokenValid = await hasValidToken();
     if (!tokenValid) {
-      const listings = await prisma.mLListing.findMany({
-        include: { pack: { select: { sku: true, name: true, stock: true } } },
-        orderBy: { createdAt: "desc" },
-      });
+      const count = await prisma.mLListing.count();
       return NextResponse.json({
         mode: "local",
         message: "Token no valido. Mostrando datos locales.",
-        count: listings.length,
-        syncedAt: new Date().toISOString(),
+        count,
       });
     }
 
@@ -47,7 +51,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         mode: "api",
         message: "No se encontraron publicaciones en MercadoLibre",
         count: 0,
-        syncedAt: new Date().toISOString(),
       });
     }
 
@@ -55,22 +58,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     let created = 0;
     let updated = 0;
-
-    // Create a default "Sin Asignar" pack for unlinked listings
-    let defaultPack = await prisma.pack.findUnique({
-      where: { sku: "SIN-ASIGNAR" },
-    });
-    if (!defaultPack) {
-      defaultPack = await prisma.pack.create({
-        data: {
-          sku: "SIN-ASIGNAR",
-          name: "Sin Asignar",
-          salePrice: 0,
-          stock: 0,
-          description: "Publicaciones importadas de ML sin pack asignado",
-        },
-      });
-    }
+    let packsCreated = 0;
 
     for (const item of items) {
       const statusMap: Record<string, string> = {
@@ -103,10 +91,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         });
         updated++;
       } else {
+        // Auto-create a pack for this listing
+        const sku = generateSku(item.id);
+        let pack = await prisma.pack.findUnique({ where: { sku } });
+
+        if (!pack) {
+          pack = await prisma.pack.create({
+            data: {
+              sku,
+              name: shortenTitle(item.title),
+              salePrice: item.price || 0,
+              stock: item.available_quantity || 0,
+              description: `Auto-importado de ML: ${item.id}`,
+            },
+          });
+          packsCreated++;
+        }
+
         await prisma.mLListing.create({
           data: {
             mlItemId: item.id,
-            packId: defaultPack.id,
+            packId: pack.id,
             title: item.title,
             permalink: item.permalink,
             status: mappedStatus,
@@ -119,12 +124,54 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Also reassign any listings currently on "Sin Asignar" pack
+    const sinAsignar = await prisma.pack.findUnique({
+      where: { sku: "SIN-ASIGNAR" },
+    });
+    if (sinAsignar) {
+      const unassigned = await prisma.mLListing.findMany({
+        where: { packId: sinAsignar.id },
+      });
+
+      for (const listing of unassigned) {
+        const sku = generateSku(listing.mlItemId);
+        let pack = await prisma.pack.findUnique({ where: { sku } });
+
+        if (!pack) {
+          pack = await prisma.pack.create({
+            data: {
+              sku,
+              name: shortenTitle(listing.title || listing.mlItemId),
+              salePrice: listing.currentPrice || 0,
+              stock: listing.currentStock || 0,
+              description: `Auto-importado de ML: ${listing.mlItemId}`,
+            },
+          });
+          packsCreated++;
+        }
+
+        await prisma.mLListing.update({
+          where: { id: listing.id },
+          data: { packId: pack.id },
+        });
+      }
+
+      // Delete the empty Sin Asignar pack
+      const remaining = await prisma.mLListing.count({
+        where: { packId: sinAsignar.id },
+      });
+      if (remaining === 0) {
+        await prisma.pack.delete({ where: { id: sinAsignar.id } });
+      }
+    }
+
     return NextResponse.json({
       mode: "api",
-      message: `Sincronizacion completa: ${created} nuevas, ${updated} actualizadas de ${itemIds.length} publicaciones`,
+      message: `Sincronizacion completa: ${created} nuevas, ${updated} actualizadas, ${packsCreated} packs creados de ${itemIds.length} publicaciones`,
       count: itemIds.length,
       created,
       updated,
+      packsCreated,
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
