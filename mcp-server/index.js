@@ -1011,9 +1011,8 @@ server.tool(
   },
   async ({ advertiserId, campaignId, itemIds }) => {
     const ids = itemIds.split(",").map((id) => id.trim());
-    const data = await mlProxy("PUT", `/marketplace/advertising/MLM/advertisers/${advertiserId}/product_ads/ads?channel=marketplace`, {
+    const data = await mlProxy("POST", `/advertising/advertisers/${advertiserId}/product_ads/campaigns/${campaignId}/ads`, {
       target: ids,
-      payload: { campaign_id: campaignId },
     }, ADS_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
@@ -1031,12 +1030,14 @@ server.tool(
 
 // ─── ML Promotions ─────────────────────────────────────────────────────────
 
+const PROMO_HEADERS = { "app_version": "v2" };
+
 server.tool(
   "ml_promo_list",
   "Listar todas las promociones del vendedor (deals, descuentos, ofertas del dia, etc.)",
   {},
   async () => {
-    const data = await mlProxy("GET", `/seller-promotions/users/{userId}?app_version=v2`);
+    const data = await mlProxy("GET", `/seller-promotions/users/{userId}?app_version=v2&caller.id={userId}`, undefined, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1046,7 +1047,7 @@ server.tool(
   "Ver en que promociones participa un item especifico y su estado",
   { itemId: z.string().describe("ID de la publicacion") },
   async ({ itemId }) => {
-    const data = await mlProxy("GET", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`);
+    const data = await mlProxy("GET", `/marketplace/seller-promotions/items/${itemId}?caller.id={userId}&app_version=v2`, undefined, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1060,9 +1061,9 @@ server.tool(
     status: z.string().optional().describe("Estado: candidate, started, etc."),
   },
   async ({ promotionId, promotionType, status }) => {
-    let endpoint = `/marketplace/seller-promotions/promotions/${promotionId}/items?promotion_type=${promotionType}&user_id={userId}`;
+    let endpoint = `/marketplace/seller-promotions/promotions/${promotionId}/items?promotion_type=${promotionType}&caller.id={userId}&app_version=v2`;
     if (status) endpoint += `&status=${status}`;
-    const data = await mlProxy("GET", endpoint);
+    const data = await mlProxy("GET", endpoint, undefined, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1077,12 +1078,12 @@ server.tool(
     finishDate: z.string().describe("Fecha fin (YYYY-MM-DDT00:00:00)"),
   },
   async ({ itemId, dealPrice, startDate, finishDate }) => {
-    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`, {
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?caller.id={userId}&app_version=v2`, {
       deal_price: dealPrice,
       promotion_type: "PRICE_DISCOUNT",
       start_date: startDate,
       finish_date: finishDate,
-    });
+    }, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1106,7 +1107,7 @@ server.tool(
       promotion_type: promotionType,
     };
     if (stock && promotionType === "LIGHTNING") body.stock = stock;
-    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`, body);
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?caller.id={userId}&app_version=v2`, body, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1121,13 +1122,13 @@ server.tool(
     subType: z.string().optional().describe("Tipo: FIXED_PERCENTAGE o FLEXIBLE_PERCENTAGE (default)"),
   },
   async ({ name, startDate, finishDate, subType = "FLEXIBLE_PERCENTAGE" }) => {
-    const data = await mlProxy("POST", `/marketplace/seller-promotions/seller-campaign/{userId}`, {
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/seller-campaign/{userId}?caller.id={userId}&app_version=v2`, {
       promotion_type: "SELLER_CAMPAIGN",
       name,
       sub_type: subType,
       start_date: startDate,
       finish_date: finishDate,
-    });
+    }, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1141,11 +1142,11 @@ server.tool(
     dealPrice: z.number().describe("Precio de oferta"),
   },
   async ({ itemId, promotionId, dealPrice }) => {
-    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?user_id={userId}`, {
+    const data = await mlProxy("POST", `/marketplace/seller-promotions/items/${itemId}?caller.id={userId}&app_version=v2`, {
       promotion_id: promotionId,
       promotion_type: "SELLER_CAMPAIGN",
       deal_price: dealPrice,
-    });
+    }, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1159,9 +1160,9 @@ server.tool(
     promotionId: z.string().optional().describe("ID de la promocion (requerido para DOD, MARKETPLACE_CAMPAIGN)"),
   },
   async ({ itemId, promotionType, promotionId }) => {
-    let endpoint = `/marketplace/seller-promotions/items/${itemId}?user_id={userId}&promotion_type=${promotionType}`;
+    let endpoint = `/marketplace/seller-promotions/items/${itemId}?caller.id={userId}&promotion_type=${promotionType}&app_version=v2`;
     if (promotionId) endpoint += `&promotion_id=${promotionId}`;
-    const data = await mlProxy("DELETE", endpoint);
+    const data = await mlProxy("DELETE", endpoint, undefined, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1171,7 +1172,7 @@ server.tool(
   "Ver detalle de un candidato a promocion (invitacion de ML)",
   { candidateId: z.string().describe("ID del candidato (ej: CANDIDATE-MLM123-456)") },
   async ({ candidateId }) => {
-    const data = await mlProxy("GET", `/marketplace/seller-promotions/promotions/candidate/${candidateId}/{userId}`);
+    const data = await mlProxy("GET", `/marketplace/seller-promotions/promotions/candidate/${candidateId}/{userId}?caller.id={userId}&app_version=v2`, undefined, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
@@ -1181,7 +1182,7 @@ server.tool(
   "Ver items excluidos de promociones automaticas",
   {},
   async () => {
-    const data = await mlProxy("GET", `/seller-promotions/exclusion-list/seller?app_version=v2`);
+    const data = await mlProxy("GET", `/seller-promotions/exclusion-list/seller?app_version=v2&caller.id={userId}`, undefined, PROMO_HEADERS);
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );
