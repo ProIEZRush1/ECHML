@@ -14,15 +14,15 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   TrendingUp,
-  ArrowDownToLine,
-  Receipt,
-  Wallet,
-  Activity,
   Percent,
   Truck,
+  Wallet,
+  Activity,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
+import { CashflowFilters } from "./cashflow-filters";
+import Link from "next/link";
 
 interface PackBalance {
   id: string;
@@ -30,245 +30,172 @@ interface PackBalance {
   name: string;
   income: number;
   fees: number;
+  shipping: number;
   netIncome: number;
-  withdrawn: number;
-  net: number;
+  transactionCount: number;
 }
 
-interface RecentTransaction {
-  type: "income" | "withdrawal" | "expense" | "fee" | "mp_movement";
-  date: Date;
-  amount: number;
-  description: string;
-  label?: string;
-}
+export default async function FlujoCajaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    packId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    label?: string;
+    page?: string;
+  }>;
+}) {
+  const params = await searchParams;
+  const currentPage = Math.max(1, parseInt(params.page || "1", 10));
+  const pageSize = 50;
 
-export default async function FlujoCajaPage() {
-  const [orders, withdrawals, expenses, listings, mpTransactions] = await Promise.all([
-    prisma.mLOrder.findMany({
-      select: {
-        id: true,
-        mlItemId: true,
-        totalAmount: true,
-        dateCreated: true,
-      },
+  // Build filter conditions for MPTransactions
+  const where: {
+    packId?: string;
+    dateCreated?: { gte?: Date; lte?: Date };
+    label?: string;
+  } = {};
+
+  if (params.packId) {
+    where.packId = params.packId;
+  }
+
+  if (params.dateFrom || params.dateTo) {
+    where.dateCreated = {};
+    if (params.dateFrom) {
+      where.dateCreated.gte = new Date(`${params.dateFrom}T00:00:00.000Z`);
+    }
+    if (params.dateTo) {
+      where.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
+    }
+  }
+
+  if (params.label) {
+    where.label = params.label;
+  }
+
+  // Fetch filtered data
+  const [mpTransactions, totalCount, allPacks] = await Promise.all([
+    prisma.mPTransaction.findMany({
+      where,
       orderBy: { dateCreated: "desc" },
-    }),
-    prisma.withdrawal.findMany({
+      skip: (currentPage - 1) * pageSize,
+      take: pageSize,
       include: {
-        allocations: {
-          include: {
-            pack: { select: { id: true, sku: true, name: true } },
-          },
-        },
-      },
-      orderBy: { date: "desc" },
-    }),
-    prisma.expense.findMany({
-      orderBy: { date: "desc" },
-    }),
-    prisma.mLListing.findMany({
-      select: {
-        mlItemId: true,
-        packId: true,
         pack: { select: { id: true, sku: true, name: true } },
       },
     }),
-    prisma.mPTransaction.findMany({
-      orderBy: { dateCreated: "desc" },
+    prisma.mPTransaction.count({ where }),
+    prisma.pack.findMany({
+      select: { id: true, sku: true, name: true },
+      orderBy: { name: "asc" },
     }),
   ]);
 
-  const hasMPData = mpTransactions.length > 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Build mlItemId -> Pack mapping
-  const itemToPackMap = new Map<string, { id: string; sku: string; name: string }>();
-  for (const listing of listings) {
-    itemToPackMap.set(listing.mlItemId, listing.pack);
-  }
+  // Aggregate KPIs with same filters (no pagination)
+  const allFilteredTransactions = await prisma.mPTransaction.findMany({
+    where,
+    select: {
+      amount: true,
+      label: true,
+      type: true,
+      packId: true,
+    },
+  });
 
-  // Calculate income per pack
-  const incomeByPack = new Map<string, number>();
-  const feesByPack = new Map<string, number>();
   let totalIncome = 0;
   let totalFees = 0;
-  let totalShippingFees = 0;
+  let totalShipping = 0;
 
-  if (hasMPData) {
-    for (const tx of mpTransactions) {
-      const amount = Number(tx.amount);
-      const label = tx.label;
-
-      if (label === "sale") {
-        totalIncome += amount;
-        if (tx.packId) {
-          incomeByPack.set(tx.packId, (incomeByPack.get(tx.packId) || 0) + amount);
-        }
-      }
-
-      if (label === "fee" || label === "commission") {
-        totalFees += Math.abs(amount);
-        if (tx.packId) {
-          feesByPack.set(tx.packId, (feesByPack.get(tx.packId) || 0) + Math.abs(amount));
-        }
-      }
-
-      if (label === "shipping") {
-        totalShippingFees += Math.abs(amount);
-      }
-    }
-  } else {
-    for (const order of orders) {
-      const amount = Number(order.totalAmount);
+  for (const tx of allFilteredTransactions) {
+    const amount = Number(tx.amount);
+    if (tx.label === "sale") {
       totalIncome += amount;
-
-      const pack = itemToPackMap.get(order.mlItemId);
-      if (pack) {
-        incomeByPack.set(pack.id, (incomeByPack.get(pack.id) || 0) + amount);
-      }
+    } else if (tx.label === "fee" || tx.label === "commission") {
+      totalFees += Math.abs(amount);
+    } else if (tx.label === "shipping") {
+      totalShipping += Math.abs(amount);
     }
   }
 
-  const totalWithdrawn = withdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const mpBalance = totalIncome - totalWithdrawn - totalFees - totalShippingFees;
+  const totalNet = totalIncome - totalFees - totalShipping;
 
-  // Calculate withdrawals per pack
-  const withdrawnByPack = new Map<string, number>();
-  for (const withdrawal of withdrawals) {
-    for (const alloc of withdrawal.allocations) {
-      if (alloc.packId) {
-        withdrawnByPack.set(
-          alloc.packId,
-          (withdrawnByPack.get(alloc.packId) || 0) + Number(alloc.amount)
-        );
-      }
+  // Calculate balance per pack (using same date/label filters but no packId filter)
+  const packWhere: {
+    dateCreated?: { gte?: Date; lte?: Date };
+    label?: string;
+  } = {};
+
+  if (params.dateFrom || params.dateTo) {
+    packWhere.dateCreated = {};
+    if (params.dateFrom) {
+      packWhere.dateCreated.gte = new Date(`${params.dateFrom}T00:00:00.000Z`);
     }
+    if (params.dateTo) {
+      packWhere.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
+    }
+  }
+
+  const packTransactions = await prisma.mPTransaction.findMany({
+    where: packWhere,
+    select: {
+      amount: true,
+      label: true,
+      packId: true,
+    },
+  });
+
+  // Aggregate by pack
+  const packMap = new Map<
+    string,
+    { income: number; fees: number; shipping: number; count: number }
+  >();
+
+  for (const tx of packTransactions) {
+    if (!tx.packId) continue;
+    const existing = packMap.get(tx.packId) || { income: 0, fees: 0, shipping: 0, count: 0 };
+    const amount = Number(tx.amount);
+
+    if (tx.label === "sale") {
+      existing.income += amount;
+    } else if (tx.label === "fee" || tx.label === "commission") {
+      existing.fees += Math.abs(amount);
+    } else if (tx.label === "shipping") {
+      existing.shipping += Math.abs(amount);
+    }
+    existing.count += 1;
+    packMap.set(tx.packId, existing);
   }
 
   // Build pack balances
-  const packIds = new Set<string>();
-  for (const [packId] of incomeByPack) packIds.add(packId);
-  for (const [packId] of withdrawnByPack) packIds.add(packId);
-
   const packBalances: PackBalance[] = [];
-  const seenPacks = new Set<string>();
-
-  for (const listing of listings) {
-    if (!packIds.has(listing.pack.id)) continue;
-    if (seenPacks.has(listing.pack.id)) continue;
-    seenPacks.add(listing.pack.id);
-
-    const income = incomeByPack.get(listing.pack.id) || 0;
-    const fees = feesByPack.get(listing.pack.id) || 0;
-    const withdrawn = withdrawnByPack.get(listing.pack.id) || 0;
-    const netIncome = income - fees;
+  for (const pack of allPacks) {
+    const data = packMap.get(pack.id);
+    if (!data) continue;
 
     packBalances.push({
-      id: listing.pack.id,
-      sku: listing.pack.sku,
-      name: listing.pack.name,
-      income,
-      fees,
-      netIncome,
-      withdrawn,
-      net: netIncome - withdrawn,
+      id: pack.id,
+      sku: pack.sku,
+      name: pack.name,
+      income: data.income,
+      fees: data.fees,
+      shipping: data.shipping,
+      netIncome: data.income - data.fees - data.shipping,
+      transactionCount: data.count,
     });
   }
 
   packBalances.sort((a, b) => b.income - a.income);
 
-  // Build recent transactions
-  const recentTransactions: RecentTransaction[] = [];
-
-  if (hasMPData) {
-    for (const tx of mpTransactions.slice(0, 30)) {
-      const amount = Number(tx.amount);
-      const label = tx.label;
-
-      let type: RecentTransaction["type"] = "mp_movement";
-      if (label === "sale") type = "income";
-      else if (label === "fee" || label === "commission") type = "fee";
-
-      recentTransactions.push({
-        type,
-        date: tx.dateCreated,
-        amount: tx.type === "debit" ? -Math.abs(amount) : amount,
-        description: tx.description || `Movimiento MP: ${label}`,
-        label,
-      });
-    }
-  } else {
-    for (const order of orders.slice(0, 15)) {
-      const pack = itemToPackMap.get(order.mlItemId);
-      recentTransactions.push({
-        type: "income",
-        date: order.dateCreated,
-        amount: Number(order.totalAmount),
-        description: pack ? `Venta ${pack.sku}` : `Venta ${order.mlItemId}`,
-      });
-    }
-  }
-
-  for (const withdrawal of withdrawals.slice(0, 10)) {
-    recentTransactions.push({
-      type: "withdrawal",
-      date: withdrawal.date,
-      amount: Number(withdrawal.amount),
-      description: withdrawal.concept,
-    });
-  }
-
-  for (const expense of expenses.slice(0, 10)) {
-    recentTransactions.push({
-      type: "expense",
-      date: expense.date,
-      amount: Number(expense.amount),
-      description: `[${expense.category}] ${expense.concept}`,
-    });
-  }
-
-  recentTransactions.sort((a, b) => b.date.getTime() - a.date.getTime());
-  const last20Transactions = recentTransactions.slice(0, 20);
-
-  // KPI cards
-  const kpis = [
-    {
-      title: "Ingresos Totales",
-      value: formatCurrency(totalIncome),
-      icon: TrendingUp,
-      iconBg: "bg-green-100 dark:bg-green-900/30",
-      iconColor: "text-green-600 dark:text-green-400",
-      valueColor: "text-green-600 dark:text-green-400",
-    },
-    {
-      title: "Retirado",
-      value: formatCurrency(totalWithdrawn),
-      icon: ArrowDownToLine,
-      iconBg: "bg-red-100 dark:bg-red-900/30",
-      iconColor: "text-red-600 dark:text-red-400",
-      valueColor: "text-red-600 dark:text-red-400",
-    },
-    {
-      title: "Gastos",
-      value: formatCurrency(totalExpenses),
-      icon: Receipt,
-      iconBg: "bg-amber-100 dark:bg-amber-900/30",
-      iconColor: "text-amber-600 dark:text-amber-400",
-      valueColor: "text-amber-600 dark:text-amber-400",
-    },
-    {
-      title: "Balance en MP",
-      value: formatCurrency(mpBalance),
-      icon: Wallet,
-      iconBg: "bg-blue-100 dark:bg-blue-900/30",
-      iconColor: "text-blue-600 dark:text-blue-400",
-      valueColor: "text-blue-600 dark:text-blue-400",
-    },
-  ];
+  // Determine if any filters are active
+  const hasFilters = !!(params.packId || params.dateFrom || params.dateTo || params.label);
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <PageHeader
           title="Flujo de Caja"
@@ -277,99 +204,91 @@ export default async function FlujoCajaPage() {
         <MPSyncButton />
       </div>
 
-      {/* KPI Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 overflow-hidden">
-        {kpis.map((kpi) => (
-          <Card key={kpi.title} className="overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {kpi.title}
-              </CardTitle>
-              <div className={`rounded-md p-2 ${kpi.iconBg}`}>
-                <kpi.icon className={`h-4 w-4 ${kpi.iconColor}`} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-xl font-bold truncate ${kpi.valueColor}`}>
-                {kpi.value}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Filters */}
+      <CashflowFilters />
 
-      {/* Fee Breakdown — only show if MP data exists */}
-      {hasMPData && (totalFees > 0 || totalShippingFees > 0) && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Comisiones ML
-              </CardTitle>
-              <div className="rounded-md p-2 bg-purple-100 dark:bg-purple-900/30">
-                <Percent className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
-                {formatCurrency(totalFees)}
-              </div>
-              {totalIncome > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos
-                </p>
-              )}
-            </CardContent>
-          </Card>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Ingresos
+            </CardTitle>
+            <div className="rounded-md p-2 bg-green-100 dark:bg-green-900/30">
+              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-green-600 dark:text-green-400 truncate">
+              {formatCurrency(totalIncome)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {allFilteredTransactions.filter((t) => t.label === "sale").length} ventas
+            </p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Costos de Envio
-              </CardTitle>
-              <div className="rounded-md p-2 bg-orange-100 dark:bg-orange-900/30">
-                <Truck className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-orange-600 dark:text-orange-400">
-                {formatCurrency(totalShippingFees)}
-              </div>
-              {totalIncome > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {((totalShippingFees / totalIncome) * 100).toFixed(1)}% de ingresos
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Ingreso Neto
-              </CardTitle>
-              <div className="rounded-md p-2 bg-emerald-100 dark:bg-emerald-900/30">
-                <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                {formatCurrency(totalIncome - totalFees - totalShippingFees)}
-              </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Comisiones
+            </CardTitle>
+            <div className="rounded-md p-2 bg-purple-100 dark:bg-purple-900/30">
+              <Percent className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-purple-600 dark:text-purple-400 truncate">
+              -{formatCurrency(totalFees)}
+            </div>
+            {totalIncome > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                Despues de comisiones y envios
+                {((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos
               </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            )}
+          </CardContent>
+        </Card>
 
-      {/* MP Sync Status */}
-      {hasMPData && (
-        <p className="text-xs text-muted-foreground">
-          Datos de Mercado Pago sincronizados ({mpTransactions.length} movimientos)
-        </p>
-      )}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Envios
+            </CardTitle>
+            <div className="rounded-md p-2 bg-orange-100 dark:bg-orange-900/30">
+              <Truck className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-orange-600 dark:text-orange-400 truncate">
+              -{formatCurrency(totalShipping)}
+            </div>
+            {totalIncome > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {((totalShipping / totalIncome) * 100).toFixed(1)}% de ingresos
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Neto
+            </CardTitle>
+            <div className="rounded-md p-2 bg-blue-100 dark:bg-blue-900/30">
+              <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-xl font-bold truncate ${totalNet >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400"}`}>
+              {formatCurrency(totalNet)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Despues de comisiones y envios
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Balance por Pack */}
       {packBalances.length > 0 && (
@@ -377,143 +296,259 @@ export default async function FlujoCajaPage() {
           <h2 className="text-lg font-semibold tracking-tight">Balance por Pack</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {packBalances.map((pack) => {
-              const ratio = pack.netIncome > 0 ? (pack.withdrawn / pack.netIncome) * 100 : 0;
-              const isPositive = pack.net >= 0;
+              const feeRatio = pack.income > 0 ? ((pack.fees + pack.shipping) / pack.income) * 100 : 0;
+              const isSelected = params.packId === pack.id;
 
               return (
-                <Card key={pack.id}>
-                  <CardContent className="pt-6">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-sm">{pack.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">{pack.sku}</p>
+                <Link
+                  key={pack.id}
+                  href={`/flujo-caja?packId=${pack.id}${params.dateFrom ? `&dateFrom=${params.dateFrom}` : ""}${params.dateTo ? `&dateTo=${params.dateTo}` : ""}`}
+                  className="block"
+                >
+                  <Card className={`transition-all hover:shadow-md hover:border-primary/30 cursor-pointer ${isSelected ? "border-primary ring-2 ring-primary/20" : ""}`}>
+                    <CardContent className="pt-6">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm">{pack.name}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{pack.sku}</p>
+                          </div>
+                          <div className={`text-lg font-bold ${pack.netIncome >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                            {formatCurrency(pack.netIncome)}
+                          </div>
                         </div>
-                        <div className={`text-lg font-bold ${isPositive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                          {formatCurrency(pack.net)}
-                        </div>
-                      </div>
 
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Ingresos</span>
-                          <span className="font-medium text-green-600 dark:text-green-400">
-                            {formatCurrency(pack.income)}
-                          </span>
-                        </div>
-                        {hasMPData && pack.fees > 0 && (
+                        <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Comisiones</span>
-                            <span className="font-medium text-purple-600 dark:text-purple-400">
-                              -{formatCurrency(pack.fees)}
+                            <span className="text-muted-foreground">Ingresos</span>
+                            <span className="font-medium text-green-600 dark:text-green-400">
+                              {formatCurrency(pack.income)}
                             </span>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Retirado</span>
-                          <span className="font-medium text-red-600 dark:text-red-400">
-                            {formatCurrency(pack.withdrawn)}
-                          </span>
+                          {pack.fees > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Comisiones</span>
+                              <span className="font-medium text-purple-600 dark:text-purple-400">
+                                -{formatCurrency(pack.fees)}
+                              </span>
+                            </div>
+                          )}
+                          {pack.shipping > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Envios</span>
+                              <span className="font-medium text-orange-600 dark:text-orange-400">
+                                -{formatCurrency(pack.shipping)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Progress bar: income vs fees ratio */}
+                        <div className="h-2 w-full rounded-full bg-green-100 dark:bg-green-900/30 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-green-500 dark:bg-green-400 transition-all"
+                            style={{ width: `${Math.max(0, 100 - feeRatio)}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{pack.transactionCount} movimientos</span>
+                          <span>{(100 - feeRatio).toFixed(0)}% rentabilidad</span>
                         </div>
                       </div>
-
-                      {/* Progress bar */}
-                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-red-500 dark:bg-red-400 transition-all"
-                          style={{ width: `${Math.min(ratio, 100)}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground text-right">
-                        {ratio.toFixed(0)}% retirado
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               );
             })}
           </div>
         </div>
       )}
 
-      {/* Movimientos Recientes */}
+      {/* Transaction Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Activity className="h-4 w-4" />
-            Movimientos Recientes
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4" />
+              Movimientos
+              {hasFilters && (
+                <Badge variant="secondary" className="text-xs font-normal">
+                  Filtrado
+                </Badge>
+              )}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {totalCount} resultado{totalCount !== 1 ? "s" : ""}
+            </p>
+          </div>
         </CardHeader>
         <CardContent>
-          {last20Transactions.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No hay movimientos registrados.
+          {mpTransactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No hay movimientos que coincidan con los filtros.
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Descripcion</TableHead>
-                  <TableHead className="text-right">Monto</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {last20Transactions.map((tx, i) => (
-                  <TableRow key={i} className="hover:bg-muted/50">
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDate(tx.date)}
-                    </TableCell>
-                    <TableCell>
-                      {tx.type === "income" && (
-                        <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100">
-                          Venta
-                        </Badge>
-                      )}
-                      {tx.type === "withdrawal" && (
-                        <Badge variant="default" className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-100">
-                          Retiro
-                        </Badge>
-                      )}
-                      {tx.type === "expense" && (
-                        <Badge variant="default" className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100">
-                          Gasto
-                        </Badge>
-                      )}
-                      {tx.type === "fee" && (
-                        <Badge variant="default" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100">
-                          Comision
-                        </Badge>
-                      )}
-                      {tx.type === "mp_movement" && (
-                        <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
-                          MP
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium text-sm">
-                      {tx.description}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      <span
-                        className={
-                          tx.amount >= 0
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-red-600 dark:text-red-400"
-                        }
-                      >
-                        {tx.amount >= 0 ? "+" : ""}
-                        {formatCurrency(Math.abs(tx.amount))}
-                      </span>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Descripcion</TableHead>
+                    <TableHead>Pack</TableHead>
+                    <TableHead className="text-right">Monto</TableHead>
+                    <TableHead className="text-right">Neto</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {mpTransactions.map((tx) => {
+                    const amount = Number(tx.amount);
+                    const balance = Number(tx.balanceChange);
+                    const isCredit = tx.type === "credit";
+
+                    return (
+                      <TableRow key={tx.id} className="hover:bg-muted/50">
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          {formatDate(tx.dateCreated)}
+                        </TableCell>
+                        <TableCell>
+                          {tx.label === "sale" && (
+                            <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100">
+                              Venta
+                            </Badge>
+                          )}
+                          {(tx.label === "fee" || tx.label === "commission") && (
+                            <Badge variant="default" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100">
+                              Comision
+                            </Badge>
+                          )}
+                          {tx.label === "shipping" && (
+                            <Badge variant="default" className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 hover:bg-orange-100">
+                              Envio
+                            </Badge>
+                          )}
+                          {!["sale", "fee", "commission", "shipping"].includes(tx.label) && (
+                            <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
+                              {tx.label}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                          {tx.description || `Movimiento: ${tx.label}`}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {tx.pack ? (
+                            <Link
+                              href={`/flujo-caja?packId=${tx.pack.id}`}
+                              className="text-primary hover:underline font-mono text-xs"
+                            >
+                              {tx.pack.sku}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap">
+                          <span className={isCredit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                            {isCredit ? "+" : "-"}{formatCurrency(Math.abs(amount))}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap">
+                          <span className={balance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                            {balance >= 0 ? "+" : ""}{formatCurrency(balance)}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Pagina {currentPage} de {totalPages}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {currentPage > 1 && (
+                      <Link
+                        href={buildPageUrl(params, currentPage - 1)}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+                      >
+                        Anterior
+                      </Link>
+                    )}
+                    {/* Page numbers */}
+                    {generatePageNumbers(currentPage, totalPages).map((pageNum, idx) =>
+                      pageNum === null ? (
+                        <span key={`ellipsis-${idx}`} className="text-muted-foreground px-1">...</span>
+                      ) : (
+                        <Link
+                          key={pageNum}
+                          href={buildPageUrl(params, pageNum)}
+                          className={`inline-flex items-center justify-center rounded-md text-sm font-medium h-9 w-9 ${
+                            pageNum === currentPage
+                              ? "bg-primary text-primary-foreground"
+                              : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                          }`}
+                        >
+                          {pageNum}
+                        </Link>
+                      )
+                    )}
+                    {currentPage < totalPages && (
+                      <Link
+                        href={buildPageUrl(params, currentPage + 1)}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+                      >
+                        Siguiente
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function buildPageUrl(
+  params: { packId?: string; dateFrom?: string; dateTo?: string; label?: string },
+  page: number
+): string {
+  const searchParams = new URLSearchParams();
+  if (params.packId) searchParams.set("packId", params.packId);
+  if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+  if (params.dateTo) searchParams.set("dateTo", params.dateTo);
+  if (params.label) searchParams.set("label", params.label);
+  if (page > 1) searchParams.set("page", String(page));
+  const query = searchParams.toString();
+  return `/flujo-caja${query ? `?${query}` : ""}`;
+}
+
+function generatePageNumbers(current: number, total: number): (number | null)[] {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages: (number | null)[] = [1];
+
+  if (current > 3) pages.push(null);
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i);
+  }
+
+  if (current < total - 2) pages.push(null);
+
+  pages.push(total);
+
+  return pages;
 }
