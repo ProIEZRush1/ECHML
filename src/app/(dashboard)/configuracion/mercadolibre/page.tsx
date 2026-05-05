@@ -37,10 +37,12 @@ export default async function MLConfigPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             Estado de Conexion
-            {credential ? (
+            {credential && hasValidToken ? (
               <Badge className="bg-green-100 text-green-800">Conectado</Badge>
+            ) : credential ? (
+              <Badge variant="secondary">Desconectado — requiere autorizacion</Badge>
             ) : (
-              <Badge variant="destructive">No conectado</Badge>
+              <Badge variant="destructive">No configurado</Badge>
             )}
           </CardTitle>
         </CardHeader>

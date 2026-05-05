@@ -107,12 +107,24 @@ export async function DELETE(): Promise<NextResponse> {
   }
 
   try {
-    await prisma.mLCredential.deleteMany();
+    const existing = await prisma.mLCredential.findFirst();
+    if (existing) {
+      await prisma.mLCredential.update({
+        where: { id: existing.id },
+        data: {
+          accessToken: "",
+          refreshToken: "",
+          tokenExpiresAt: new Date(0),
+          mlUserId: BigInt(0),
+          scope: "offline_access read write",
+        },
+      });
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Error deleting ML credentials:", error);
+    console.error("Error clearing ML token:", error);
     return NextResponse.json(
-      { error: "Error al eliminar las credenciales" },
+      { error: "Error al eliminar el token" },
       { status: 500 }
     );
   }

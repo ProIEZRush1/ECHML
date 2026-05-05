@@ -24,7 +24,6 @@ export function DisconnectButton() {
       });
 
       if (res.ok) {
-        router.push("/setup/mercadolibre");
         router.refresh();
       }
     } catch {
