@@ -1232,13 +1232,13 @@ server.tool(
   {
     prompt: z.string().describe("Descripcion del video a generar"),
     model: z.string().optional().describe("Modelo: sora-2 (default, rapido), sora-2-pro (alta calidad)"),
-    size: z.string().optional().describe("Tamaño: 1280x720 (default), 1920x1080"),
+    size: z.string().optional().describe("Tamaño: 1280x720 (landscape, default), 720x1280 (vertical)"),
     seconds: z.number().optional().describe("Duracion en segundos: 4, 8 o 12 (default 8)"),
   },
   async ({ prompt, model = "sora-2", size = "1280x720", seconds = 8 }) => {
     const validSeconds = [4, 8, 12];
     const nearest = validSeconds.reduce((prev, curr) => Math.abs(curr - seconds) < Math.abs(prev - seconds) ? curr : prev);
-    const data = await openaiProxy("/videos/generations", {
+    const data = await openaiProxy("/videos", {
       model,
       prompt,
       size,
