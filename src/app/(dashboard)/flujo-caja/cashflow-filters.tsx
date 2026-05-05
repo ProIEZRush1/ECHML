@@ -22,15 +22,25 @@ interface PackOption {
   name: string;
 }
 
+interface ProductOption {
+  id: string;
+  name: string;
+  brand: string | null;
+}
+
 export function CashflowFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const [packs, setPacks] = useState<PackOption[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>(() => {
     const param = searchParams.get("packIds") || searchParams.get("packId") || "";
     return param ? param.split(",").filter(Boolean) : [];
   });
+  const [selectedProductId, setSelectedProductId] = useState(
+    searchParams.get("productId") || ""
+  );
   const [dateFrom, setDateFrom] = useState(searchParams.get("dateFrom") || "");
   const [dateTo, setDateTo] = useState(searchParams.get("dateTo") || "");
   const [label, setLabel] = useState(searchParams.get("label") || "");
@@ -48,6 +58,21 @@ export function CashflowFilters() {
               id: p.id,
               sku: p.sku,
               name: p.name,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/products")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setProducts(
+            data.map((p: { id: string; name: string; brand?: string | null }) => ({
+              id: p.id,
+              name: p.name,
+              brand: p.brand || null,
             }))
           );
         }
@@ -77,6 +102,7 @@ export function CashflowFilters() {
   function applyFilters() {
     const params = new URLSearchParams();
     if (selectedPackIds.length > 0) params.set("packIds", selectedPackIds.join(","));
+    if (selectedProductId) params.set("productId", selectedProductId);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (label && label !== "all") params.set("label", label);
@@ -87,13 +113,19 @@ export function CashflowFilters() {
 
   function clearFilters() {
     setSelectedPackIds([]);
+    setSelectedProductId("");
     setDateFrom("");
     setDateTo("");
     setLabel("");
     router.push("/flujo-caja");
   }
 
-  const hasActiveFilters = selectedPackIds.length > 0 || dateFrom || dateTo || (label && label !== "all");
+  const hasActiveFilters =
+    selectedPackIds.length > 0 ||
+    selectedProductId ||
+    dateFrom ||
+    dateTo ||
+    (label && label !== "all");
 
   const activeFilters: { key: string; label: string }[] = [];
   if (selectedPackIds.length > 0) {
@@ -109,6 +141,13 @@ export function CashflowFilters() {
         label: `Packs: ${selectedPackIds.length} seleccionados`,
       });
     }
+  }
+  if (selectedProductId) {
+    const product = products.find((p) => p.id === selectedProductId);
+    activeFilters.push({
+      key: "productId",
+      label: `Producto: ${product ? product.name : selectedProductId.slice(0, 8)}`,
+    });
   }
   if (dateFrom) activeFilters.push({ key: "dateFrom", label: `Desde: ${dateFrom}` });
   if (dateTo) activeFilters.push({ key: "dateTo", label: `Hasta: ${dateTo}` });
@@ -127,6 +166,7 @@ export function CashflowFilters() {
     // Also remove legacy single packId param
     params.delete("packId");
     if (key === "packIds") setSelectedPackIds([]);
+    if (key === "productId") setSelectedProductId("");
     if (key === "dateFrom") setDateFrom("");
     if (key === "dateTo") setDateTo("");
     if (key === "label") setLabel("");
@@ -150,7 +190,7 @@ export function CashflowFilters() {
           <span className="text-sm font-medium text-muted-foreground">Filtros</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
           {/* Multi-Pack selector */}
           <div className="space-y-1 relative" ref={dropdownRef}>
             <Label className="text-xs text-muted-foreground">Packs</Label>
@@ -223,6 +263,28 @@ export function CashflowFilters() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Product selector */}
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Producto</Label>
+            <Select
+              value={selectedProductId || "all"}
+              onValueChange={(v) => setSelectedProductId(v === "all" ? "" : (v ?? ""))}
+            >
+              <SelectTrigger className="h-9">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los productos</SelectItem>
+                {products.map((product) => (
+                  <SelectItem key={product.id} value={product.id}>
+                    {product.name}
+                    {product.brand ? ` (${product.brand})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Date from */}

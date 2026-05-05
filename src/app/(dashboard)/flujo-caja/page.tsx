@@ -18,6 +18,7 @@ import {
   Truck,
   Wallet,
   Activity,
+  Package,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
@@ -43,6 +44,7 @@ export default async function FlujoCajaPage({
   searchParams: Promise<{
     packId?: string;
     packIds?: string;
+    productId?: string;
     dateFrom?: string;
     dateTo?: string;
     label?: string;
@@ -61,6 +63,26 @@ export default async function FlujoCajaPage({
     packIdList.push(params.packId);
   }
 
+  // If productId is set, find all packs linked to that product's variants
+  let productFilteredPackIds: string[] | null = null;
+  let filteredProductName: string | null = null;
+  if (params.productId) {
+    const [packItems, product] = await Promise.all([
+      prisma.packItem.findMany({
+        where: { productVariant: { productId: params.productId } },
+        select: { packId: true },
+      }),
+      prisma.product.findFirst({
+        where: { id: params.productId },
+        select: { name: true, brand: true },
+      }),
+    ]);
+    productFilteredPackIds = [...new Set(packItems.map((pi) => pi.packId))];
+    filteredProductName = product
+      ? `${product.name}${product.brand ? ` (${product.brand})` : ""}`
+      : null;
+  }
+
   // Build filter conditions for MPTransactions
   const where: {
     packId?: string | { in: string[] };
@@ -68,10 +90,20 @@ export default async function FlujoCajaPage({
     label?: string;
   } = {};
 
-  if (packIdList.length === 1) {
-    where.packId = packIdList[0];
-  } else if (packIdList.length > 1) {
-    where.packId = { in: packIdList };
+  // Combine pack filters: explicit packIds + product-derived packIds
+  const effectivePackIds = productFilteredPackIds
+    ? packIdList.length > 0
+      ? packIdList.filter((id) => productFilteredPackIds!.includes(id))
+      : productFilteredPackIds
+    : packIdList;
+
+  if (effectivePackIds.length === 1) {
+    where.packId = effectivePackIds[0];
+  } else if (effectivePackIds.length > 1) {
+    where.packId = { in: effectivePackIds };
+  } else if (productFilteredPackIds && productFilteredPackIds.length === 0) {
+    // Product has no linked packs, force empty result
+    where.packId = { in: [] };
   }
 
   if (params.dateFrom || params.dateTo) {
@@ -205,7 +237,7 @@ export default async function FlujoCajaPage({
   packBalances.sort((a, b) => b.income - a.income);
 
   // Determine if any filters are active
-  const hasFilters = !!(packIdList.length > 0 || params.dateFrom || params.dateTo || params.label);
+  const hasFilters = !!(packIdList.length > 0 || params.productId || params.dateFrom || params.dateTo || params.label);
 
   return (
     <div className="space-y-6">
@@ -220,6 +252,21 @@ export default async function FlujoCajaPage({
 
       {/* Filters */}
       <CashflowFilters />
+
+      {/* Product filter indicator */}
+      {filteredProductName && (
+        <div className="flex items-center gap-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-4 py-2">
+          <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <span className="text-sm text-blue-800 dark:text-blue-300">
+            Filtrando por producto: <strong>{filteredProductName}</strong>
+            {productFilteredPackIds && (
+              <span className="text-blue-600 dark:text-blue-400 ml-1">
+                ({productFilteredPackIds.length} pack{productFilteredPackIds.length !== 1 ? "s" : ""} vinculados)
+              </span>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -559,12 +606,13 @@ export default async function FlujoCajaPage({
 }
 
 function buildPageUrl(
-  params: { packId?: string; packIds?: string; dateFrom?: string; dateTo?: string; label?: string },
+  params: { packId?: string; packIds?: string; productId?: string; dateFrom?: string; dateTo?: string; label?: string },
   page: number
 ): string {
   const searchParams = new URLSearchParams();
   if (params.packIds) searchParams.set("packIds", params.packIds);
   else if (params.packId) searchParams.set("packIds", params.packId);
+  if (params.productId) searchParams.set("productId", params.productId);
   if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
   if (params.dateTo) searchParams.set("dateTo", params.dateTo);
   if (params.label) searchParams.set("label", params.label);

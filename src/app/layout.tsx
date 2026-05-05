@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${inter.variable} h-full`} suppressHydrationWarning>
-      <body className="min-h-full font-sans antialiased">
+      <body className="h-full font-sans antialiased">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
