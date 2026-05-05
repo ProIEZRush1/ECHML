@@ -360,3 +360,10 @@ model ProductGroupItem {
 
   @@unique([productGroupId, productId])
 }
+
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}

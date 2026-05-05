@@ -19,6 +19,7 @@ import {
   TrendingUp,
   ArrowDownToLine,
   Receipt,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,6 +82,11 @@ const configNavItems = [
     title: "API Keys",
     href: "/configuracion/api-keys",
     icon: Key,
+  },
+  {
+    title: "OpenAI",
+    href: "/configuracion/openai",
+    icon: Sparkles,
   },
 ];
 

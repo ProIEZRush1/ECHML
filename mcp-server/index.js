@@ -906,6 +906,420 @@ server.tool(
   }
 );
 
+// ─── OpenAI Integration ────────────────────────────────────────────────────────
+
+/**
+ * Helper para llamar la API de OpenAI via el proxy del CRM.
+ * El proxy obtiene la API key de la DB automaticamente.
+ */
+async function openaiProxy(endpoint, payload, method = "POST") {
+  return apiRequest("/api/openai/proxy", {
+    method: "POST",
+    body: JSON.stringify({ method, endpoint, payload }),
+  });
+}
+
+// --- OpenAI Config ---
+
+server.tool(
+  "openai_get_config",
+  "Verificar si la API key de OpenAI esta configurada",
+  {},
+  async () => {
+    const data = await apiRequest("/api/openai/config");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_set_config",
+  "Configurar la API key de OpenAI",
+  { apiKey: z.string().describe("API key de OpenAI (comienza con sk-)") },
+  async ({ apiKey }) => {
+    const data = await apiRequest("/api/openai/config", {
+      method: "PUT",
+      body: JSON.stringify({ apiKey }),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Image Generation ---
+
+server.tool(
+  "openai_generate_image",
+  "Generar imagen con OpenAI (GPT Image / DALL-E). Ideal para fotos de producto, marketing, etc.",
+  {
+    prompt: z.string().describe("Descripcion detallada de la imagen a generar"),
+    model: z.string().optional().describe("Modelo: gpt-image-1 (default), gpt-image-1-mini (economico)"),
+    size: z.string().optional().describe("Tamaño: 1024x1024 (default), 1536x1024, 1024x1536"),
+    quality: z.string().optional().describe("Calidad: low, medium, high, auto (default)"),
+    n: z.number().optional().describe("Numero de imagenes a generar (default 1)"),
+  },
+  async ({ prompt, model = "gpt-image-1", size = "1024x1024", quality = "auto", n = 1 }) => {
+    const data = await openaiProxy("/images/generations", {
+      model,
+      prompt,
+      size,
+      quality,
+      n,
+      response_format: "url",
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_edit_image",
+  "Editar/mejorar una imagen existente con OpenAI. Quitar fondos, agregar contexto, inpainting.",
+  {
+    prompt: z.string().describe("Instrucciones de edicion para la imagen"),
+    imageUrl: z.string().describe("URL de la imagen a editar"),
+    model: z.string().optional().describe("Modelo: gpt-image-1 (default)"),
+    size: z.string().optional().describe("Tamaño de salida: 1024x1024 (default)"),
+  },
+  async ({ prompt, imageUrl, model = "gpt-image-1", size = "1024x1024" }) => {
+    // Fetch the image and convert to base64 for the API
+    const data = await openaiProxy("/images/edits", {
+      model,
+      prompt,
+      image: imageUrl,
+      size,
+      response_format: "url",
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Vision / Image Analysis ---
+
+server.tool(
+  "openai_analyze_image",
+  "Analizar una imagen con GPT-4o Vision. Ideal para evaluar calidad de fotos de producto, generar descripciones automaticas, etc.",
+  {
+    imageUrl: z.string().describe("URL de la imagen a analizar"),
+    prompt: z.string().optional().describe("Instruccion especifica (default: analisis general de producto)"),
+    model: z.string().optional().describe("Modelo: gpt-4o (default), gpt-4o-mini (economico)"),
+  },
+  async ({ imageUrl, prompt = "Analiza esta imagen de producto. Describe el producto, evalúa la calidad de la foto para venta en MercadoLibre, y sugiere mejoras.", model = "gpt-4o" }) => {
+    const data = await openaiProxy("/chat/completions", {
+      model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+          ],
+        },
+      ],
+      max_tokens: 1000,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_analyze_multiple_images",
+  "Analizar multiples imagenes a la vez con GPT-4o Vision",
+  {
+    imageUrls: z.string().describe("URLs de imagenes separadas por coma"),
+    prompt: z.string().optional().describe("Instruccion especifica para el analisis"),
+    model: z.string().optional().describe("Modelo: gpt-4o (default)"),
+  },
+  async ({ imageUrls, prompt = "Analiza estas imagenes de producto. Compara calidad, consistencia y sugiere la mejor para usar como imagen principal en MercadoLibre.", model = "gpt-4o" }) => {
+    const urls = imageUrls.split(",").map((u) => u.trim());
+    const content = [
+      { type: "text", text: prompt },
+      ...urls.map((url) => ({
+        type: "image_url",
+        image_url: { url, detail: "high" },
+      })),
+    ];
+    const data = await openaiProxy("/chat/completions", {
+      model,
+      messages: [{ role: "user", content }],
+      max_tokens: 2000,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Chat Completions (for descriptions, titles, etc.) ---
+
+server.tool(
+  "openai_chat",
+  "Usar GPT-4o para generar texto: titulos, descripciones de producto, respuestas a preguntas, etc.",
+  {
+    prompt: z.string().describe("Instruccion o pregunta para GPT-4o"),
+    systemPrompt: z.string().optional().describe("Prompt de sistema (contexto/rol)"),
+    model: z.string().optional().describe("Modelo: gpt-4o (default), gpt-4o-mini (economico)"),
+    maxTokens: z.number().optional().describe("Tokens maximos de respuesta (default 1000)"),
+  },
+  async ({ prompt, systemPrompt, model = "gpt-4o", maxTokens = 1000 }) => {
+    const messages = [];
+    if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
+    messages.push({ role: "user", content: prompt });
+
+    const data = await openaiProxy("/chat/completions", {
+      model,
+      messages,
+      max_tokens: maxTokens,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_generate_ml_title",
+  "Generar titulo optimizado para una publicacion de MercadoLibre",
+  {
+    productName: z.string().describe("Nombre del producto"),
+    brand: z.string().optional().describe("Marca del producto"),
+    variant: z.string().optional().describe("Variante (color, tamaño, etc.)"),
+    category: z.string().optional().describe("Categoria del producto"),
+    keywords: z.string().optional().describe("Palabras clave adicionales"),
+  },
+  async ({ productName, brand, variant, category, keywords }) => {
+    const prompt = `Genera un titulo optimizado para MercadoLibre Mexico (max 60 caracteres) para:
+Producto: ${productName}
+${brand ? `Marca: ${brand}` : ""}
+${variant ? `Variante: ${variant}` : ""}
+${category ? `Categoria: ${category}` : ""}
+${keywords ? `Keywords: ${keywords}` : ""}
+
+El titulo debe incluir palabras clave relevantes para SEO en MercadoLibre. No uses signos de exclamacion. Responde SOLO con el titulo.`;
+
+    const data = await openaiProxy("/chat/completions", {
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 100,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_generate_ml_description",
+  "Generar descripcion optimizada para una publicacion de MercadoLibre",
+  {
+    productName: z.string().describe("Nombre del producto"),
+    brand: z.string().optional().describe("Marca"),
+    features: z.string().optional().describe("Caracteristicas principales del producto"),
+    variant: z.string().optional().describe("Variante"),
+  },
+  async ({ productName, brand, features, variant }) => {
+    const prompt = `Genera una descripcion profesional para MercadoLibre Mexico:
+Producto: ${productName}
+${brand ? `Marca: ${brand}` : ""}
+${features ? `Caracteristicas: ${features}` : ""}
+${variant ? `Variante: ${variant}` : ""}
+
+La descripcion debe:
+- Ser persuasiva y profesional
+- Incluir caracteristicas y beneficios
+- Tener formato con viñetas/secciones claras
+- Ser apta para MercadoLibre Mexico
+- Maximo 2000 caracteres`;
+
+    const data = await openaiProxy("/chat/completions", {
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 800,
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Batch API ---
+
+server.tool(
+  "openai_create_batch",
+  "Crear un batch de OpenAI para procesar multiples requests con 50% de descuento. Primero sube el archivo JSONL, luego crea el batch.",
+  {
+    inputFileId: z.string().describe("ID del archivo JSONL subido (file-xxx)"),
+    endpoint: z.string().describe("Endpoint del batch: /v1/chat/completions, /v1/images/generations, /v1/embeddings"),
+    description: z.string().optional().describe("Descripcion del batch"),
+  },
+  async ({ inputFileId, endpoint, description }) => {
+    const payload = {
+      input_file_id: inputFileId,
+      endpoint,
+      completion_window: "24h",
+    };
+    if (description) payload.metadata = { description };
+    const data = await openaiProxy("/batches", payload);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_get_batch",
+  "Obtener estado de un batch de OpenAI (validating, in_progress, completed, failed)",
+  { batchId: z.string().describe("ID del batch (batch_xxx)") },
+  async ({ batchId }) => {
+    const data = await openaiProxy(`/batches/${batchId}`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_list_batches",
+  "Listar todos los batches de OpenAI con su estado",
+  {
+    limit: z.number().optional().describe("Limite de resultados (default 20)"),
+  },
+  async ({ limit = 20 }) => {
+    const data = await openaiProxy(`/batches?limit=${limit}`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_cancel_batch",
+  "Cancelar un batch de OpenAI en progreso",
+  { batchId: z.string().describe("ID del batch (batch_xxx)") },
+  async ({ batchId }) => {
+    const data = await openaiProxy(`/batches/${batchId}/cancel`, {});
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- File Upload (for Batch API) ---
+
+server.tool(
+  "openai_upload_file",
+  "Subir un archivo a OpenAI (JSONL para batch, imagenes, etc.)",
+  {
+    content: z.string().describe("Contenido del archivo (JSONL para batch)"),
+    purpose: z.string().optional().describe("Proposito: batch (default), fine-tune, assistants"),
+    filename: z.string().optional().describe("Nombre del archivo (default: batch.jsonl)"),
+  },
+  async ({ content, purpose = "batch", filename = "batch.jsonl" }) => {
+    // We need to use the proxy to upload
+    // The proxy will handle FormData on the server side
+    const data = await apiRequest("/api/openai/proxy", {
+      method: "POST",
+      body: JSON.stringify({
+        method: "POST",
+        endpoint: "/files",
+        payload: { content, purpose, filename },
+      }),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_get_file",
+  "Obtener informacion de un archivo subido a OpenAI",
+  { fileId: z.string().describe("ID del archivo (file-xxx)") },
+  async ({ fileId }) => {
+    const data = await openaiProxy(`/files/${fileId}`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_get_file_content",
+  "Descargar el contenido de un archivo de OpenAI (resultados de batch, etc.)",
+  { fileId: z.string().describe("ID del archivo (file-xxx)") },
+  async ({ fileId }) => {
+    const data = await openaiProxy(`/files/${fileId}/content`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Video Generation (Sora) ---
+
+server.tool(
+  "openai_generate_video",
+  "Generar video de producto con Sora (disponible hasta Sept 2026). Crea un video corto para showcase.",
+  {
+    prompt: z.string().describe("Descripcion del video a generar"),
+    model: z.string().optional().describe("Modelo: sora-2 (default, rapido), sora-2-pro (alta calidad)"),
+    size: z.string().optional().describe("Tamaño: 1280x720 (default), 1920x1080"),
+    seconds: z.number().optional().describe("Duracion en segundos (5-16, default 10)"),
+  },
+  async ({ prompt, model = "sora-2", size = "1280x720", seconds = 10 }) => {
+    const data = await openaiProxy("/videos", {
+      model,
+      prompt,
+      size,
+      seconds: Math.min(Math.max(seconds, 5), 16),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_get_video",
+  "Obtener estado de un video generado con Sora (queued, in_progress, completed)",
+  { videoId: z.string().describe("ID del video") },
+  async ({ videoId }) => {
+    const data = await openaiProxy(`/videos/${videoId}`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_get_video_content",
+  "Descargar el contenido (URL del MP4) de un video generado con Sora",
+  { videoId: z.string().describe("ID del video") },
+  async ({ videoId }) => {
+    const data = await openaiProxy(`/videos/${videoId}/content`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "openai_list_videos",
+  "Listar todos los videos generados con Sora",
+  {
+    limit: z.number().optional().describe("Limite de resultados (default 20)"),
+  },
+  async ({ limit = 20 }) => {
+    const data = await openaiProxy(`/videos?limit=${limit}`, undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Models ---
+
+server.tool(
+  "openai_list_models",
+  "Listar todos los modelos disponibles en tu cuenta de OpenAI",
+  {},
+  async () => {
+    const data = await openaiProxy("/models", undefined, "GET");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+// --- Generic OpenAI API ---
+
+server.tool(
+  "openai_api_call",
+  "Hacer cualquier llamada a la API de OpenAI (proxy generico)",
+  {
+    method: z.enum(["GET", "POST", "PUT", "DELETE"]).describe("Metodo HTTP"),
+    endpoint: z.string().describe("Endpoint de la API, ej: /chat/completions, /images/generations"),
+    payload: z.string().optional().describe("Payload en JSON (para POST/PUT)"),
+  },
+  async ({ method, endpoint, payload }) => {
+    let parsedPayload;
+    if (payload) {
+      try {
+        parsedPayload = JSON.parse(payload);
+      } catch {
+        return { content: [{ type: "text", text: "Error: 'payload' debe ser JSON valido" }] };
+      }
+    }
+    const data = await openaiProxy(endpoint, parsedPayload, method);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── Start Server ────────────────────────────────────────────────────────────
 
 async function main() {
