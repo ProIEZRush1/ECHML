@@ -37,36 +37,12 @@ interface MLOrdersSearchResponse {
   paging: { total: number; offset: number; limit: number };
 }
 
-interface MPPaymentDetail {
-  id: number;
-  status: string;
-  transaction_amount: number;
-  net_received_amount?: number;
-  total_paid_amount?: number;
-  fee_details?: Array<{ type: string; amount: number; fee_payer: string }>;
-  transaction_details?: {
-    net_received_amount?: number;
-    total_paid_amount?: number;
-  };
-  money_release_date?: string;
-  operation_type?: string;
-  description?: string;
-  collector_id?: number;
-}
-
 export interface SyncResult {
   synced: number;
   total: number;
   fees: number;
+  shipping: number;
   revenue: number;
-}
-
-async function getPaymentDetail(paymentId: number): Promise<MPPaymentDetail | null> {
-  try {
-    return await mlFetch<MPPaymentDetail>(`/v1/payments/${paymentId}`);
-  } catch {
-    return null;
-  }
 }
 
 export async function syncOrdersFromML(): Promise<SyncResult> {
@@ -80,6 +56,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
   let total = Infinity;
   let synced = 0;
   let totalFees = 0;
+  let totalShipping = 0;
   let totalRevenue = 0;
 
   while (offset < total) {
@@ -100,29 +77,17 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
       const item = order.order_items?.[0];
       if (!item) continue;
 
-      let marketplaceFee = payment?.marketplace_fee ?? 0;
-      let shippingCost = payment?.shipping_cost ?? 0;
-      let netReceived = 0;
+      // sale_fee is the ML commission per item (from order_items)
+      const saleFee = item.sale_fee ?? 0;
+      // marketplace_fee from payment (sometimes includes other fees)
+      const marketplaceFee = payment?.marketplace_fee ?? 0;
+      // Use whichever is higher — sale_fee is more reliable for ML marketplace
+      const commission = Math.max(saleFee, marketplaceFee);
+      const shippingCost = payment?.shipping_cost ?? 0;
+      const netReceived = order.total_amount - commission - shippingCost;
 
-      if (payment?.id) {
-        const detail = await getPaymentDetail(payment.id);
-        if (detail) {
-          if (detail.fee_details?.length) {
-            marketplaceFee = detail.fee_details.reduce((sum, f) => sum + f.amount, 0);
-          }
-          const netFromDetails = detail.transaction_details?.net_received_amount
-            ?? detail.net_received_amount;
-          if (netFromDetails && netFromDetails > 0) {
-            netReceived = netFromDetails;
-          }
-        }
-      }
-
-      if (netReceived === 0) {
-        netReceived = order.total_amount - marketplaceFee - shippingCost;
-      }
-
-      totalFees += marketplaceFee;
+      totalFees += commission;
+      totalShipping += shippingCost;
       totalRevenue += netReceived;
 
       let packId: string | null = null;
@@ -132,6 +97,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
       });
       if (listing) packId = listing.packId;
 
+      // Sale credit entry
       await prisma.mPTransaction.upsert({
         where: { mpId: BigInt(order.id) },
         create: {
@@ -157,15 +123,16 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
         },
       });
 
-      if (marketplaceFee > 0) {
+      // Commission debit entry
+      if (commission > 0) {
         const feeId = BigInt(order.id) * BigInt(100) + BigInt(1);
         await prisma.mPTransaction.upsert({
           where: { mpId: feeId },
           create: {
             mpId: feeId,
             type: "debit",
-            amount: marketplaceFee,
-            balanceChange: -marketplaceFee,
+            amount: commission,
+            balanceChange: -commission,
             status: "approved",
             label: "fee",
             description: `Comision ML - ${item.item.title}`,
@@ -175,14 +142,15 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
             dateCreated: new Date(order.date_closed || order.date_created),
           },
           update: {
-            amount: marketplaceFee,
-            balanceChange: -marketplaceFee,
+            amount: commission,
+            balanceChange: -commission,
             description: `Comision ML - ${item.item.title}`,
             syncedAt: new Date(),
           },
         });
       }
 
+      // Shipping debit entry
       if (shippingCost > 0) {
         const shipId = BigInt(order.id) * BigInt(100) + BigInt(2);
         await prisma.mPTransaction.upsert({
@@ -215,19 +183,5 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
     offset += limit;
   }
 
-  return { synced, total, fees: totalFees, revenue: totalRevenue };
-}
-
-export async function getBillingSummary() {
-  try {
-    const data = await mlFetch<{ results: Array<{ key: string }> }>(
-      "/billing/integration/monthly/periods",
-      { params: { group: "MP", document_type: "BILL", limit: "1" } }
-    );
-    if (!data.results?.length) return null;
-    const key = data.results[0].key;
-    return await mlFetch(`/billing/integration/periods/key/${key}/summary/details`);
-  } catch {
-    return null;
-  }
+  return { synced, total, fees: totalFees, shipping: totalShipping, revenue: totalRevenue };
 }
