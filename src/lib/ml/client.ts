@@ -183,6 +183,19 @@ interface MLItemSearchResponse {
   paging: { total: number; offset: number; limit: number };
 }
 
+interface MLItemAttribute {
+  id: string;
+  name: string;
+  value_name: string | null;
+}
+
+interface MLItemVariation {
+  id: number;
+  attribute_combinations: Array<{ id: string; name: string; value_name: string }>;
+  available_quantity: number;
+  price: number;
+}
+
 interface MLItemDetail {
   id: string;
   title: string;
@@ -192,6 +205,10 @@ interface MLItemDetail {
   price: number;
   category_id: string;
   thumbnail: string;
+  catalog_product_id: string | null;
+  attributes: MLItemAttribute[];
+  variations: MLItemVariation[];
+  seller_custom_field: string | null;
 }
 
 export async function getSellerItems(userId: string): Promise<string[]> {

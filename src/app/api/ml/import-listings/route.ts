@@ -18,6 +18,17 @@ function shortenTitle(title: string): string {
   return title.length > 80 ? title.substring(0, 77) + "..." : title;
 }
 
+interface MLItemData {
+  id: string;
+  title: string;
+  catalog_product_id: string | null;
+  attributes: Array<{ id: string; name: string; value_name: string | null }>;
+  variations: Array<{
+    id: number;
+    attribute_combinations: Array<{ id: string; name: string; value_name: string }>;
+  }>;
+}
+
 interface ProductGroupInfo {
   groupKey: string;
   productName: string;
@@ -26,42 +37,56 @@ interface ProductGroupInfo {
   skip: boolean;
 }
 
-function classifyListing(title: string): ProductGroupInfo {
-  const t = title.toLowerCase();
+function extractVariantFromML(item: MLItemData): string {
+  // 1. Check variations (multi-variant items like Bluemango with colors)
+  if (item.variations?.length > 0) {
+    const v = item.variations[0];
+    const labels = v.attribute_combinations
+      ?.map((a) => a.value_name)
+      .filter(Boolean);
+    if (labels?.length > 0) return labels.join(" / ");
+  }
 
-  // Rule 3: Skip Timi's products
+  // 2. Check attributes for COLOR, FLAVOR, SIZE
+  const variantAttrs = ["COLOR", "FLAVOR", "SIZE", "ALPHANUMERIC_SIZE"];
+  for (const attrId of variantAttrs) {
+    const attr = item.attributes?.find((a) => a.id === attrId);
+    if (attr?.value_name) return attr.value_name;
+  }
+
+  // 3. Check SELLER_CUSTOM_FIELD or SELLER_SKU
+  const sku = item.attributes?.find((a) => a.id === "SELLER_SKU");
+  if (sku?.value_name) return sku.value_name;
+
+  return "Default";
+}
+
+function extractBrandFromML(item: MLItemData): string {
+  const brand = item.attributes?.find((a) => a.id === "BRAND");
+  if (brand?.value_name) return brand.value_name;
+  return item.title.split(/\s+/)[0] || "Generico";
+}
+
+function classifyListing(item: MLItemData): ProductGroupInfo {
+  const t = item.title.toLowerCase();
+
+  // Skip Timi's products (already in Products table)
   if (
-    t.includes("timi") ||
-    t.includes("biberon") ||
-    t.includes("chupon") ||
-    t.includes("sujetador") ||
-    t.includes("dispensador") ||
-    t.includes("vaso")
+    t.includes("timi") || t.includes("biberon") || t.includes("chupon") ||
+    t.includes("sujetador") || t.includes("dispensador de leche") ||
+    (t.includes("vaso") && t.includes("entrenador"))
   ) {
     return { groupKey: "", productName: "", variantLabel: "", brand: "", skip: true };
   }
 
-  // Rule 1: Bluemango products
-  if (t.includes("bluemango")) {
-    const productName = "Bluemango Termo Deportivo";
-    const brand = "Bluemango";
-    // Extract variant from title - look for "Color X" pattern or remaining text after removing "Bluemango"
-    let variantLabel = "Default";
-    const colorMatch = title.match(/color\s+(.+)/i);
-    if (colorMatch) {
-      variantLabel = colorMatch[1].trim();
-    } else {
-      // Remove "Bluemango" and common filler words to get variant
-      const cleaned = title
-        .replace(/bluemango/gi, "")
-        .replace(/termo\s*deportivo/gi, "")
-        .trim();
-      if (cleaned.length > 0) {
-        variantLabel = cleaned;
-      }
-    }
+  const variantLabel = extractVariantFromML(item);
+  const brand = extractBrandFromML(item);
+
+  // Group by catalog_product_id if available (ML groups variants this way)
+  if (item.catalog_product_id) {
+    const productName = shortenTitle(item.title.replace(/\s+(color|sabor)\s+.*/i, "").trim());
     return {
-      groupKey: "bluemango-termo",
+      groupKey: `catalog-${item.catalog_product_id}`,
       productName,
       variantLabel,
       brand,
@@ -69,62 +94,44 @@ function classifyListing(title: string): ProductGroupInfo {
     };
   }
 
-  // Rule 2: Magimag / Magnesio / NaturalSlim products
-  if (t.includes("magimag") || t.includes("magnesio") || t.includes("naturalslim")) {
-    const brand = "NaturalSlim";
-    // Extract base product name and flavor/variant
-    let productName = "Magimag Citrato de Magnesio";
-    let variantLabel = "Default";
-
-    // Try to find "Sabor X" pattern
-    const saborMatch = title.match(/sabor\s+(.+)/i);
-    if (saborMatch) {
-      variantLabel = saborMatch[1].trim();
-      // Product name is everything before "Sabor"
-      const beforeSabor = title.replace(/sabor\s+.*/i, "").trim();
-      // Clean up the product name
-      const cleanedName = beforeSabor
-        .replace(/naturalslim/gi, "")
-        .replace(/en\s+polvo/gi, "")
-        .trim();
-      if (cleanedName.length > 5) {
-        productName = cleanedName;
-      }
-    } else {
-      // No sabor pattern - use a cleaned version of the title as product name
-      productName = title
-        .replace(/naturalslim/gi, "")
-        .replace(/en\s+polvo/gi, "")
-        .trim();
-      if (productName.length > 60) {
-        productName = productName.substring(0, 60).trim();
-      }
-    }
-
-    // Normalize the group key based on the core product
-    let groupKey = "naturalslim-";
-    if (t.includes("magimag") || t.includes("citrato")) {
-      groupKey += "magimag-citrato";
-      productName = "Magimag Citrato de Magnesio";
-    } else if (t.includes("magnesio")) {
-      groupKey += "magnesio";
-    } else {
-      groupKey += "other";
-    }
-
-    return { groupKey, productName, variantLabel, brand, skip: false };
+  // Bluemango grouping
+  if (t.includes("bluemango")) {
+    return {
+      groupKey: "bluemango-termo",
+      productName: "Bluemango Termo Deportivo",
+      variantLabel,
+      brand: "Bluemango",
+      skip: false,
+    };
   }
 
-  // Rule 4: Everything else - individual product
-  const words = title.split(/\s+/);
-  const brand = words[0] || "Generico";
-  const productName = shortenTitle(title);
-  const groupKey = `individual-${title.toLowerCase().replace(/\s+/g, "-").substring(0, 50)}`;
+  // NaturalSlim / Magimag grouping
+  if (t.includes("magimag") || t.includes("magnesio") || t.includes("naturalslim")) {
+    let productName = "Magimag Citrato de Magnesio";
+    let groupKey = "naturalslim-other";
 
+    if (t.includes("magimag") || t.includes("citrato")) {
+      groupKey = "naturalslim-magimag-citrato";
+      productName = "Magimag Citrato de Magnesio";
+    } else if (t.includes("meta-b") || t.includes("proteina")) {
+      groupKey = "naturalslim-meta-b";
+      productName = "Meta-B Proteina NaturalSlim";
+    } else if (t.includes("kadsorb") || t.includes("potasio")) {
+      groupKey = "naturalslim-kadsorb";
+      productName = "Kadsorb Potasio NaturalSlim";
+    } else if (t.includes("duo") || t.includes("dúo")) {
+      groupKey = "naturalslim-duo";
+      productName = "Duo Dinamico Potasio y Magnesio";
+    }
+
+    return { groupKey, productName, variantLabel, brand: "NaturalSlim", skip: false };
+  }
+
+  // Everything else — individual product
   return {
-    groupKey,
-    productName,
-    variantLabel: "Default",
+    groupKey: `individual-${item.id}`,
+    productName: shortenTitle(item.title),
+    variantLabel,
     brand,
     skip: false,
   };
@@ -191,6 +198,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // Get or create the ML-AUTO supplier once
     const autoSupplierId = await getOrCreateAutoSupplier();
+
+    // Clean up old bad variants for Bluemango (will be re-created with ML data)
+    const bluemangoProd = await prisma.product.findFirst({
+      where: { brand: "Bluemango", supplierId: autoSupplierId },
+    });
+    if (bluemangoProd) {
+      await prisma.packItem.deleteMany({
+        where: { productVariant: { productId: bluemangoProd.id } },
+      });
+      await prisma.productVariant.deleteMany({
+        where: { productId: bluemangoProd.id },
+      });
+    }
 
     // Cache for product lookups by groupKey to avoid repeated queries
     const productCache = new Map<string, { productId: string; variants: Map<string, string> }>();
@@ -277,7 +297,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       // Step 2: Smart Product Auto-Import (runs for ALL items, not just new)
-      const classification = classifyListing(item.title);
+      const classification = classifyListing(item);
 
       if (!classification.skip) {
         let cachedProduct = productCache.get(classification.groupKey);
