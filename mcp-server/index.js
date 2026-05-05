@@ -431,6 +431,93 @@ server.tool(
   }
 );
 
+// ─── Sync Operations ────────────────────────────────────────────────────────
+
+server.tool(
+  "sync_ml_listings",
+  "Sincronizar todas las publicaciones desde MercadoLibre (importar nuevas, actualizar existentes)",
+  {},
+  async () => {
+    const data = await apiRequest("/api/ml/import-listings", { method: "POST" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "sync_mp_orders",
+  "Sincronizar ordenes y datos financieros desde MercadoLibre/Mercado Pago",
+  {},
+  async () => {
+    const data = await apiRequest("/api/mp/sync", { method: "POST" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "get_mp_transactions",
+  "Listar transacciones de Mercado Pago con filtros opcionales",
+  {
+    label: z.enum(["sale", "fee", "shipping"]).optional().describe("Filtrar por tipo: sale, fee, shipping"),
+    packId: z.string().optional().describe("Filtrar por pack ID"),
+    limit: z.number().optional().describe("Limite de resultados (default 50)"),
+  },
+  async ({ label, packId, limit = 50 }) => {
+    let path = `/api/mp/transactions?limit=${limit}`;
+    if (label) path += `&label=${label}`;
+    if (packId) path += `&packId=${packId}`;
+    const data = await apiRequest(path);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "delete_withdrawal",
+  "Eliminar un retiro por ID",
+  { id: z.string().describe("ID del retiro a eliminar") },
+  async ({ id }) => {
+    const data = await apiRequest(`/api/withdrawals/${id}`, { method: "DELETE" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "delete_expense",
+  "Eliminar un gasto por ID",
+  { id: z.string().describe("ID del gasto a eliminar") },
+  async ({ id }) => {
+    const data = await apiRequest(`/api/expenses/${id}`, { method: "DELETE" });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "list_suppliers",
+  "Listar todos los proveedores",
+  {},
+  async () => {
+    const data = await apiRequest("/api/suppliers");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "create_supplier",
+  "Crear un nuevo proveedor",
+  {
+    name: z.string().describe("Nombre del proveedor"),
+    contact: z.string().optional().describe("Contacto"),
+    phone: z.string().optional().describe("Telefono"),
+    notes: z.string().optional().describe("Notas"),
+  },
+  async (params) => {
+    const data = await apiRequest("/api/suppliers", {
+      method: "POST",
+      body: JSON.stringify(params),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── Start Server ────────────────────────────────────────────────────────────
 
 async function main() {
