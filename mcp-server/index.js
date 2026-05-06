@@ -916,6 +916,156 @@ server.tool(
 
 // ─── ML Generic API ─────────────────────────────────────────────────────────
 
+// ─── ML Listing Costs ──────────────────────────────────────────────────────
+
+server.tool(
+  "ml_get_listing_costs",
+  "Calcular costos de venta en MercadoLibre: comision, envio, etc. para un precio y tipo de publicacion dado.",
+  {
+    price: z.number().describe("Precio de venta del producto en MXN"),
+    listingType: z.string().optional().describe("Tipo: gold_special (Clasica, default), gold_pro (Premium), free"),
+    categoryId: z.string().optional().describe("ID de categoria para costos especificos (ej: MLM1234)"),
+  },
+  async ({ price, listingType = "gold_special", categoryId }) => {
+    let endpoint = `/sites/MLM/listing_prices?price=${price}&listing_type_id=${listingType}`;
+    if (categoryId) endpoint += `&category_id=${categoryId}`;
+    const data = await mlProxy("GET", endpoint);
+    const fee = Array.isArray(data) ? data[0] : data;
+    const result = {
+      price,
+      listing_type: fee?.listing_type_name || listingType,
+      sale_fee_percentage: fee?.sale_fee_details?.percentage_fee,
+      sale_fee_amount: fee?.sale_fee_amount,
+      listing_fee: fee?.listing_fee_amount,
+      net_after_commission: price - (fee?.sale_fee_amount || 0),
+      details: fee,
+    };
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+server.tool(
+  "ml_get_item_costs",
+  "Obtener desglose de costos para un item existente (comision, envio, ganancia neta)",
+  { itemId: z.string().describe("ID del item (ej: MLM5259271618)") },
+  async ({ itemId }) => {
+    const item = await mlProxy("GET", `/items/${itemId}`);
+    const price = item?.price || 0;
+    const listingType = item?.listing_type_id || "gold_special";
+    const categoryId = item?.category_id || "";
+    let endpoint = `/sites/MLM/listing_prices?price=${price}&listing_type_id=${listingType}`;
+    if (categoryId) endpoint += `&category_id=${categoryId}`;
+    const costs = await mlProxy("GET", endpoint);
+    const fee = Array.isArray(costs) ? costs[0] : costs;
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          item_id: itemId,
+          title: item?.title,
+          price,
+          listing_type: fee?.listing_type_name,
+          sale_fee_percentage: fee?.sale_fee_details?.percentage_fee,
+          sale_fee_amount: fee?.sale_fee_amount,
+          net_after_commission: price - (fee?.sale_fee_amount || 0),
+        }, null, 2),
+      }],
+    };
+  }
+);
+
+// ─── ML Documentation Search ──────────────────────────────────────────────
+
+server.tool(
+  "ml_search_docs",
+  "Buscar en la documentacion de desarrolladores de MercadoLibre. Reemplaza al MCP oficial de ML que requiere re-auth constante.",
+  {
+    query: z.string().describe("Palabras clave para buscar (ej: 'shipping costs', 'product ads', 'promotions')"),
+    language: z.string().optional().describe("Idioma: es_ar (default), en_us, pt_br"),
+    limit: z.number().optional().describe("Limite de resultados (default 10)"),
+  },
+  async ({ query, language = "es_ar", limit = 10 }) => {
+    const url = `https://developers.mercadolibre.com.ar/${language}/search?q=${encodeURIComponent(query)}`;
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "Accept": "text/html",
+        },
+      });
+      const html = await res.text();
+      const results = [];
+      const regex = /<a[^>]+href="\/[^"]*\/([^"]+)"[^>]*class="[^"]*search[^"]*"[^>]*>([^<]+)<\/a>/gi;
+      let match;
+      while ((match = regex.exec(html)) !== null && results.length < limit) {
+        results.push({ path: match[1], title: match[2].trim() });
+      }
+      if (results.length === 0) {
+        const linkRegex = /href="\/(?:es_ar|en_us|pt_br)\/([^"]+)"[^>]*>([^<]{5,80})<\/a>/gi;
+        while ((match = linkRegex.exec(html)) !== null && results.length < limit) {
+          const path = match[1];
+          const title = match[2].trim();
+          if (!path.includes("static") && !path.includes("css") && !path.includes("js") && title.length > 5) {
+            results.push({ path, title });
+          }
+        }
+      }
+      return {
+        content: [{
+          type: "text",
+          text: results.length > 0
+            ? JSON.stringify({ results, message: `Use ml_get_doc_page con path para ver contenido completo` }, null, 2)
+            : `No se encontraron resultados para "${query}". Intenta con otros terminos.`,
+        }],
+      };
+    } catch (err) {
+      return { content: [{ type: "text", text: `Error buscando docs: ${err.message}. Usa la URL directa: https://developers.mercadolibre.com.mx/${language}/search?q=${encodeURIComponent(query)}` }] };
+    }
+  }
+);
+
+server.tool(
+  "ml_get_doc_page",
+  "Obtener el contenido de una pagina de documentacion de MercadoLibre por su path/slug",
+  {
+    path: z.string().describe("Path de la pagina (ej: 'comision-por-vender', 'pads-read', 'central-de-promociones')"),
+    language: z.string().optional().describe("Idioma: es_ar (default), en_us"),
+  },
+  async ({ path, language = "es_ar" }) => {
+    const url = `https://developers.mercadolibre.com.ar/${language}/${path}`;
+    try {
+      const res = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          "Accept": "text/html",
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      let content = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+        .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+        .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+        .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/\s+/g, " ")
+        .trim();
+      const mainStart = content.indexOf("Developers");
+      if (mainStart > 0) content = content.substring(mainStart);
+      content = content.substring(0, 8000);
+      return { content: [{ type: "text", text: content || "No se pudo extraer contenido de la pagina." }] };
+    } catch (err) {
+      return { content: [{ type: "text", text: `Error: ${err.message}. URL: ${url}` }] };
+    }
+  }
+);
+
 server.tool(
   "ml_api_call",
   "Hacer cualquier llamada a la API de MercadoLibre (proxy generico). Usa {userId} en el endpoint para auto-inyectar el ID del vendedor.",
