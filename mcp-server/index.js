@@ -1667,24 +1667,57 @@ server.tool(
 
 server.tool(
   "openai_upload_file",
-  "Subir un archivo a OpenAI (JSONL para batch, imagenes, etc.)",
+  "Subir un archivo a OpenAI (JSONL para batch, etc.). Usa filePath para archivos grandes en disco.",
   {
-    content: z.string().describe("Contenido del archivo (JSONL para batch)"),
+    filePath: z.string().optional().describe("Ruta al archivo local (ej: /Users/.../batch.jsonl). Preferido para archivos grandes."),
+    content: z.string().optional().describe("Contenido del archivo como texto (para archivos pequeños)"),
     purpose: z.string().optional().describe("Proposito: batch (default), fine-tune, assistants"),
-    filename: z.string().optional().describe("Nombre del archivo (default: batch.jsonl)"),
+    filename: z.string().optional().describe("Nombre del archivo (default: se toma del filePath o batch.jsonl)"),
   },
-  async ({ content, purpose = "batch", filename = "batch.jsonl" }) => {
-    // We need to use the proxy to upload
-    // The proxy will handle FormData on the server side
-    const data = await apiRequest("/api/openai/proxy", {
+  async ({ filePath, content, purpose = "batch", filename }) => {
+    let fileContent = content;
+    let fname = filename;
+
+    if (filePath) {
+      fileContent = await readFile(filePath, "utf8");
+      fname = fname || basename(filePath);
+    }
+
+    if (!fileContent) throw new Error("Se requiere filePath o content");
+    fname = fname || "batch.jsonl";
+
+    // Upload directly via CRM proxy for FormData handling
+    const url = `${API_URL}/api/openai/proxy`;
+    const res = await fetch(url, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+      },
       body: JSON.stringify({
         method: "POST",
         endpoint: "/files",
-        payload: { content, purpose, filename },
+        payload: { content: fileContent, purpose, filename: fname },
       }),
     });
-    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Upload failed ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+    const sizeMB = (Buffer.byteLength(fileContent, "utf8") / 1024 / 1024).toFixed(2);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          ...data,
+          uploaded_from: filePath || "inline content",
+          size_mb: sizeMB,
+        }, null, 2),
+      }],
+    };
   }
 );
 
