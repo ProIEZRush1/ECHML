@@ -209,6 +209,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       await prisma.packItem.deleteMany({
         where: { productVariant: { productId: prod.id } },
       });
+      await prisma.stockLog.deleteMany({
+        where: { productVariant: { productId: prod.id } },
+      });
+      await prisma.stockEntryItem.deleteMany({
+        where: { productVariant: { productId: prod.id } },
+      });
       await prisma.productVariant.deleteMany({
         where: { productId: prod.id },
       });
