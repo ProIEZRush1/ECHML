@@ -974,6 +974,59 @@ server.tool(
   }
 );
 
+server.tool(
+  "ml_get_shipping_costs",
+  "Obtener opciones y costos de envio para un item a un codigo postal. Muestra Mercado Envios, Full, Flex, etc.",
+  {
+    itemId: z.string().describe("ID del item (ej: MLM5259271618)"),
+    zipCode: z.string().optional().describe("Codigo postal destino (default: 06600 CDMX)"),
+  },
+  async ({ itemId, zipCode = "06600" }) => {
+    const [options, item] = await Promise.all([
+      mlProxy("GET", `/items/${itemId}/shipping_options?zip_code=${zipCode}`),
+      mlProxy("GET", `/items/${itemId}?attributes=shipping,price,title`),
+    ]);
+    const shipping = item?.shipping || {};
+    const shippingOptions = (options?.options || []).map((o) => ({
+      name: o.name,
+      type: o.shipping_method_type,
+      base_cost: o.base_cost,
+      seller_cost: o.list_cost,
+      buyer_cost: o.cost,
+      free: o.cost === 0,
+      estimated_delivery: o.estimated_delivery_time?.date,
+      delivery_type: o.estimated_delivery_time?.type,
+    }));
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          item_id: itemId,
+          title: item?.title,
+          price: item?.price,
+          logistic_type: shipping.logistic_type,
+          free_shipping: shipping.free_shipping,
+          mode: shipping.mode,
+          destination_zip: zipCode,
+          options: shippingOptions,
+        }, null, 2),
+      }],
+    };
+  }
+);
+
+server.tool(
+  "ml_get_shipping_modes",
+  "Ver los modos de envio disponibles para una categoria (full, flex, me2, etc.)",
+  {
+    categoryId: z.string().describe("ID de la categoria (ej: MLM1234)"),
+  },
+  async ({ categoryId }) => {
+    const data = await mlProxy("GET", `/categories/${categoryId}/shipping_preferences`);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── ML Documentation Search ──────────────────────────────────────────────
 
 server.tool(
