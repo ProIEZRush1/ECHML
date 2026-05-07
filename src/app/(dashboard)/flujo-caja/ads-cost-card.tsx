@@ -153,6 +153,7 @@ export function AdsCostCard() {
                             <div className="min-w-0 flex-1">
                               <span className="font-mono">{item.id}</span>
                               <span className="ml-1.5">{item.clicks} clicks</span>
+                              {item.salesAmount > 0 && <span className="ml-1 text-amber-600">ACOS {Math.round((item.cost / item.salesAmount) * 100)}%</span>}
                               {item.units > 0 && <span className="ml-1 text-green-600">· {item.units} ventas</span>}
                             </div>
                             <div className="text-right shrink-0 ml-2">
