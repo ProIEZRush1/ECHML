@@ -314,6 +314,7 @@ model Expense {
   productId       String?
   packId          String?
   productGroupId  String?
+  transactionIds  String?
   notes           String?
   userId          String
   createdAt       DateTime @default(now())

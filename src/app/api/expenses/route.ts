@@ -19,6 +19,7 @@ const createExpenseSchema = z.object({
   productId: z.string().optional(),
   packId: z.string().optional(),
   productGroupId: z.string().optional(),
+  transactionIds: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { amount, date, category, concept, type, supplierId, productId, packId, productGroupId, notes } = result.data;
+    const { amount, date, category, concept, type, supplierId, productId, packId, productGroupId, transactionIds, notes } = result.data;
 
     if (supplierId) {
       const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
         productId: productId || null,
         packId: packId || null,
         productGroupId: productGroupId || null,
+        transactionIds: transactionIds || null,
         notes,
         userId: session.id,
       },

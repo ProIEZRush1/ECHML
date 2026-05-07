@@ -158,6 +158,10 @@ export default async function FlujoCajaPage({
             productVariant: { select: { product: { select: { unitCost: true } } } },
           },
         },
+        mlListings: {
+          select: { mlItemId: true },
+          take: 1,
+        },
       },
     }),
     prisma.expense.findMany({

@@ -433,6 +433,7 @@ server.tool(
     productId: z.string().optional().describe("ID del producto al que se asigna"),
     packId: z.string().optional().describe("ID del pack al que se asigna"),
     productGroupId: z.string().optional().describe("ID del grupo de productos al que se asigna"),
+    transactionIds: z.string().optional().describe("IDs de transacciones/ventas separados por coma (para asignar gasto a ventas especificas)"),
     notes: z.string().optional().describe("Notas"),
   },
   async (params) => {
