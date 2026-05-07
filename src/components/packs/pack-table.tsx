@@ -2,16 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { StockIndicator } from "@/components/shared/stock-indicator";
 import { ColorBadge } from "@/components/shared/color-badge";
 import { PackFormDialog } from "@/components/packs/pack-form-dialog";
 import { PackDeleteButton } from "@/components/packs/pack-delete-button";
@@ -39,7 +29,7 @@ export function PackTable({ packs }: PackTableProps) {
 
   if (packs.length === 0) {
     return (
-      <p className="text-center text-sm text-muted-foreground py-8">
+      <p className="text-center text-[12.5px] text-muted-foreground py-8">
         No hay packs creados todavia.
       </p>
     );
@@ -47,32 +37,46 @@ export function PackTable({ packs }: PackTableProps) {
 
   return (
     <>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Composicion</TableHead>
-              <TableHead className="text-right">Precio</TableHead>
-              <TableHead>Stock</TableHead>
-              <TableHead className="text-center"># Publicaciones</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <table className="w-full text-[12.5px]">
+          <thead>
+            <tr className="border-b border-border bg-muted/30">
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                SKU
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Nombre
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Composicion
+              </th>
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Precio
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Stock
+              </th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Pub.
+              </th>
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>
             {packs.map((pack) => (
-              <TableRow key={pack.id} className="hover:bg-muted/50">
-                <TableCell>
-                  <Link href={`/packs/${pack.id}`} className="font-medium hover:underline">
+              <tr key={pack.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                <td className="px-3 py-2.5">
+                  <Link href={`/packs/${pack.id}`} className="mono text-[11.5px] text-muted-foreground hover:underline">
                     {pack.sku}
                   </Link>
-                </TableCell>
-                <TableCell>{pack.name}</TableCell>
-                <TableCell>
+                </td>
+                <td className="px-3 py-2.5 font-medium">{pack.name}</td>
+                <td className="px-3 py-2.5">
                   <div className="flex flex-wrap items-center gap-1">
                     {pack.items.map((item, idx) => (
-                      <span key={item.id} className="flex items-center gap-1 text-sm">
+                      <span key={item.id} className="flex items-center gap-1 text-[12px]">
                         {idx > 0 && <span className="text-muted-foreground">+</span>}
                         <span>{item.quantity}x</span>
                         <ColorBadge
@@ -80,42 +84,51 @@ export function PackTable({ packs }: PackTableProps) {
                           variantLabel={item.productVariant.variantLabel}
                           showLabel={false}
                         />
-                        <span className="text-muted-foreground">
+                        <span className="mono text-[11px] text-muted-foreground">
                           ({item.productVariant.product.supplierCode})
                         </span>
                       </span>
                     ))}
                   </div>
-                </TableCell>
-                <TableCell className="text-right">
+                </td>
+                <td className="px-3 py-2.5 text-right">
                   {formatCurrency(pack.salePrice)}
-                </TableCell>
-                <TableCell>
-                  <StockIndicator stock={pack.stock} />
-                </TableCell>
-                <TableCell className="text-center">
+                </td>
+                <td className="px-3 py-2.5">
+                  <span
+                    className={`mono text-[12px] font-semibold ${
+                      pack.stock === 0
+                        ? "text-destructive"
+                        : pack.stock <= 5
+                          ? "text-[oklch(0.48_0.13_70)]"
+                          : "text-success"
+                    }`}
+                  >
+                    {pack.stock}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-center mono text-[11.5px] text-muted-foreground">
                   {pack.mlListings.length}
-                </TableCell>
-                <TableCell className="text-right">
+                </td>
+                <td className="px-3 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
+                    <button
                       onClick={() => handleEdit(pack)}
+                      className="size-7 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-muted"
                     >
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                     <PackDeleteButton
                       packId={pack.id}
                       packSku={pack.sku}
                       hasListings={pack.mlListings.length > 0}
                     />
                   </div>
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             ))}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
 
       <PackFormDialog

@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -12,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { ShoppingCart } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
@@ -65,40 +63,37 @@ export default async function VentasPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Ventas"
         description="Historial de ventas sincronizadas desde MercadoLibre"
       />
 
-      {/* Stats */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Total Ventas</div>
-          <div className="text-xl font-bold">{totalCount}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Ingresos Brutos</div>
-          <div className="text-xl font-bold text-green-600 truncate">
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Total Ventas</p>
+          <p className="text-2xl font-bold mt-1 num">{totalCount}</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos Brutos</p>
+          <p className="text-2xl font-bold mt-1 num truncate margin-good">
             {formatCurrency(revenue)}
-          </div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Packs con Ventas</div>
-          <div className="text-xl font-bold">{allPacks.length}</div>
-        </Card>
+          </p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Packs con Ventas</p>
+          <p className="text-2xl font-bold mt-1 num">{allPacks.length}</p>
+        </div>
       </div>
 
-      {/* Pack filter */}
+      {/* Pack filter pills */}
       {allPacks.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="filt-bar">
+          <span className="lbl">Pack</span>
           <Link
             href="/ventas"
-            className={`rounded-md px-3 py-1.5 text-sm ${
-              !params.packId
-                ? "bg-primary text-primary-foreground"
-                : "border hover:bg-muted"
-            }`}
+            className={`filt-input ${!params.packId ? "active" : ""}`}
           >
             Todos
           </Link>
@@ -106,10 +101,8 @@ export default async function VentasPage({
             <Link
               key={pack.id}
               href={`/ventas?packId=${pack.id}`}
-              className={`rounded-md px-3 py-1.5 text-sm truncate max-w-[200px] ${
-                params.packId === pack.id
-                  ? "bg-primary text-primary-foreground"
-                  : "border hover:bg-muted"
+              className={`filt-input truncate max-w-[200px] ${
+                params.packId === pack.id ? "active" : ""
               }`}
               title={pack.name}
             >
@@ -119,8 +112,8 @@ export default async function VentasPage({
         </div>
       )}
 
-      {/* Info */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      {/* Results info */}
+      <div className="flex items-center justify-between text-[12px] text-muted-foreground">
         <span>{totalCount} ventas{params.packId ? " (filtrado)" : ""}</span>
         {totalPages > 1 && (
           <span>Pagina {currentPage} de {totalPages}</span>
@@ -134,68 +127,64 @@ export default async function VentasPage({
           description="Sincroniza con MP desde Flujo de Caja para ver las ventas aqui."
         />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[100px]">Fecha</TableHead>
-                    <TableHead className="w-[100px]">Pack</TableHead>
-                    <TableHead className="min-w-[200px]">Producto</TableHead>
-                    <TableHead className="w-[100px] text-right">Monto</TableHead>
-                    <TableHead className="w-[100px] text-right">Neto</TableHead>
-                    <TableHead className="w-[80px]">Estado</TableHead>
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
+                  <TableHead className="min-w-[200px] text-[11px] uppercase tracking-wider">Producto</TableHead>
+                  <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
+                  <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Neto</TableHead>
+                  <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sales.map((sale) => (
+                  <TableRow key={sale.id} className="hover:bg-muted/50">
+                    <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
+                      {formatDate(sale.dateCreated)}
+                    </TableCell>
+                    <TableCell>
+                      {sale.pack ? (
+                        <Link
+                          href={`/ventas?packId=${sale.pack.id}`}
+                          className="mono text-[11.5px] hover:underline"
+                        >
+                          {sale.pack.sku}
+                        </Link>
+                      ) : (
+                        <span className="text-[11.5px] text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-[12.5px] line-clamp-1" title={sale.description || ""}>
+                        {sale.description || "Venta ML"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right num text-[12.5px] font-semibold margin-good">
+                      {formatCurrency(Number(sale.amount))}
+                    </TableCell>
+                    <TableCell className="text-right num text-[12.5px] text-muted-foreground">
+                      {formatCurrency(Number(sale.balanceChange))}
+                    </TableCell>
+                    <TableCell>
+                      <span className="tx-pill sale">{sale.status}</span>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sales.map((sale) => (
-                    <TableRow key={sale.id} className="hover:bg-muted/50">
-                      <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                        {formatDate(sale.dateCreated)}
-                      </TableCell>
-                      <TableCell>
-                        {sale.pack ? (
-                          <Link
-                            href={`/ventas?packId=${sale.pack.id}`}
-                            className="text-xs font-mono hover:underline"
-                          >
-                            {sale.pack.sku}
-                          </Link>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm line-clamp-1" title={sale.description || ""}>
-                          {sale.description || "Venta ML"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium text-green-600">
-                        {formatCurrency(Number(sale.amount))}
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground">
-                        {formatCurrency(Number(sale.balanceChange))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className="bg-green-100 text-green-800 text-xs">
-                          {sale.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       )}
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           {currentPage > 1 && (
-            <Link href={buildPageUrl(currentPage - 1)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+            <Link href={buildPageUrl(currentPage - 1)} className="filt-input hover:border-muted-foreground">
               Anterior
             </Link>
           )}
@@ -209,16 +198,14 @@ export default async function VentasPage({
               <Link
                 key={page}
                 href={buildPageUrl(page)}
-                className={`rounded-md px-3 py-1.5 text-sm ${
-                  page === currentPage ? "bg-primary text-primary-foreground" : "border hover:bg-muted"
-                }`}
+                className={`filt-input ${page === currentPage ? "active" : ""}`}
               >
                 {page}
               </Link>
             );
           })}
           {currentPage < totalPages && (
-            <Link href={buildPageUrl(currentPage + 1)} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+            <Link href={buildPageUrl(currentPage + 1)} className="filt-input hover:border-muted-foreground">
               Siguiente
             </Link>
           )}

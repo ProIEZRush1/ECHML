@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, TrendingUp, TrendingDown, DollarSign, Percent } from "lucide-react";
+import { Search } from "lucide-react";
 
 interface PackProfit {
   id: string;
@@ -67,71 +65,36 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
   const fmt = (n: number) => `$${n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* KPI Summary */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-green-100 dark:bg-green-900/30">
-                <DollarSign className="h-4 w-4 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{fmt(totals.totalProfit)}</p>
-                <p className="text-xs text-muted-foreground">Utilidad Total</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-blue-100 dark:bg-blue-900/30">
-                <Percent className="h-4 w-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totals.avgMargin.toFixed(1)}%</p>
-                <p className="text-xs text-muted-foreground">Margen Promedio</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-purple-100 dark:bg-purple-900/30">
-                <TrendingUp className="h-4 w-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{fmt(totals.totalRevenue)}</p>
-                <p className="text-xs text-muted-foreground">Ingresos</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-amber-100 dark:bg-amber-900/30">
-                <TrendingDown className="h-4 w-4 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totals.totalSales}</p>
-                <p className="text-xs text-muted-foreground">Ventas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Utilidad Total</p>
+          <p className={`text-2xl font-bold mt-1 num ${totals.totalProfit >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(totals.totalProfit)}</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Margen Promedio</p>
+          <p className={`text-2xl font-bold mt-1 num ${totals.avgMargin > 20 ? "margin-good" : totals.avgMargin > 0 ? "margin-warn" : "margin-bad"}`}>{totals.avgMargin.toFixed(1)}%</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
+          <p className="text-2xl font-bold mt-1 num">{fmt(totals.totalRevenue)}</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ventas</p>
+          <p className="text-2xl font-bold mt-1 num">{totals.totalSales}</p>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-2">
-          <button onClick={() => setFilterMargin("all")} className={`px-3 py-1.5 text-sm rounded-md ${filterMargin === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>Todos</button>
-          <button onClick={() => setFilterMargin("positive")} className={`px-3 py-1.5 text-sm rounded-md ${filterMargin === "positive" ? "bg-green-600 text-white" : "bg-muted text-muted-foreground"}`}>Rentables</button>
-          <button onClick={() => setFilterMargin("negative")} className={`px-3 py-1.5 text-sm rounded-md ${filterMargin === "negative" ? "bg-red-600 text-white" : "bg-muted text-muted-foreground"}`}>Sin Margen</button>
+      <div className="filt-bar">
+        <span className="lbl">Margen</span>
+        <div className="pillgroup">
+          <button onClick={() => setFilterMargin("all")} className={filterMargin === "all" ? "on" : ""}>Todos</button>
+          <button onClick={() => setFilterMargin("positive")} className={filterMargin === "positive" ? "on" : ""}>Rentables</button>
+          <button onClick={() => setFilterMargin("negative")} className={filterMargin === "negative" ? "on" : ""}>Sin Margen</button>
         </div>
-        <div className="flex gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Buscar pack..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 w-48" />
@@ -146,66 +109,67 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
       </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-3 font-medium">Pack</th>
-                  <th className="text-right p-3 font-medium">Precio</th>
-                  <th className="text-right p-3 font-medium">Costo Prod.</th>
-                  <th className="text-right p-3 font-medium">Costos Adic.</th>
-                  <th className="text-right p-3 font-medium">Comision ML</th>
-                  <th className="text-right p-3 font-medium">Envio</th>
-                  <th className="text-right p-3 font-medium">Utilidad</th>
-                  <th className="text-right p-3 font-medium">Margen</th>
-                  <th className="text-right p-3 font-medium">Ventas</th>
-                  <th className="text-right p-3 font-medium">Util. Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((d) => (
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="text-left p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Pack</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Precio</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Costo Prod.</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Costos Adic.</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Comision ML</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Envio</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Utilidad</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Margen</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Ventas</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Util. Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((d) => {
+                const marginClass = d.margin > 20 ? "margin-good" : d.margin > 0 ? "margin-warn" : "margin-bad";
+                return (
                   <tr key={d.id} className="border-b hover:bg-muted/30">
                     <td className="p-3">
-                      <div className="font-medium text-xs">{d.name.substring(0, 50)}</div>
-                      <div className="text-xs text-muted-foreground font-mono">{d.sku}</div>
+                      <div className="font-medium text-[12px]">{d.name.substring(0, 50)}</div>
+                      <div className="mono text-[11px] text-muted-foreground">{d.sku}</div>
                     </td>
-                    <td className="text-right p-3 tabular-nums">{fmt(d.salePrice)}</td>
-                    <td className="text-right p-3 tabular-nums">{d.productCost > 0 ? fmt(d.productCost) : <span className="text-muted-foreground">-</span>}</td>
-                    <td className="text-right p-3 tabular-nums">
+                    <td className="text-right p-3 num text-[12.5px]">{fmt(d.salePrice)}</td>
+                    <td className="text-right p-3 num text-[12.5px]">{d.productCost > 0 ? fmt(d.productCost) : <span className="text-muted-foreground">-</span>}</td>
+                    <td className="text-right p-3 num text-[12.5px]">
                       {d.additionalCosts > 0 ? (
                         <span title={d.costDetails.map((c) => `${c.category}: $${c.amount}`).join(", ")}>{fmt(d.additionalCosts)}</span>
                       ) : <span className="text-muted-foreground">-</span>}
                     </td>
-                    <td className="text-right p-3 tabular-nums text-red-600 dark:text-red-400">{fmt(d.avgCommission)}</td>
-                    <td className="text-right p-3 tabular-nums text-red-600 dark:text-red-400">{fmt(d.avgShipping)}</td>
-                    <td className="text-right p-3 tabular-nums">
-                      <span className={d.profit > 0 ? "text-green-600 dark:text-green-400 font-semibold" : "text-red-600 dark:text-red-400 font-semibold"}>
+                    <td className="text-right p-3 num text-[12.5px] margin-bad">{fmt(d.avgCommission)}</td>
+                    <td className="text-right p-3 num text-[12.5px] margin-bad">{fmt(d.avgShipping)}</td>
+                    <td className="text-right p-3 num">
+                      <span className={`font-semibold text-[12.5px] ${d.profit > 0 ? "margin-good" : "margin-bad"}`}>
                         {fmt(d.profit)}
                       </span>
                     </td>
                     <td className="text-right p-3">
-                      <Badge variant={d.margin > 20 ? "default" : d.margin > 0 ? "secondary" : "destructive"} className="text-xs">
+                      <span className={`margin-pill ${marginClass}`}>
                         {d.margin.toFixed(1)}%
-                      </Badge>
+                      </span>
                     </td>
-                    <td className="text-right p-3 tabular-nums">{d.salesCount}</td>
-                    <td className="text-right p-3 tabular-nums font-semibold">
-                      <span className={d.totalProfit > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                    <td className="text-right p-3 num text-[12.5px]">{d.salesCount}</td>
+                    <td className="text-right p-3 num font-semibold">
+                      <span className={`text-[12.5px] ${d.totalProfit > 0 ? "margin-good" : "margin-bad"}`}>
                         {fmt(d.totalProfit)}
                       </span>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {filtered.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">No se encontraron packs.</div>
-          )}
-        </CardContent>
-      </Card>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">No se encontraron packs.</div>
+        )}
+      </div>
     </div>
   );
 }

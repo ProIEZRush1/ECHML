@@ -10,19 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import type { MLListingStatus } from "@/types";
 import { SyncButton } from "./sync-button";
 import { PublicacionesFilters } from "./publicaciones-filters";
 import Link from "next/link";
 
-const STATUS_STYLES: Record<MLListingStatus, string> = {
-  ACTIVE: "bg-green-100 text-green-800",
-  PAUSED: "bg-amber-100 text-amber-800",
-  CLOSED: "bg-red-100 text-red-800",
-  UNDER_REVIEW: "bg-blue-100 text-blue-800",
+const STATUS_CSS: Record<MLListingStatus, string> = {
+  ACTIVE: "list-status active",
+  PAUSED: "list-status paused",
+  CLOSED: "list-status closed",
+  UNDER_REVIEW: "tx-pill tax",
 };
 
 const STATUS_LABELS: Record<MLListingStatus, string> = {
@@ -120,7 +118,7 @@ export default async function PublicacionesPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <PageHeader
           title="Publicaciones MercadoLibre"
@@ -129,31 +127,31 @@ export default async function PublicacionesPage({
         <SyncButton lastSync={lastSync?.toISOString() ?? null} />
       </div>
 
-      {/* Stats */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Total</div>
-          <div className="text-xl font-bold">{totalListings}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Activas</div>
-          <div className="text-xl font-bold text-green-600">{activeCount}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Pausadas</div>
-          <div className="text-xl font-bold text-amber-600">{pausedCount}</div>
-        </Card>
-        <Card className="p-3">
-          <div className="text-xs text-muted-foreground">Cerradas</div>
-          <div className="text-xl font-bold text-red-600">{closedCount}</div>
-        </Card>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Total</p>
+          <p className="text-2xl font-bold mt-1 num">{totalListings}</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Activas</p>
+          <p className="text-2xl font-bold mt-1 num margin-good">{activeCount}</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Pausadas</p>
+          <p className="text-2xl font-bold mt-1 num margin-warn">{pausedCount}</p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Cerradas</p>
+          <p className="text-2xl font-bold mt-1 num margin-bad">{closedCount}</p>
+        </div>
       </div>
 
       {/* Filters */}
       <PublicacionesFilters packs={allPacks} />
 
       {/* Results info */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <div className="flex items-center justify-between text-[12px] text-muted-foreground">
         <span>
           {hasFilters
             ? `${totalCount} resultados filtrados`
@@ -167,98 +165,94 @@ export default async function PublicacionesPage({
       </div>
 
       {/* Table */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[140px]">ML ID</TableHead>
-                  <TableHead className="w-[100px]">Pack</TableHead>
-                  <TableHead className="min-w-[200px]">Titulo</TableHead>
-                  <TableHead className="w-[80px]">Estado</TableHead>
-                  <TableHead className="w-[80px] text-right">Precio</TableHead>
-                  <TableHead className="w-[60px] text-right">Stock ML</TableHead>
-                  <TableHead className="w-[60px] text-right">Stock Calc</TableHead>
-                  <TableHead className="w-[120px]">Sinc.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {listings.map((listing) => {
-                  const outOfSync =
-                    listing.currentStock !== listing.pack.stock;
-                  return (
-                    <TableRow
-                      key={listing.id}
-                      className={`hover:bg-muted/50 ${outOfSync ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}`}
-                    >
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {listing.mlItemId}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/publicaciones?packId=${listing.pack.id}`}
-                          className="text-xs font-medium hover:underline"
-                        >
-                          {listing.pack.sku}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <span className="line-clamp-1 text-sm" title={listing.title || ""}>
-                          {listing.title || "Sin titulo"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={`text-xs ${STATUS_STYLES[listing.status]}`}
-                        >
-                          {STATUS_LABELS[listing.status]}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right text-sm">
-                        {listing.currentPrice
-                          ? formatCurrency(Number(listing.currentPrice))
-                          : "-"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={
-                            outOfSync
-                              ? "text-amber-600 font-medium"
-                              : "text-sm"
-                          }
-                        >
-                          {listing.currentStock}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-sm font-medium">
-                        {listing.pack.stock}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {listing.lastSyncedAt
-                          ? formatDateTime(listing.lastSyncedAt)
-                          : "Nunca"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {listings.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      {hasFilters
-                        ? "No se encontraron publicaciones con esos filtros"
-                        : "No hay publicaciones registradas"}
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-[140px] text-[11px] uppercase tracking-wider">ML ID</TableHead>
+                <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
+                <TableHead className="min-w-[200px] text-[11px] uppercase tracking-wider">Titulo</TableHead>
+                <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Estado</TableHead>
+                <TableHead className="w-[80px] text-right text-[11px] uppercase tracking-wider">Precio</TableHead>
+                <TableHead className="w-[60px] text-right text-[11px] uppercase tracking-wider">Stock ML</TableHead>
+                <TableHead className="w-[60px] text-right text-[11px] uppercase tracking-wider">Stock Calc</TableHead>
+                <TableHead className="w-[120px] text-[11px] uppercase tracking-wider">Sinc.</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {listings.map((listing) => {
+                const outOfSync =
+                  listing.currentStock !== listing.pack.stock;
+                return (
+                  <TableRow
+                    key={listing.id}
+                    className={`hover:bg-muted/50 ${outOfSync ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}`}
+                  >
+                    <TableCell className="mono text-[11.5px] text-muted-foreground">
+                      {listing.mlItemId}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/publicaciones?packId=${listing.pack.id}`}
+                        className="text-[11.5px] font-medium hover:underline"
+                      >
+                        {listing.pack.sku}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <span className="line-clamp-1 text-[12.5px]" title={listing.title || ""}>
+                        {listing.title || "Sin titulo"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={STATUS_CSS[listing.status]}>
+                        {STATUS_LABELS[listing.status]}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-[12.5px] num">
+                      {listing.currentPrice
+                        ? formatCurrency(Number(listing.currentPrice))
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-right num">
+                      <span
+                        className={
+                          outOfSync
+                            ? "margin-warn font-semibold text-[12.5px]"
+                            : "text-[12.5px]"
+                        }
+                      >
+                        {listing.currentStock}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-[12.5px] num font-semibold">
+                      {listing.pack.stock}
+                    </TableCell>
+                    <TableCell className="text-[11.5px] text-muted-foreground">
+                      {listing.lastSyncedAt
+                        ? formatDateTime(listing.lastSyncedAt)
+                        : "Nunca"}
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                );
+              })}
+              {listings.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="py-8 text-center text-muted-foreground"
+                  >
+                    {hasFilters
+                      ? "No se encontraron publicaciones con esos filtros"
+                      : "No hay publicaciones registradas"}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -266,7 +260,7 @@ export default async function PublicacionesPage({
           {currentPage > 1 && (
             <Link
               href={buildPageUrl(currentPage - 1)}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+              className="filt-input hover:border-muted-foreground"
             >
               Anterior
             </Link>
@@ -286,11 +280,7 @@ export default async function PublicacionesPage({
               <Link
                 key={page}
                 href={buildPageUrl(page)}
-                className={`rounded-md px-3 py-1.5 text-sm ${
-                  page === currentPage
-                    ? "bg-primary text-primary-foreground"
-                    : "border hover:bg-muted"
-                }`}
+                className={`filt-input ${page === currentPage ? "active" : ""}`}
               >
                 {page}
               </Link>
@@ -299,7 +289,7 @@ export default async function PublicacionesPage({
           {currentPage < totalPages && (
             <Link
               href={buildPageUrl(currentPage + 1)}
-              className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+              className="filt-input hover:border-muted-foreground"
             >
               Siguiente
             </Link>

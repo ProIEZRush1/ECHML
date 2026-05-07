@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -93,6 +91,18 @@ export default function StockEntryPage() {
     return product?.variants ?? [];
   }
 
+  const totalItems = useMemo(() => {
+    return rows.reduce((sum, r) => sum + (parseInt(r.quantity, 10) || 0), 0);
+  }, [rows]);
+
+  const totalCost = useMemo(() => {
+    return rows.reduce((sum, r) => {
+      const qty = parseInt(r.quantity, 10) || 0;
+      const cost = parseFloat(r.unitCost) || 0;
+      return sum + qty * cost;
+    }, 0);
+  }, [rows]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -141,20 +151,23 @@ export default function StockEntryPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
         title="Entrada de Stock"
         description="Registrar nuevas unidades en inventario"
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Informacion General</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="supplier">Proveedor</Label>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* General Info Card */}
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border">
+            <h2 className="text-[13px] font-semibold">Informacion General</h2>
+          </div>
+          <div className="p-4 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Proveedor
+              </label>
               <Select value={supplierId} onValueChange={(v) => setSupplierId(v ?? "")}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar proveedor" />
@@ -168,105 +181,128 @@ export default function StockEntryPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notas</Label>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Notas
+              </label>
               <Textarea
-                id="notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notas opcionales sobre la entrada..."
+                className="resize-none"
+                rows={2}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Articulos</CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={addRow}>
-              <Plus className="mr-1 size-4" />
-              Agregar fila
+        {/* Items Card */}
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <h2 className="text-[13px] font-semibold">Articulos</h2>
+            <Button type="button" variant="outline" size="sm" onClick={addRow} className="h-7 text-xs gap-1">
+              <Plus className="size-3.5" />
+              Agregar
             </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {rows.map((row, index) => (
-              <div key={index} className="grid grid-cols-[1fr_1fr_100px_100px_auto] gap-3 items-end">
-                <div className="space-y-1">
-                  {index === 0 && <Label>Producto</Label>}
-                  <Select
-                    value={row.productId}
-                    onValueChange={(v) => updateRow(index, "productId", v ?? "")}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Producto" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {products.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} ({p.supplierCode})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  {index === 0 && <Label>Color</Label>}
-                  <Select
-                    value={row.variantId}
-                    onValueChange={(v) => updateRow(index, "variantId", v ?? "")}
-                    disabled={!row.productId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Color" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getVariantsForProduct(row.productId).map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {COLOR_LABELS[v.color] ?? v.color}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  {index === 0 && <Label>Cantidad</Label>}
-                  <Input
-                    type="number"
-                    min="1"
-                    value={row.quantity}
-                    onChange={(e) => updateRow(index, "quantity", e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1">
-                  {index === 0 && <Label>Costo Unit.</Label>}
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={row.unitCost}
-                    onChange={(e) => updateRow(index, "unitCost", e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeRow(index)}
-                    disabled={rows.length === 1}
-                  >
-                    <Trash2 className="size-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+          </div>
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={loading}>
+          {/* Column headers */}
+          <div className="entry-row bg-muted/40 !border-b !py-2">
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Producto</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Color</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Cant.</span>
+            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Costo U.</span>
+            <span />
+          </div>
+
+          {/* Rows */}
+          {rows.map((row, index) => (
+            <div key={index} className="entry-row">
+              <Select
+                value={row.productId}
+                onValueChange={(v) => updateRow(index, "productId", v ?? "")}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Producto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} ({p.supplierCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={row.variantId}
+                onValueChange={(v) => updateRow(index, "variantId", v ?? "")}
+                disabled={!row.productId}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getVariantsForProduct(row.productId).map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {COLOR_LABELS[v.color] ?? v.color}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                type="number"
+                min="1"
+                value={row.quantity}
+                onChange={(e) => updateRow(index, "quantity", e.target.value)}
+                placeholder="0"
+                className="h-9 text-xs mono text-center"
+              />
+
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={row.unitCost}
+                onChange={(e) => updateRow(index, "unitCost", e.target.value)}
+                placeholder="0.00"
+                className="h-9 text-xs mono"
+              />
+
+              <button
+                type="button"
+                onClick={() => removeRow(index)}
+                disabled={rows.length === 1}
+                className="flex items-center justify-center h-9 w-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-30"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+
+          {/* Summary */}
+          <div className="summary-line">
+            <span className="text-muted-foreground">
+              {rows.length} fila{rows.length !== 1 ? "s" : ""} &middot; {totalItems} unidad{totalItems !== 1 ? "es" : ""}
+            </span>
+            <span className="v">
+              ${totalCost.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/stock")}
+            className="h-9"
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading} className="h-9">
             {loading ? "Registrando..." : "Registrar Entrada"}
           </Button>
         </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -144,323 +143,232 @@ export function StockGrid({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-blue-100 dark:bg-blue-900/30">
-                <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalProducts}</p>
-                <p className="text-xs text-muted-foreground">Productos</p>
-              </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { icon: Package, value: totalProducts, label: "Productos", color: "oklch(0.55 0.12 230)" },
+          { icon: Layers, value: totalVariants, label: "Variantes", color: "oklch(0.55 0.12 290)" },
+          { icon: Box, value: totalUnits, label: "Unidades", color: "oklch(0.55 0.12 155)" },
+          { icon: AlertTriangle, value: lowStockAlerts, label: "Stock bajo", color: "oklch(0.55 0.14 60)" },
+        ].map(({ icon: Icon, value, label, color }) => (
+          <div key={label} className="rounded-[9px] border border-border bg-card px-4 py-3 flex items-center gap-3">
+            <div className="rounded-md p-2" style={{ background: `color-mix(in oklch, ${color} 14%, transparent)` }}>
+              <Icon className="h-4 w-4" style={{ color }} />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-purple-100 dark:bg-purple-900/30">
-                <Layers className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalVariants}</p>
-                <p className="text-xs text-muted-foreground">Variantes</p>
-              </div>
+            <div>
+              <p className="text-2xl font-bold leading-none">{value}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-green-100 dark:bg-green-900/30">
-                <Box className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalUnits}</p>
-                <p className="text-xs text-muted-foreground">Unidades</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="rounded-md p-2 bg-amber-100 dark:bg-amber-900/30">
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{lowStockAlerts}</p>
-                <p className="text-xs text-muted-foreground">Stock bajo</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        ))}
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="pt-4 space-y-3">
-          {/* Row 1: Groups */}
-          {groups.length > 0 && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Grupos</span>
-                {hasFilters && (
-                  <button onClick={clearFilters} className="text-xs text-muted-foreground hover:text-foreground">
-                    Limpiar filtros
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {groups.map((g) => (
-                  <button
-                    key={g.id}
-                    onClick={() => toggleGroup(g.id)}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-                      activeGroupIds.has(g.id)
-                        ? "ring-2 ring-offset-1 ring-offset-background"
-                        : "opacity-75 hover:opacity-100"
-                    }`}
-                    style={{
-                      borderColor: g.color,
-                      backgroundColor: activeGroupIds.has(g.id) ? g.color + "20" : "transparent",
-                      color: g.color,
-                      ...(activeGroupIds.has(g.id) && { boxShadow: `0 0 0 2px ${g.color}40` }),
-                    }}
-                  >
-                    <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: g.color }} />
-                    {g.name}
-                    <span className="text-[10px] opacity-70">({g.productIds.length})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Row 2: Brand tabs + Pack selector + Search + Sort */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-2">
+      <div className="space-y-3">
+        {/* Groups row */}
+        {groups.length > 0 && (
+          <div className="filt-bar">
+            <span className="lbl">Grupos</span>
+            {groups.map((g) => (
               <button
-                onClick={() => setActiveBrand("all")}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                  activeBrand === "all"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:text-foreground"
+                key={g.id}
+                onClick={() => toggleGroup(g.id)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                  activeGroupIds.has(g.id)
+                    ? "ring-2 ring-offset-1 ring-offset-background"
+                    : "opacity-75 hover:opacity-100"
                 }`}
+                style={{
+                  borderColor: g.color,
+                  backgroundColor: activeGroupIds.has(g.id) ? g.color + "20" : "transparent",
+                  color: g.color,
+                  ...(activeGroupIds.has(g.id) && { boxShadow: `0 0 0 2px ${g.color}40` }),
+                }}
               >
-                Todos
+                <span className="sw" style={{ backgroundColor: g.color, width: 8, height: 8, margin: 0, border: 0 }} />
+                {g.name}
+                <span className="text-[10px] opacity-70">({g.productIds.length})</span>
               </button>
-              {brands.map((brand) => (
-                <button
-                  key={brand}
-                  onClick={() => setActiveBrand(brand)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                    activeBrand === brand
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {brand}
-                </button>
-              ))}
-            </div>
+            ))}
+            {hasFilters && (
+              <button onClick={clearFilters} className="ml-auto text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                Limpiar
+              </button>
+            )}
+          </div>
+        )}
 
-            <div className="flex gap-2">
-              {/* Pack multi-select */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowPacks(!showPacks)}
-                  className="flex items-center justify-between h-9 rounded-md border border-input bg-background px-2 text-sm min-w-[140px]"
-                >
-                  <span className="truncate text-xs">
-                    {selectedPackIds.length > 0
-                      ? `${selectedPackIds.length} pack${selectedPackIds.length > 1 ? "s" : ""}`
-                      : "Filtrar por pack..."}
-                  </span>
-                  <span className="text-xs text-muted-foreground ml-1">▼</span>
-                </button>
-                {showPacks && (
-                  <div className="absolute z-50 mt-1 rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto w-56 right-0">
-                    <div className="p-2 sticky top-0 bg-popover border-b">
-                      <div className="relative">
-                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar pack..."
-                          value={packSearch}
-                          onChange={(e) => setPackSearch(e.target.value)}
-                          className="h-7 pl-7 text-xs"
-                        />
-                      </div>
-                    </div>
-                    {filteredPacks.slice(0, 30).map((p) => (
-                      <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted cursor-pointer text-sm">
-                        <input
-                          type="checkbox"
-                          checked={selectedPackIds.includes(p.id)}
-                          onChange={() => togglePack(p.id)}
-                          className="rounded"
-                        />
-                        <span className="font-mono text-xs text-muted-foreground w-16 truncate">{p.sku}</span>
-                        <span className="truncate text-xs">{p.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar producto..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 h-9 w-48"
-                />
-              </div>
-              <Select value={sortBy} onValueChange={(v) => setSortBy(v as "name" | "stock" | "brand")}>
-                <SelectTrigger className="h-9 w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Nombre</SelectItem>
-                  <SelectItem value="stock">Stock</SelectItem>
-                  <SelectItem value="brand">Marca</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Brand + search + sort row */}
+        <div className="filt-bar">
+          <span className="lbl">Marca</span>
+          <div className="pillgroup">
+            <button className={activeBrand === "all" ? "on" : ""} onClick={() => setActiveBrand("all")}>
+              Todos
+            </button>
+            {brands.map((brand) => (
+              <button
+                key={brand}
+                className={activeBrand === brand ? "on" : ""}
+                onClick={() => setActiveBrand(brand)}
+              >
+                {brand}
+              </button>
+            ))}
           </div>
 
-          {/* Active filter badges */}
-          {(selectedPackIds.length > 0) && (
-            <div className="flex flex-wrap gap-1.5">
-              {selectedPackIds.map((id) => {
-                const pack = packs.find((p) => p.id === id);
-                return (
-                  <Badge key={id} variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => togglePack(id)}>
-                    {pack?.sku || id.slice(-6)}
-                    <X className="h-3 w-3" />
-                  </Badge>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          {/* Pack multi-select */}
+          <div className="relative ml-auto">
+            <button
+              onClick={() => setShowPacks(!showPacks)}
+              className="filt-input"
+            >
+              <Package className="h-3 w-3" />
+              {selectedPackIds.length > 0
+                ? `${selectedPackIds.length} pack${selectedPackIds.length > 1 ? "s" : ""}`
+                : "Pack"}
+              <span className="text-[10px]">&#x25BC;</span>
+            </button>
+            {showPacks && (
+              <div className="absolute z-50 mt-1 rounded-[9px] border border-border bg-popover shadow-md max-h-48 overflow-y-auto w-56 right-0">
+                <div className="p-2 sticky top-0 bg-popover border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar pack..."
+                      value={packSearch}
+                      onChange={(e) => setPackSearch(e.target.value)}
+                      className="h-7 pl-7 text-xs"
+                    />
+                  </div>
+                </div>
+                {filteredPacks.slice(0, 30).map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted cursor-pointer text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedPackIds.includes(p.id)}
+                      onChange={() => togglePack(p.id)}
+                      className="rounded"
+                    />
+                    <span className="mono text-[11px] text-muted-foreground w-16 truncate">{p.sku}</span>
+                    <span className="truncate text-xs">{p.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
 
-      {/* Product Cards Grid */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-8 w-40 text-xs"
+            />
+          </div>
+          <Select value={sortBy} onValueChange={(v) => setSortBy(v as "name" | "stock" | "brand")}>
+            <SelectTrigger className="h-8 w-28 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="name">Nombre</SelectItem>
+              <SelectItem value="stock">Stock</SelectItem>
+              <SelectItem value="brand">Marca</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Active pack filter badges */}
+        {selectedPackIds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-1">
+            {selectedPackIds.map((id) => {
+              const pack = packs.find((p) => p.id === id);
+              return (
+                <Badge key={id} variant="secondary" className="gap-1 text-[10px] cursor-pointer" onClick={() => togglePack(id)}>
+                  {pack?.sku || id.slice(-6)}
+                  <X className="h-3 w-3" />
+                </Badge>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Stock Matrix Table */}
       {filtered.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No se encontraron productos.</p>
+          <p className="text-muted-foreground text-sm">No se encontraron productos.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((product) => {
-            const maxVariantStock = Math.max(...product.variants.map((v) => v.stock), 1);
-
-            return (
-              <Card key={product.id} className="transition-all hover:shadow-md">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-sm truncate">{product.name}</h3>
-                      <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                        {product.supplierCode}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {product.brand && (
-                        <Badge variant="secondary" className="text-xs">
-                          {product.brand}
-                        </Badge>
-                      )}
-                      <StatusDot status={product.status} />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {/* Total stock */}
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      className={`text-3xl font-bold ${
-                        product.status === "healthy"
-                          ? "text-green-600 dark:text-green-400"
-                          : product.status === "low"
-                          ? "text-amber-600 dark:text-amber-400"
-                          : "text-red-600 dark:text-red-400"
-                      }`}
-                    >
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/40">
+                <th className="text-left px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Producto
+                </th>
+                <th className="text-left px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Marca
+                </th>
+                <th className="text-center px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Total
+                </th>
+                <th className="text-center px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] min-w-[280px]" colSpan={1}>
+                  Variantes
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((product) => (
+                <tr key={product.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium text-[13px] leading-tight">{product.name}</div>
+                    <div className="mono text-[11px] text-muted-foreground mt-0.5">{product.supplierCode}</div>
+                  </td>
+                  <td className="px-3 py-2.5">
+                    {product.brand && (
+                      <span className="tx-pill expense">{product.brand}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2.5 text-center">
+                    <span className={`mono text-[15px] font-bold ${
+                      product.status === "out" ? "text-[oklch(0.58_0.16_22)]"
+                        : product.status === "low" ? "text-[oklch(0.48_0.13_70)]"
+                        : ""
+                    }`}>
                       {product.totalStock}
                     </span>
-                    <span className="text-xs text-muted-foreground">unidades</span>
-                  </div>
-
-                  {/* Variant breakdown */}
-                  <div className="space-y-2">
-                    {product.variants.map((variant) => (
-                      <div key={variant.id} className="flex items-center gap-2">
-                        <div
-                          className="h-3 w-3 rounded-full shrink-0 border border-black/10"
-                          style={{ backgroundColor: variant.hex }}
-                        />
-                        <span className="text-xs text-muted-foreground min-w-[60px] truncate">
-                          {variant.label}
-                        </span>
-                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  </td>
+                  <td className="px-2 py-1">
+                    <div className="flex gap-px">
+                      {product.variants.map((variant) => {
+                        const cellClass = variant.stock === 0
+                          ? "zero"
+                          : variant.stock <= 3
+                          ? "low"
+                          : "";
+                        return (
                           <div
-                            className={`h-full rounded-full transition-all ${
-                              variant.stock === 0
-                                ? "bg-red-400 dark:bg-red-500"
-                                : variant.stock <= 5
-                                ? "bg-amber-400 dark:bg-amber-500"
-                                : "bg-green-400 dark:bg-green-500"
-                            }`}
-                            style={{
-                              width: `${Math.max(
-                                (variant.stock / maxVariantStock) * 100,
-                                variant.stock > 0 ? 8 : 0
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs font-medium w-6 text-right tabular-nums">
-                          {variant.stock}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                            key={variant.id}
+                            className={`stock-cell flex-1 rounded-[5px] ${cellClass}`}
+                          >
+                            <span className="q">{variant.stock}</span>
+                            <span className="l flex items-center gap-1">
+                              <span className="sw" style={{ backgroundColor: variant.hex, width: 7, height: 7, margin: 0 }} />
+                              {variant.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </div>
-  );
-}
-
-function StatusDot({ status }: { status: "healthy" | "low" | "out" }) {
-  const colors = {
-    healthy: "bg-green-500",
-    low: "bg-amber-500",
-    out: "bg-red-500",
-  };
-
-  const labels = {
-    healthy: "Stock OK",
-    low: "Stock bajo",
-    out: "Sin stock",
-  };
-
-  return (
-    <div className="flex items-center gap-1" title={labels[status]}>
-      <div className={`h-2.5 w-2.5 rounded-full ${colors[status]}`} />
     </div>
   );
 }

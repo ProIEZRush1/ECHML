@@ -2,27 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  CheckCircle2,
-  ExternalLink,
-  KeyRound,
-  Loader2,
-  ShieldCheck,
-  Store,
-} from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, Store } from "lucide-react";
 
 type Step = "welcome" | "instructions" | "credentials";
+const STEPS: Step[] = ["welcome", "instructions", "credentials"];
 
 export default function MLSetupPage() {
   const router = useRouter();
@@ -31,6 +14,8 @@ export default function MLSetupPage() {
   const [clientSecret, setClientSecret] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const stepIdx = STEPS.indexOf(step);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,113 +51,114 @@ export default function MLSetupPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Progress indicator */}
-      <div className="flex items-center justify-center gap-2">
-        {(["welcome", "instructions", "credentials"] as Step[]).map((s, i) => (
-          <div key={s} className="flex items-center gap-2">
-            <div
-              className={`flex size-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                step === s
-                  ? "bg-primary text-primary-foreground"
-                  : (["welcome", "instructions", "credentials"].indexOf(step) > i)
-                    ? "bg-green-100 text-green-700"
-                    : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {["welcome", "instructions", "credentials"].indexOf(step) > i ? (
-                <CheckCircle2 className="size-4" />
-              ) : (
-                i + 1
+    <div className="auth-screen">
+      <div className="auth-card" style={{ maxWidth: 520 }}>
+        {/* Wizard progress */}
+        <div className="wizard-steps">
+          {STEPS.map((s, i) => (
+            <div key={s} className="contents">
+              <div
+                className={`wizard-step ${
+                  stepIdx > i ? "done" : stepIdx === i ? "on" : ""
+                }`}
+              >
+                {stepIdx > i ? (
+                  <CheckCircle2 className="size-3.5" />
+                ) : (
+                  i + 1
+                )}
+              </div>
+              {i < STEPS.length - 1 && (
+                <div
+                  className={`wizard-line ${stepIdx > i ? "done" : ""}`}
+                />
               )}
             </div>
-            {i < 2 && (
-              <div
-                className={`h-0.5 w-8 transition-colors ${
-                  ["welcome", "instructions", "credentials"].indexOf(step) > i
-                    ? "bg-green-300"
-                    : "bg-muted"
-                }`}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      {/* Step: Welcome */}
-      {step === "welcome" && (
-        <Card>
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-amber-100">
-              <Store className="size-8 text-amber-700" />
+        {/* Step: Welcome */}
+        {step === "welcome" && (
+          <>
+            <div className="auth-logo">
+              <Store className="size-6" />
             </div>
-            <CardTitle className="text-xl">
+
+            <h2 className="mb-1 text-center text-[18px] font-semibold text-white">
               Conecta tu cuenta de MercadoLibre
-            </CardTitle>
-            <CardDescription className="text-base">
+            </h2>
+            <p className="mb-5 text-center text-[12.5px] text-white/55">
               Para usar ECH necesitas vincular tu cuenta de vendedor de
-              MercadoLibre. Esto permite sincronizar tus publicaciones,
-              stock y ventas automaticamente.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-lg border bg-muted/50 p-4 space-y-3">
+              MercadoLibre. Esto permite sincronizar tus publicaciones, stock y
+              ventas automaticamente.
+            </p>
+
+            <div className="mb-5 space-y-3 rounded-lg border border-white/8 bg-white/[0.03] p-4">
               <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-0.5 size-5 text-green-600 shrink-0" />
+                <span className="mt-0.5 text-green-400">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </span>
                 <div>
-                  <p className="text-sm font-medium">Conexion segura</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-[12.5px] font-medium text-white/80">
+                    Conexion segura
+                  </p>
+                  <p className="text-[11.5px] text-white/45">
                     Tus credenciales se almacenan de forma cifrada y nunca se
                     comparten con terceros.
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <KeyRound className="mt-0.5 size-5 text-blue-600 shrink-0" />
+                <span className="mt-0.5 text-blue-400">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </span>
                 <div>
-                  <p className="text-sm font-medium">Necesitaras</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-[12.5px] font-medium text-white/80">
+                    Necesitaras
+                  </p>
+                  <p className="text-[11.5px] text-white/45">
                     Tu App ID y Client Secret de la seccion de desarrolladores
                     de MercadoLibre.
                   </p>
                 </div>
               </div>
             </div>
-            <Button
-              className="w-full"
-              size="lg"
+
+            <button
+              className="auth-btn"
               onClick={() => setStep("instructions")}
             >
               Comenzar configuracion
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+            </button>
+          </>
+        )}
 
-      {/* Step: Instructions */}
-      {step === "instructions" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Como obtener tus credenciales</CardTitle>
-            <CardDescription>
+        {/* Step: Instructions */}
+        {step === "instructions" && (
+          <>
+            <h2 className="mb-1 text-center text-[18px] font-semibold text-white">
+              Como obtener tus credenciales
+            </h2>
+            <p className="mb-5 text-center text-[12.5px] text-white/55">
               Sigue estos pasos en el portal de desarrolladores de MercadoLibre
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ol className="space-y-4 text-sm">
+            </p>
+
+            <ol className="mb-5 space-y-4 text-[12.5px]">
               <li className="flex gap-3">
-                <Badge variant="outline" className="size-6 shrink-0 items-center justify-center rounded-full">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 font-mono text-[10px] font-semibold text-white/60">
                   1
-                </Badge>
+                </span>
                 <div>
-                  <p className="font-medium">Ingresa al portal de desarrolladores</p>
-                  <p className="text-muted-foreground">
+                  <p className="font-medium text-white/80">
+                    Ingresa al portal de desarrolladores
+                  </p>
+                  <p className="text-white/45">
                     Ve a{" "}
                     <a
                       href="https://developers.mercadolibre.com.mx/devcenter"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary underline inline-flex items-center gap-1"
+                      className="inline-flex items-center gap-1 text-blue-400 underline"
                     >
                       developers.mercadolibre.com.mx
                       <ExternalLink className="size-3" />
@@ -182,67 +168,73 @@ export default function MLSetupPage() {
                 </div>
               </li>
               <li className="flex gap-3">
-                <Badge variant="outline" className="size-6 shrink-0 items-center justify-center rounded-full">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 font-mono text-[10px] font-semibold text-white/60">
                   2
-                </Badge>
+                </span>
                 <div>
-                  <p className="font-medium">Crea una nueva aplicacion</p>
-                  <p className="text-muted-foreground">
-                    Haz clic en &quot;Crear nueva aplicacion&quot;. Usa cualquier nombre
-                    (ej: &quot;ECH CRM&quot;) y como Redirect URI pon:{" "}
-                    <code className="rounded bg-muted px-1.5 py-0.5">
+                  <p className="font-medium text-white/80">
+                    Crea una nueva aplicacion
+                  </p>
+                  <p className="text-white/45">
+                    Haz clic en &quot;Crear nueva aplicacion&quot;. Usa cualquier
+                    nombre (ej: &quot;ECH CRM&quot;) y como Redirect URI pon:{" "}
+                    <code className="rounded bg-white/5 px-1.5 py-0.5 text-[11px] text-white/70">
                       https://echml.overcloud.us/api/ml/auth/callback
                     </code>
                   </p>
                 </div>
               </li>
               <li className="flex gap-3">
-                <Badge variant="outline" className="size-6 shrink-0 items-center justify-center rounded-full">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 font-mono text-[10px] font-semibold text-white/60">
                   3
-                </Badge>
+                </span>
                 <div>
-                  <p className="font-medium">Copia las credenciales</p>
-                  <p className="text-muted-foreground">
-                    Una vez creada la app, copia el <strong>App ID</strong> (numero) y
-                    el <strong>Client Secret</strong> (cadena larga).
+                  <p className="font-medium text-white/80">
+                    Copia las credenciales
+                  </p>
+                  <p className="text-white/45">
+                    Una vez creada la app, copia el{" "}
+                    <strong className="text-white/70">App ID</strong> (numero) y
+                    el{" "}
+                    <strong className="text-white/70">Client Secret</strong>{" "}
+                    (cadena larga).
                   </p>
                 </div>
               </li>
             </ol>
 
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="outline"
+            <div className="flex gap-3">
+              <button
+                className="rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-[13px] font-medium text-white/70 transition-colors hover:bg-white/10"
                 onClick={() => setStep("welcome")}
               >
                 Atras
-              </Button>
-              <Button
-                className="flex-1"
+              </button>
+              <button
+                className="auth-btn flex-1"
                 onClick={() => setStep("credentials")}
               >
                 Ya tengo mis credenciales
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </>
+        )}
 
-      {/* Step: Credentials form */}
-      {step === "credentials" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ingresa tus credenciales</CardTitle>
-            <CardDescription>
+        {/* Step: Credentials form */}
+        {step === "credentials" && (
+          <>
+            <h2 className="mb-1 text-center text-[18px] font-semibold text-white">
+              Ingresa tus credenciales
+            </h2>
+            <p className="mb-5 text-center text-[12.5px] text-white/55">
               Estas se usan para autenticar las solicitudes a la API de
               MercadoLibre
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="appId">App ID</Label>
-                <Input
+            </p>
+
+            <form onSubmit={handleSubmit}>
+              <div className="auth-field">
+                <label htmlFor="appId">App ID</label>
+                <input
                   id="appId"
                   type="text"
                   placeholder="123456789"
@@ -250,13 +242,14 @@ export default function MLSetupPage() {
                   onChange={(e) => setAppId(e.target.value)}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
+                <span className="text-[10.5px] text-white/35">
                   Numero que identifica tu aplicacion en ML
-                </p>
+                </span>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="clientSecret">Client Secret</Label>
-                <Input
+
+              <div className="auth-field">
+                <label htmlFor="clientSecret">Client Secret</label>
+                <input
                   id="clientSecret"
                   type="password"
                   placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -264,42 +257,44 @@ export default function MLSetupPage() {
                   onChange={(e) => setClientSecret(e.target.value)}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
+                <span className="text-[10.5px] text-white/35">
                   Clave secreta de tu aplicacion (no la compartas)
-                </p>
+                </span>
               </div>
 
               {error && (
-                <p className="text-sm text-destructive">{error}</p>
+                <div className="mb-3 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2">
+                  <p className="text-sm text-red-300">{error}</p>
+                </div>
               )}
 
-              <div className="flex gap-3 pt-2">
-                <Button
+              <div className="flex gap-3">
+                <button
                   type="button"
-                  variant="outline"
+                  className="rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-[13px] font-medium text-white/70 transition-colors hover:bg-white/10"
                   onClick={() => setStep("instructions")}
                 >
                   Atras
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
-                  className="flex-1"
+                  className="auth-btn flex-1"
                   disabled={loading || !appId || !clientSecret}
                 >
                   {loading ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
                       Conectando...
-                    </>
+                    </span>
                   ) : (
                     "Conectar"
                   )}
-                </Button>
+                </button>
               </div>
             </form>
-          </CardContent>
-        </Card>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

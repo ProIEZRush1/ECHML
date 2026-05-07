@@ -1,6 +1,5 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { ColorBadge } from "@/components/shared/color-badge";
-import { getStockColor, getVariantDisplay } from "@/lib/utils";
+import { getVariantDisplay } from "@/lib/utils";
 import type { VariantWithStock } from "@/types";
 
 interface VariantStockGridProps {
@@ -9,25 +8,30 @@ interface VariantStockGridProps {
 
 export function VariantStockGrid({ variants }: VariantStockGridProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {variants.map((variant) => {
         const display = getVariantDisplay(variant);
-        const stockColorClass = getStockColor(variant.stock);
 
         return (
-          <Card
+          <div
             key={variant.id}
-            className="border-l-4"
+            className="rounded-[9px] border border-border bg-card overflow-hidden border-l-4 flex flex-col items-center gap-2 py-6"
             style={{ borderLeftColor: display.hex }}
           >
-            <CardContent className="flex flex-col items-center gap-2 py-6">
-              <ColorBadge color={variant.color} variantLabel={variant.variantLabel} />
-              <span className={`text-3xl font-bold tabular-nums ${stockColorClass}`}>
-                {variant.stock}
-              </span>
-              <span className="text-xs text-muted-foreground">unidades</span>
-            </CardContent>
-          </Card>
+            <ColorBadge color={variant.color} variantLabel={variant.variantLabel} />
+            <span
+              className={`mono num text-3xl font-bold tabular-nums ${
+                variant.stock === 0
+                  ? "text-destructive"
+                  : variant.stock <= 5
+                    ? "text-[oklch(0.48_0.13_70)]"
+                    : "text-success"
+              }`}
+            >
+              {variant.stock}
+            </span>
+            <span className="text-[11px] text-muted-foreground">unidades</span>
+          </div>
         );
       })}
     </div>

@@ -5,6 +5,7 @@ import { verifySession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { GroupList } from "@/components/product-groups/group-list";
+import { Palette } from "lucide-react";
 
 export default async function GruposPage() {
   const session = await verifySession();
@@ -37,6 +38,19 @@ export default async function GruposPage() {
         title="Grupos de Productos"
         description="Presets para filtrar rapidamente por conjuntos de productos"
       />
+
+      {/* Stats bar */}
+      <div className="flex items-center gap-4 text-[12.5px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <Palette className="size-3.5" />
+          {groups.length} grupo{groups.length !== 1 ? "s" : ""}
+        </span>
+        <span className="text-border">|</span>
+        <span>
+          {groups.reduce((sum, g) => sum + g.items.length, 0)} productos asignados
+        </span>
+      </div>
+
       <GroupList groups={serialized} />
     </div>
   );

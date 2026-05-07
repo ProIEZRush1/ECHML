@@ -2,15 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { ColorBadge } from "@/components/shared/color-badge";
 import { formatDateTime } from "@/lib/utils";
 import type { StockChangeType, Color } from "@/types";
@@ -23,12 +14,12 @@ const CHANGE_TYPE_LABELS: Record<StockChangeType, string> = {
   INITIAL: "Inicial",
 };
 
-const CHANGE_TYPE_STYLES: Record<StockChangeType, string> = {
-  SALE: "bg-red-100 text-red-800",
-  MANUAL_ADD: "bg-green-100 text-green-800",
-  MANUAL_REMOVE: "bg-orange-100 text-orange-800",
-  ADJUSTMENT: "bg-blue-100 text-blue-800",
-  INITIAL: "bg-gray-100 text-gray-800",
+const CHANGE_TYPE_PILL: Record<StockChangeType, string> = {
+  SALE: "fee",
+  MANUAL_ADD: "sale",
+  MANUAL_REMOVE: "shipping",
+  ADJUSTMENT: "expense",
+  INITIAL: "withdraw",
 };
 
 export default async function StockHistoryPage() {
@@ -48,68 +39,79 @@ export default async function StockHistoryPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
         title="Historial de Stock"
         description="Registro de todos los movimientos de inventario"
       />
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Producto</TableHead>
-              <TableHead>Color</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead className="text-right">Cantidad</TableHead>
-              <TableHead className="text-right">Stock Anterior</TableHead>
-              <TableHead className="text-right">Stock Nuevo</TableHead>
-              <TableHead>Razon</TableHead>
-              <TableHead>Usuario</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logs.map((log) => (
-              <TableRow key={log.id}>
-                <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                  {formatDateTime(log.createdAt)}
-                </TableCell>
-                <TableCell className="font-medium">
-                  {log.productVariant.product.name}
-                </TableCell>
-                <TableCell>
-                  <ColorBadge color={log.productVariant.color as Color} />
-                </TableCell>
-                <TableCell>
-                  <Badge className={CHANGE_TYPE_STYLES[log.changeType as StockChangeType]}>
-                    {CHANGE_TYPE_LABELS[log.changeType as StockChangeType]}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  <span className={log.quantityChange > 0 ? "text-green-600" : "text-red-600"}>
-                    {log.quantityChange > 0 ? "+" : ""}{log.quantityChange}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">{log.previousStock}</TableCell>
-                <TableCell className="text-right font-medium">{log.newStock}</TableCell>
-                <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
-                  {log.reason || "-"}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {log.user?.name || "-"}
-                </TableCell>
-              </TableRow>
-            ))}
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-muted/40">
+              <th className="text-left px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Fecha</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Producto</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Color</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Tipo</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Cantidad</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Anterior</th>
+              <th className="text-right px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Nuevo</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Razon</th>
+              <th className="text-left px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">Usuario</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => {
+              const pillClass = CHANGE_TYPE_PILL[log.changeType as StockChangeType] || "withdraw";
+              return (
+                <tr key={log.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2.5 text-[12px] text-muted-foreground whitespace-nowrap">
+                    {formatDateTime(log.createdAt)}
+                  </td>
+                  <td className="px-3 py-2.5 font-medium text-[13px]">
+                    {log.productVariant.product.name}
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <ColorBadge color={log.productVariant.color as Color} />
+                  </td>
+                  <td className="px-3 py-2.5">
+                    <span className={`tx-pill ${pillClass}`}>
+                      {CHANGE_TYPE_LABELS[log.changeType as StockChangeType]}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className={`mono font-semibold text-[13px] ${
+                      log.quantityChange > 0
+                        ? "text-[oklch(0.58_0.10_155)]"
+                        : "text-[oklch(0.58_0.16_22)]"
+                    }`}>
+                      {log.quantityChange > 0 ? "+" : ""}{log.quantityChange}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right mono text-muted-foreground text-[12px]">
+                    {log.previousStock}
+                  </td>
+                  <td className="px-3 py-2.5 text-right mono font-medium text-[13px]">
+                    {log.newStock}
+                  </td>
+                  <td className="px-3 py-2.5 max-w-[200px] truncate text-[12px] text-muted-foreground">
+                    {log.reason || "-"}
+                  </td>
+                  <td className="px-3 py-2.5 text-[12px] text-muted-foreground">
+                    {log.user?.name || "-"}
+                  </td>
+                </tr>
+              );
+            })}
             {logs.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+              <tr>
+                <td colSpan={9} className="text-center py-12 text-muted-foreground text-sm">
                   No hay movimientos registrados
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-          </TableBody>
-        </Table>
+          </tbody>
+        </table>
       </div>
     </div>
   );

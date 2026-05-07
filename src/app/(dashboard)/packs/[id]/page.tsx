@@ -3,18 +3,8 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ColorBadge } from "@/components/shared/color-badge";
-import { StockIndicator } from "@/components/shared/stock-indicator";
 import { PackDetailActions } from "@/components/packs/pack-detail-actions";
 import { formatCurrency, formatDateTime, getVariantDisplay } from "@/lib/utils";
 import type { MLListingStatus, PackWithDetails } from "@/types";
@@ -24,10 +14,10 @@ interface PackDetailPageProps {
 }
 
 const STATUS_STYLES: Record<MLListingStatus, string> = {
-  ACTIVE: "bg-green-100 text-green-800",
-  PAUSED: "bg-amber-100 text-amber-800",
-  CLOSED: "bg-red-100 text-red-800",
-  UNDER_REVIEW: "bg-blue-100 text-blue-800",
+  ACTIVE: "bg-[oklch(0.58_0.10_155/0.12)] text-success",
+  PAUSED: "bg-[oklch(0.72_0.14_78/0.16)] text-[oklch(0.48_0.13_70)]",
+  CLOSED: "bg-destructive/10 text-destructive",
+  UNDER_REVIEW: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
 };
 
 const STATUS_LABELS: Record<MLListingStatus, string> = {
@@ -102,191 +92,217 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
         <PackDetailActions pack={packData} />
       </PageHeader>
 
-      {/* Pack Info */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Precio de Venta
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{formatCurrency(pack.salePrice.toString())}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Stock Calculado
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StockIndicator stock={pack.stock} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Publicaciones
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{pack.mlListings.length}</p>
-          </CardContent>
-        </Card>
+      {/* Info cells: Precio / Stock / Publicaciones */}
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1">
+          <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
+            Precio de Venta
+          </div>
+          <div className="mono num text-2xl font-semibold tracking-tight">
+            {formatCurrency(pack.salePrice.toString())}
+          </div>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1">
+          <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
+            Stock Calculado
+          </div>
+          <div
+            className={`mono num text-2xl font-semibold tracking-tight ${
+              pack.stock === 0
+                ? "text-destructive"
+                : pack.stock <= 5
+                  ? "text-[oklch(0.48_0.13_70)]"
+                  : "text-success"
+            }`}
+          >
+            {pack.stock}
+          </div>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1">
+          <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
+            Publicaciones
+          </div>
+          <div className="mono num text-2xl font-semibold tracking-tight">
+            {pack.mlListings.length}
+          </div>
+        </div>
       </div>
 
-      {/* Stock Sync Status */}
-      <Card>
-        <CardContent className="flex items-center gap-3 py-4">
-          <span className="text-sm font-medium text-muted-foreground">Sincronizacion de stock:</span>
-          {pack.stockSyncEnabled ? (
-            <Badge variant="default">Sincronizado automaticamente</Badge>
-          ) : (
-            <Badge variant="secondary">FULL - Stock gestionado por ML</Badge>
-          )}
-        </CardContent>
-      </Card>
+      {/* Stock sync status */}
+      <div className="rounded-[9px] border border-border bg-card px-4 py-3 flex items-center gap-3">
+        <span className="text-[12.5px] font-medium text-muted-foreground">Sincronizacion de stock:</span>
+        {pack.stockSyncEnabled ? (
+          <Badge variant="default">Sincronizado automaticamente</Badge>
+        ) : (
+          <Badge variant="secondary">FULL - Stock gestionado por ML</Badge>
+        )}
+      </div>
 
       {/* Description */}
       {pack.description && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Descripcion</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{pack.description}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+            <h3 className="text-[12.5px] font-semibold">Descripcion</h3>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[12.5px] text-muted-foreground">{pack.description}</p>
+          </div>
+        </div>
       )}
 
-      {/* Composition */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Composicion</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Producto</TableHead>
-                <TableHead>Codigo</TableHead>
-                <TableHead>Variante</TableHead>
-                <TableHead className="text-center">Cantidad por Pack</TableHead>
-                <TableHead className="text-right">Stock Disponible</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pack.items.map((item) => {
-                const display = getVariantDisplay({
-                  color: item.productVariant.color,
-                  variantLabel: item.productVariant.variantLabel,
-                });
-                return (
-                  <TableRow key={item.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">
-                      {item.productVariant.product.name}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {item.productVariant.product.supplierCode}
-                    </TableCell>
-                    <TableCell>
-                      <ColorBadge
-                        color={item.productVariant.color}
-                        variantLabel={item.productVariant.variantLabel}
-                      />
-                    </TableCell>
-                    <TableCell className="text-center">{item.quantity}</TableCell>
-                    <TableCell className="text-right">
-                      <StockIndicator stock={item.productVariant.stock} showBadge={false} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Stock Calculation */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Calculo de Stock</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {pack.items.map((item) => {
-              const maxPacks = Math.floor(item.productVariant.stock / item.quantity);
-              const display = getVariantDisplay({
-                color: item.productVariant.color,
-                variantLabel: item.productVariant.variantLabel,
-              });
-              return (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <ColorBadge
-                      color={item.productVariant.color}
-                      variantLabel={item.productVariant.variantLabel}
-                      showLabel={false}
-                    />
-                    <span>{item.productVariant.product.name}</span>
-                    <span className="text-muted-foreground">
-                      ({item.productVariant.stock} / {item.quantity} por pack)
-                    </span>
+      {/* Composition table */}
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
+          <h3 className="text-[12.5px] font-semibold">Composicion</h3>
+          <span className="text-[11px] text-muted-foreground">{pack.items.length} items</span>
+        </div>
+        <table className="w-full text-[12.5px]">
+          <thead>
+            <tr className="border-b border-border bg-muted/30">
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Producto
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Codigo
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Variante
+              </th>
+              <th className="px-3 py-2.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Cant / Pack
+              </th>
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Stock Disp.
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {pack.items.map((item) => (
+              <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                <td className="px-3 py-2.5 font-medium">
+                  {item.productVariant.product.name}
+                </td>
+                <td className="px-3 py-2.5 mono text-[11.5px] text-muted-foreground">
+                  {item.productVariant.product.supplierCode}
+                </td>
+                <td className="px-3 py-2.5">
+                  <ColorBadge
+                    color={item.productVariant.color}
+                    variantLabel={item.productVariant.variantLabel}
+                  />
+                </td>
+                <td className="px-3 py-2.5 text-center mono">{item.quantity}</td>
+                <td className="px-3 py-2.5 text-right">
+                  <span
+                    className={`mono text-[12px] font-semibold ${
+                      item.productVariant.stock === 0
+                        ? "text-destructive"
+                        : item.productVariant.stock <= 5
+                          ? "text-[oklch(0.48_0.13_70)]"
+                          : "text-success"
+                    }`}
+                  >
+                    {item.productVariant.stock}
                   </span>
-                  <span className="font-medium">{maxPacks} packs posibles</span>
-                </div>
-              );
-            })}
-            <div className="border-t pt-2 mt-2 flex items-center justify-between font-medium">
-              <span>Stock final (limitante)</span>
-              <StockIndicator stock={pack.stock} />
-            </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Stock calculation */}
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+          <h3 className="text-[12.5px] font-semibold">Calculo de Stock</h3>
+        </div>
+        <div className="px-4 py-3 space-y-2">
+          {pack.items.map((item) => {
+            const maxPacks = Math.floor(item.productVariant.stock / item.quantity);
+            return (
+              <div key={item.id} className="flex items-center justify-between text-[12.5px]">
+                <span className="flex items-center gap-2">
+                  <ColorBadge
+                    color={item.productVariant.color}
+                    variantLabel={item.productVariant.variantLabel}
+                    showLabel={false}
+                  />
+                  <span>{item.productVariant.product.name}</span>
+                  <span className="text-muted-foreground mono text-[11px]">
+                    ({item.productVariant.stock} / {item.quantity} por pack)
+                  </span>
+                </span>
+                <span className="mono font-medium">{maxPacks} packs posibles</span>
+              </div>
+            );
+          })}
+          <div className="border-t border-border pt-2.5 mt-2.5 flex items-center justify-between">
+            <span className="text-[12.5px] font-medium">Stock final (limitante)</span>
+            <span
+              className={`mono num text-[14px] font-semibold ${
+                pack.stock === 0
+                  ? "text-destructive"
+                  : pack.stock <= 5
+                    ? "text-[oklch(0.48_0.13_70)]"
+                    : "text-success"
+              }`}
+            >
+              {pack.stock}
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Linked ML Listings */}
       {pack.mlListings.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Publicaciones Vinculadas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ML ID</TableHead>
-                  <TableHead>Titulo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Stock Sincronizado</TableHead>
-                  <TableHead className="text-right">Ultima Sinc.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pack.mlListings.map((listing) => (
-                  <TableRow key={listing.id} className="hover:bg-muted/50">
-                    <TableCell className="font-mono text-sm">
-                      {listing.mlItemId}
-                    </TableCell>
-                    <TableCell>{listing.title || "Sin titulo"}</TableCell>
-                    <TableCell>
-                      <Badge className={STATUS_STYLES[listing.status]}>
-                        {STATUS_LABELS[listing.status]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{listing.currentStock}</TableCell>
-                    <TableCell className="text-right text-sm text-muted-foreground">
-                      {listing.lastSyncedAt
-                        ? formatDateTime(listing.lastSyncedAt)
-                        : "Nunca"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
+            <h3 className="text-[12.5px] font-semibold">Publicaciones Vinculadas</h3>
+            <span className="text-[11px] text-muted-foreground">{pack.mlListings.length} publicaciones</span>
+          </div>
+          <table className="w-full text-[12.5px]">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  ML ID
+                </th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Titulo
+                </th>
+                <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Estado
+                </th>
+                <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Stock Sinc.
+                </th>
+                <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Ultima Sinc.
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {pack.mlListings.map((listing) => (
+                <tr key={listing.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                  <td className="px-3 py-2.5 mono text-[11.5px] text-muted-foreground">
+                    {listing.mlItemId}
+                  </td>
+                  <td className="px-3 py-2.5">{listing.title || "Sin titulo"}</td>
+                  <td className="px-3 py-2.5">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-medium ${STATUS_STYLES[listing.status]}`}>
+                      {STATUS_LABELS[listing.status]}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right mono">{listing.currentStock}</td>
+                  <td className="px-3 py-2.5 text-right text-[11px] text-muted-foreground">
+                    {listing.lastSyncedAt
+                      ? formatDateTime(listing.lastSyncedAt)
+                      : "Nunca"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

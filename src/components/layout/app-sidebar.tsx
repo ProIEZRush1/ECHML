@@ -109,13 +109,13 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <Package className="size-4" />
+              <div className="flex size-7 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-mono text-sm font-bold">
+                e
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-semibold tracking-tight">ECH</span>
-                <span className="text-xs text-sidebar-foreground/70">
-                  Gestion de Inventario
+                <span className="font-mono font-semibold text-sm tracking-tight">echml</span>
+                <span className="text-[10.5px] text-sidebar-foreground/50 tracking-wide">
+                  Bluemango · MX
                 </span>
               </div>
             </SidebarMenuButton>
@@ -242,7 +242,10 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <UserNav />
+        <div className="flex items-center gap-2 px-2 py-1">
+          <UserNav />
+          <div className="pulse-dot ml-auto group-data-[collapsible=icon]:hidden" title="Webhook conectado" />
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

@@ -4,20 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
 import { StockAlerts } from "@/components/dashboard/stock-alerts";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ColorBadge } from "@/components/shared/color-badge";
 import { formatDateTime } from "@/lib/utils";
 import type { DashboardStats } from "@/types";
 import type { ColorKey } from "@/lib/utils";
-import { Clock } from "lucide-react";
 
 export default async function DashboardPage() {
   const [
@@ -96,63 +86,51 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <StockAlerts alerts={alerts} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="h-4 w-4" />
-              Movimientos Recientes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentStockLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No hay movimientos de stock registrados.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead className="text-right">Cambio</TableHead>
-                    <TableHead className="text-right">Fecha</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentStockLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-medium">
-                        {log.productVariant.product.name}
-                      </TableCell>
-                      <TableCell>
-                        <ColorBadge color={log.productVariant.color as ColorKey} showLabel={false} />
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {changeTypeLabels[log.changeType] || log.changeType}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={
-                            log.quantityChange > 0
-                              ? "text-green-600 dark:text-green-400"
-                              : "text-red-600 dark:text-red-400"
-                          }
-                        >
-                          {log.quantityChange > 0 ? "+" : ""}
-                          {log.quantityChange}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-xs text-muted-foreground">
-                        {formatDateTime(log.createdAt)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
+            <h3 className="text-[12.5px] font-semibold">Movimientos Recientes</h3>
+            <span className="text-[11px] text-muted-foreground">
+              Últimos {recentStockLogs.length}
+            </span>
+          </div>
+          {recentStockLogs.length === 0 ? (
+            <div className="p-4 text-sm text-muted-foreground">
+              No hay movimientos de stock registrados.
+            </div>
+          ) : (
+            <div>
+              {recentStockLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="grid grid-cols-[1fr_auto_auto] gap-3 items-center px-4 py-2.5 border-b border-border last:border-0"
+                >
+                  <div>
+                    <div className="text-[12.5px] font-medium flex items-center gap-1.5">
+                      <ColorBadge color={log.productVariant.color as ColorKey} showLabel={false} />
+                      {log.productVariant.product.name}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {changeTypeLabels[log.changeType] || log.changeType}
+                    </div>
+                  </div>
+                  <div
+                    className={`mono num text-[13px] font-semibold ${
+                      log.quantityChange > 0
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {log.quantityChange > 0 ? "+" : ""}
+                    {log.quantityChange}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground min-w-[72px] text-right">
+                    {formatDateTime(log.createdAt)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

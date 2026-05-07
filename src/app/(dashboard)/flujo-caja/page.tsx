@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,17 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
-  TrendingUp,
-  Percent,
-  Truck,
   Activity,
   Package,
-  ShoppingBag,
-  Receipt,
-  Landmark,
-  Bike,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
@@ -188,7 +179,7 @@ export default async function FlujoCajaPage({
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
-  // Resolve expense transactionIds → packIds for filtering and distribution
+  // Resolve expense transactionIds -> packIds for filtering and distribution
   const allTxIdsFromExpenses = new Set<string>();
   for (const exp of filteredExpenses) {
     if (exp.transactionIds) {
@@ -248,7 +239,7 @@ export default async function FlujoCajaPage({
     },
   });
 
-  // Build pack cost map: packId → cost per unit sold
+  // Build pack cost map: packId -> cost per unit sold
   const packCostMap = new Map<string, number>();
   for (const pack of packsWithCosts) {
     const cost = pack.items.reduce(
@@ -300,7 +291,7 @@ export default async function FlujoCajaPage({
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
 
-  // Calculate balance per pack — apply same pack filter as KPI cards
+  // Calculate balance per pack -- apply same pack filter as KPI cards
   const packWhere: {
     packId?: string | { in: string[] };
     dateCreated?: { gte?: Date; lte?: Date };
@@ -416,8 +407,10 @@ export default async function FlujoCajaPage({
   // Determine if any filters are active
   const hasFilters = !!(packIdList.length > 0 || productIdList.length > 0 || params.dateFrom || params.dateTo || params.label);
 
+  const salesCount = allFilteredTransactions.filter((t) => t.label === "sale").length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <PageHeader
@@ -432,12 +425,12 @@ export default async function FlujoCajaPage({
 
       {/* Product filter indicator */}
       {filteredProductName && (
-        <div className="flex items-center gap-2 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-4 py-2">
-          <Package className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          <span className="text-sm text-blue-800 dark:text-blue-300">
+        <div className="filt-bar" style={{ borderColor: "oklch(0.55 0.12 200 / 0.3)" }}>
+          <Package className="h-4 w-4" style={{ color: "oklch(0.55 0.12 200)" }} />
+          <span className="text-[12px]">
             Filtrando por producto: <strong>{filteredProductName}</strong>
             {productFilteredPackIds && (
-              <span className="text-blue-600 dark:text-blue-400 ml-1">
+              <span className="text-muted-foreground ml-1">
                 ({productFilteredPackIds.length} pack{productFilteredPackIds.length !== 1 ? "s" : ""} vinculados)
               </span>
             )}
@@ -446,153 +439,98 @@ export default async function FlujoCajaPage({
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Ingresos
-            </CardTitle>
-            <div className="rounded-md p-2 bg-green-100 dark:bg-green-900/30">
-              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-green-600 dark:text-green-400 truncate">
-              {formatCurrency(totalIncome)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {allFilteredTransactions.filter((t) => t.label === "sale").length} ventas
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+        {/* Ingresos */}
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
+            <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
+          </div>
+          <p className="text-xl font-bold num margin-good truncate">{formatCurrency(totalIncome)}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas</p>
+        </div>
+
+        {/* Comisiones */}
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Comisiones</p>
+            <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
+          </div>
+          <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalFees)}</p>
+          {totalIncome > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {packFeePcts.length >= 2
+                ? `${Math.min(...packFeePcts).toFixed(1)}% - ${Math.max(...packFeePcts).toFixed(1)}% segun producto`
+                : `${((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos`}
             </p>
-          </CardContent>
-        </Card>
+          )}
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Comisiones
-            </CardTitle>
-            <div className="rounded-md p-2 bg-purple-100 dark:bg-purple-900/30">
-              <Percent className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-purple-600 dark:text-purple-400 truncate">
-              -{formatCurrency(totalFees)}
-            </div>
-            {totalIncome > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {packFeePcts.length >= 2
-                  ? `${Math.min(...packFeePcts).toFixed(1)}% - ${Math.max(...packFeePcts).toFixed(1)}% segun producto`
-                  : `${((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos`}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Envios
-            </CardTitle>
-            <div className="rounded-md p-2 bg-orange-100 dark:bg-orange-900/30">
-              <Truck className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-orange-600 dark:text-orange-400 truncate">
-              -{formatCurrency(totalShipping)}
-            </div>
-            {totalIncome > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {packShippingPcts.length >= 2
-                  ? `${Math.min(...packShippingPcts).toFixed(1)}% - ${Math.max(...packShippingPcts).toFixed(1)}% segun producto`
-                  : `${((totalShipping / totalIncome) * 100).toFixed(1)}% de ingresos`}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Impuestos
-            </CardTitle>
-            <div className="rounded-md p-2 bg-amber-100 dark:bg-amber-900/30">
-              <Landmark className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold text-amber-600 dark:text-amber-400 truncate">
-              -{formatCurrency(totalImpuestos)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              IVA {formatCurrency(totalRetencionIVA)} + ISR {formatCurrency(totalRetencionISR)}
+        {/* Envios */}
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Envios</p>
+            <span className="sw" style={{ background: "oklch(0.72 0.14 78)" }} />
+          </div>
+          <p className="text-xl font-bold num margin-warn truncate">-{formatCurrency(totalShipping)}</p>
+          {totalIncome > 0 && (
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {packShippingPcts.length >= 2
+                ? `${Math.min(...packShippingPcts).toFixed(1)}% - ${Math.max(...packShippingPcts).toFixed(1)}% segun producto`
+                : `${((totalShipping / totalIncome) * 100).toFixed(1)}% de ingresos`}
             </p>
-          </CardContent>
-        </Card>
+          )}
+        </div>
 
+        {/* Impuestos */}
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Impuestos</p>
+            <span className="sw" style={{ background: "oklch(0.60 0.10 290)" }} />
+          </div>
+          <p className="text-xl font-bold num truncate" style={{ color: "oklch(0.60 0.10 290)" }}>-{formatCurrency(totalImpuestos)}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            IVA {formatCurrency(totalRetencionIVA)} + ISR {formatCurrency(totalRetencionISR)}
+          </p>
+        </div>
+
+        {/* Costo Producto */}
         {totalProductCost > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Costo Producto
-              </CardTitle>
-              <div className="rounded-md p-2 bg-red-100 dark:bg-red-900/30">
-                <ShoppingBag className="h-4 w-4 text-red-600 dark:text-red-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-red-600 dark:text-red-400 truncate">
-                -{formatCurrency(totalProductCost)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Costo de mercancia vendida
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-[9px] border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costo Producto</p>
+              <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
+            </div>
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalProductCost)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Costo de mercancia vendida</p>
+          </div>
         )}
 
+        {/* Gastos */}
         {totalGastos > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Gastos
-              </CardTitle>
-              <div className="rounded-md p-2 bg-rose-100 dark:bg-rose-900/30">
-                <Receipt className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-rose-600 dark:text-rose-400 truncate">
-                -{formatCurrency(totalGastos)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Gastos operativos del periodo
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-[9px] border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Gastos</p>
+              <span className="sw" style={{ background: "oklch(0.50 0.04 60)" }} />
+            </div>
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalGastos)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Gastos operativos del periodo</p>
+          </div>
         )}
 
+        {/* Flex */}
         {totalFlexCost > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Flex
-              </CardTitle>
-              <div className="rounded-md p-2 bg-cyan-100 dark:bg-cyan-900/30">
-                <Bike className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-cyan-600 dark:text-cyan-400 truncate">
-                -{formatCurrency(totalFlexNet)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {flexCount} envio{flexCount !== 1 ? "s" : ""} · Costo {formatCurrency(totalFlexCost)}
-                {totalFlexBonificacion > 0 && ` · Bonif +${formatCurrency(totalFlexBonificacion)}`}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="rounded-[9px] border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Flex</p>
+              <span className="sw" style={{ background: "oklch(0.48 0.13 70)" }} />
+            </div>
+            <p className="text-xl font-bold num margin-warn truncate">-{formatCurrency(totalFlexNet)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {flexCount} envio{flexCount !== 1 ? "s" : ""} · Costo {formatCurrency(totalFlexCost)}
+              {totalFlexBonificacion > 0 && ` · Bonif +${formatCurrency(totalFlexBonificacion)}`}
+            </p>
+          </div>
         )}
 
         <UtilidadNetaCard serverNet={totalNet} />
@@ -604,8 +542,8 @@ export default async function FlujoCajaPage({
       {/* Balance por Pack */}
       {packBalances.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold tracking-tight">Balance por Pack</h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <h2 className="text-[15px] font-semibold tracking-tight">Balance por Pack</h2>
+          <div className="bp-grid">
             {packBalances.map((pack) => {
               const feeRatio = pack.income > 0 ? ((pack.income - pack.netIncome) / pack.income) * 100 : 0;
               const isSelected = packIdList.includes(pack.id);
@@ -616,104 +554,93 @@ export default async function FlujoCajaPage({
                   href={`/flujo-caja?packIds=${pack.id}${params.dateFrom ? `&dateFrom=${params.dateFrom}` : ""}${params.dateTo ? `&dateTo=${params.dateTo}` : ""}`}
                   className="block"
                 >
-                  <Card className={`transition-all hover:shadow-md hover:border-primary/30 cursor-pointer ${isSelected ? "border-primary ring-2 ring-primary/20" : ""}`}>
-                    <CardContent className="pt-6">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0">
-                            {pack.imageUrl && (
-                              <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">
-                                <Image
-                                  src={pack.imageUrl}
-                                  alt={pack.name}
-                                  width={40}
-                                  height={40}
-                                  className="h-full w-full object-cover"
-                                  unoptimized
-                                />
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="font-medium text-sm truncate">{pack.name}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{pack.sku}</p>
-                            </div>
+                  <div className={`bp-card ${isSelected ? "active" : ""}`}>
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {pack.imageUrl && (
+                          <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">
+                            <Image
+                              src={pack.imageUrl}
+                              alt={pack.name}
+                              width={40}
+                              height={40}
+                              className="h-full w-full object-cover"
+                              unoptimized
+                            />
                           </div>
-                          <div className={`text-lg font-bold shrink-0 ${pack.netIncome >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                            {formatCurrency(pack.netIncome)}
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-muted-foreground">Ingresos</span>
-                            <span className="font-medium text-green-600 dark:text-green-400">
-                              {formatCurrency(pack.income)}
-                            </span>
-                          </div>
-                          {pack.fees > 0 && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Comisiones</span>
-                              <span className="font-medium text-purple-600 dark:text-purple-400">
-                                -{formatCurrency(pack.fees)}
-                              </span>
-                            </div>
-                          )}
-                          {pack.shipping > 0 && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Envios</span>
-                              <span className="font-medium text-orange-600 dark:text-orange-400">
-                                -{formatCurrency(pack.shipping)}
-                              </span>
-                            </div>
-                          )}
-                          {pack.taxes > 0 && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Impuestos</span>
-                              <span className="font-medium text-amber-600 dark:text-amber-400">
-                                -{formatCurrency(pack.taxes)}
-                              </span>
-                            </div>
-                          )}
-                          {pack.productCost > 0 && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Costo producto</span>
-                              <span className="font-medium text-red-600 dark:text-red-400">
-                                -{formatCurrency(pack.productCost)}
-                              </span>
-                            </div>
-                          )}
-                          {pack.flexCost > 0 && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Costo Flex</span>
-                              <span className="font-medium text-cyan-600 dark:text-cyan-400">
-                                -{formatCurrency(pack.flexCost)}
-                              </span>
-                            </div>
-                          )}
-                          {pack.gastos > 0 && (
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">Gastos</span>
-                              <span className="font-medium text-rose-600 dark:text-rose-400">
-                                -{formatCurrency(pack.gastos)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Progress bar: income vs fees ratio */}
-                        <div className="h-2 w-full rounded-full bg-green-100 dark:bg-green-900/30 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-green-500 dark:bg-green-400 transition-all"
-                            style={{ width: `${Math.max(0, 100 - feeRatio)}%` }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{pack.transactionCount} movimientos</span>
-                          <span>{(100 - feeRatio).toFixed(0)}% rentabilidad</span>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-[12px] truncate">{pack.name}</p>
+                          <p className="mono text-[11px] text-muted-foreground">{pack.sku}</p>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                      <div className={`text-lg font-bold num shrink-0 ${pack.netIncome >= 0 ? "margin-good" : "margin-bad"}`}>
+                        {formatCurrency(pack.netIncome)}
+                      </div>
+                    </div>
+
+                    {/* Breakdown lines */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[11.5px]">
+                        <span className="text-muted-foreground">Ingresos</span>
+                        <span className="num font-medium margin-good">{formatCurrency(pack.income)}</span>
+                      </div>
+                      {pack.fees > 0 && (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="text-muted-foreground">Comisiones</span>
+                          <span className="num font-medium margin-bad">-{formatCurrency(pack.fees)}</span>
+                        </div>
+                      )}
+                      {pack.shipping > 0 && (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="text-muted-foreground">Envios</span>
+                          <span className="num font-medium margin-warn">-{formatCurrency(pack.shipping)}</span>
+                        </div>
+                      )}
+                      {pack.taxes > 0 && (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="text-muted-foreground">Impuestos</span>
+                          <span className="num font-medium" style={{ color: "oklch(0.60 0.10 290)" }}>-{formatCurrency(pack.taxes)}</span>
+                        </div>
+                      )}
+                      {pack.productCost > 0 && (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="text-muted-foreground">Costo producto</span>
+                          <span className="num font-medium margin-bad">-{formatCurrency(pack.productCost)}</span>
+                        </div>
+                      )}
+                      {pack.flexCost > 0 && (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="text-muted-foreground">Costo Flex</span>
+                          <span className="num font-medium margin-warn">-{formatCurrency(pack.flexCost)}</span>
+                        </div>
+                      )}
+                      {pack.gastos > 0 && (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="text-muted-foreground">Gastos</span>
+                          <span className="num font-medium margin-bad">-{formatCurrency(pack.gastos)}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progress bar */}
+                    <div>
+                      <div className="h-[5px] w-full rounded-full overflow-hidden" style={{ background: "oklch(0.58 0.10 155 / 0.12)" }}>
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.max(0, 100 - feeRatio)}%`,
+                            background: "oklch(0.58 0.10 155)",
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10.5px] text-muted-foreground mt-1">
+                        <span>{pack.transactionCount} movimientos</span>
+                        <span>{(100 - feeRatio).toFixed(0)}% rentabilidad</span>
+                      </div>
+                    </div>
+                  </div>
                 </Link>
               );
             })}
@@ -722,40 +649,38 @@ export default async function FlujoCajaPage({
       )}
 
       {/* Transaction Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4" />
-              Movimientos
-              {hasFilters && (
-                <Badge variant="secondary" className="text-xs font-normal">
-                  Filtrado
-                </Badge>
-              )}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {totalCount} resultado{totalCount !== 1 ? "s" : ""}
-              {relevantExpenses.length > 0 && ` + ${relevantExpenses.length} gasto${relevantExpenses.length > 1 ? "s" : ""}`}
-            </p>
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        {/* Table header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2 text-[13px] font-semibold">
+            <Activity className="h-4 w-4" />
+            Movimientos
+            {hasFilters && (
+              <span className="tx-pill expense">Filtrado</span>
+            )}
           </div>
-        </CardHeader>
-        <CardContent>
-          {mpTransactions.length === 0 && relevantExpenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No hay movimientos que coincidan con los filtros.
-            </p>
-          ) : (
-            <>
+          <p className="text-[12px] text-muted-foreground">
+            {totalCount} resultado{totalCount !== 1 ? "s" : ""}
+            {relevantExpenses.length > 0 && ` + ${relevantExpenses.length} gasto${relevantExpenses.length > 1 ? "s" : ""}`}
+          </p>
+        </div>
+
+        {mpTransactions.length === 0 && relevantExpenses.length === 0 ? (
+          <p className="text-[12.5px] text-muted-foreground py-8 text-center">
+            No hay movimientos que coincidan con los filtros.
+          </p>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Descripcion</TableHead>
-                    <TableHead>Pack</TableHead>
-                    <TableHead className="text-right">Monto</TableHead>
-                    <TableHead className="text-right">Neto</TableHead>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Tipo</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Descripcion</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">Pack</TableHead>
+                    <TableHead className="text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
+                    <TableHead className="text-right text-[11px] uppercase tracking-wider">Neto</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -790,80 +715,65 @@ export default async function FlujoCajaPage({
                           .map((pId) => allPacks.find((p) => p.id === pId)?.sku)
                           .filter(Boolean);
                         return (
-                          <TableRow key={`exp-${row.id}`} className="hover:bg-muted/50 bg-rose-50/30 dark:bg-rose-950/10">
-                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          <TableRow key={`exp-${row.id}`} className="hover:bg-muted/50">
+                            <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                               {formatDate(row.date)}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="default" className="bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300 hover:bg-rose-100">
-                                Gasto
-                              </Badge>
+                              <span className="tx-pill expense">Gasto</span>
                             </TableCell>
-                            <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                            <TableCell className="font-medium text-[12.5px] max-w-[200px] truncate">
                               {row.concept}
                             </TableCell>
-                            <TableCell className="text-sm">
+                            <TableCell className="text-[12.5px]">
                               {packSkus.length > 0 ? (
-                                <span className="font-mono text-xs text-muted-foreground">{packSkus.join(", ")}</span>
+                                <span className="mono text-[11px] text-muted-foreground">{packSkus.join(", ")}</span>
                               ) : (
-                                <span className="text-muted-foreground text-xs">-</span>
+                                <span className="text-muted-foreground text-[11px]">-</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-right font-medium whitespace-nowrap">
-                              <span className="text-rose-600 dark:text-rose-400">
-                                -{formatCurrency(row.amount)}
-                              </span>
+                            <TableCell className="text-right num font-medium whitespace-nowrap">
+                              <span className="margin-bad">-{formatCurrency(row.amount)}</span>
                             </TableCell>
-                            <TableCell className="text-right font-medium whitespace-nowrap">
-                              <span className="text-rose-600 dark:text-rose-400">
-                                -{formatCurrency(row.amount)}
-                              </span>
+                            <TableCell className="text-right num font-medium whitespace-nowrap">
+                              <span className="margin-bad">-{formatCurrency(row.amount)}</span>
                             </TableCell>
                           </TableRow>
                         );
                       }
                       const isCredit = row.type === "credit";
+
+                      const labelToPillClass: Record<string, string> = {
+                        sale: "tx-pill sale",
+                        fee: "tx-pill fee",
+                        commission: "tx-pill fee",
+                        shipping: "tx-pill shipping",
+                        flex_cost: "tx-pill flex",
+                        flex_bonificacion: "tx-pill sale",
+                      };
+                      const labelToText: Record<string, string> = {
+                        sale: "Venta",
+                        fee: "Comision",
+                        commission: "Comision",
+                        shipping: "Envio",
+                        flex_cost: "Flex",
+                        flex_bonificacion: "Bonif. Flex",
+                      };
+
                       return (
                         <TableRow key={row.id} className="hover:bg-muted/50">
-                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                          <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                             {formatDate(row.date)}
                           </TableCell>
                           <TableCell>
-                            {row.label === "sale" && (
-                              <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100">
-                                Venta
-                              </Badge>
-                            )}
-                            {(row.label === "fee" || row.label === "commission") && (
-                              <Badge variant="default" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100">
-                                Comision
-                              </Badge>
-                            )}
-                            {row.label === "shipping" && (
-                              <Badge variant="default" className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 hover:bg-orange-100">
-                                Envio
-                              </Badge>
-                            )}
-                            {row.label === "flex_cost" && (
-                              <Badge variant="default" className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 hover:bg-cyan-100">
-                                Flex
-                              </Badge>
-                            )}
-                            {row.label === "flex_bonificacion" && (
-                              <Badge variant="default" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-100">
-                                Bonif. Flex
-                              </Badge>
-                            )}
-                            {!["sale", "fee", "commission", "shipping", "flex_cost", "flex_bonificacion"].includes(row.label) && (
-                              <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
-                                {row.label}
-                              </Badge>
-                            )}
+                            <span className={labelToPillClass[row.label] || "tx-pill expense"}>
+                              {labelToText[row.label] || row.label}
+                            </span>
                           </TableCell>
-                          <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                          <TableCell className="font-medium text-[12.5px] max-w-[200px] truncate">
                             {row.description || `Movimiento: ${row.label}`}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-[12.5px]">
                             {row.pack ? (
                               <div className="flex items-center gap-2">
                                 {row.pack.imageUrl && (
@@ -880,22 +790,22 @@ export default async function FlujoCajaPage({
                                 )}
                                 <Link
                                   href={`/flujo-caja?packIds=${row.pack.id}`}
-                                  className="text-primary hover:underline font-mono text-xs"
+                                  className="hover:underline mono text-[11px]"
                                 >
                                   {row.pack.sku}
                                 </Link>
                               </div>
                             ) : (
-                              <span className="text-muted-foreground text-xs">-</span>
+                              <span className="text-muted-foreground text-[11px]">-</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-right font-medium whitespace-nowrap">
-                            <span className={isCredit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                          <TableCell className="text-right num font-medium whitespace-nowrap">
+                            <span className={isCredit ? "margin-good" : "margin-bad"}>
                               {isCredit ? "+" : "-"}{formatCurrency(Math.abs(row.amount))}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right font-medium whitespace-nowrap">
-                            <span className={row.balanceChange >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                          <TableCell className="text-right num font-medium whitespace-nowrap">
+                            <span className={row.balanceChange >= 0 ? "margin-good" : "margin-bad"}>
                               {row.balanceChange >= 0 ? "+" : ""}{formatCurrency(row.balanceChange)}
                             </span>
                           </TableCell>
@@ -905,55 +815,50 @@ export default async function FlujoCajaPage({
                   })()}
                 </TableBody>
               </Table>
+            </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Pagina {currentPage} de {totalPages}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    {currentPage > 1 && (
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                <p className="text-[12px] text-muted-foreground">
+                  Pagina {currentPage} de {totalPages}
+                </p>
+                <div className="flex items-center gap-2">
+                  {currentPage > 1 && (
+                    <Link
+                      href={buildPageUrl(params, currentPage - 1)}
+                      className="filt-input hover:border-muted-foreground"
+                    >
+                      Anterior
+                    </Link>
+                  )}
+                  {generatePageNumbers(currentPage, totalPages).map((pageNum, idx) =>
+                    pageNum === null ? (
+                      <span key={`ellipsis-${idx}`} className="text-muted-foreground px-1 text-[12px]">...</span>
+                    ) : (
                       <Link
-                        href={buildPageUrl(params, currentPage - 1)}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+                        key={pageNum}
+                        href={buildPageUrl(params, pageNum)}
+                        className={`filt-input ${pageNum === currentPage ? "active" : ""}`}
                       >
-                        Anterior
+                        {pageNum}
                       </Link>
-                    )}
-                    {/* Page numbers */}
-                    {generatePageNumbers(currentPage, totalPages).map((pageNum, idx) =>
-                      pageNum === null ? (
-                        <span key={`ellipsis-${idx}`} className="text-muted-foreground px-1">...</span>
-                      ) : (
-                        <Link
-                          key={pageNum}
-                          href={buildPageUrl(params, pageNum)}
-                          className={`inline-flex items-center justify-center rounded-md text-sm font-medium h-9 w-9 ${
-                            pageNum === currentPage
-                              ? "bg-primary text-primary-foreground"
-                              : "border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-                          }`}
-                        >
-                          {pageNum}
-                        </Link>
-                      )
-                    )}
-                    {currentPage < totalPages && (
-                      <Link
-                        href={buildPageUrl(params, currentPage + 1)}
-                        className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
-                      >
-                        Siguiente
-                      </Link>
-                    )}
-                  </div>
+                    )
+                  )}
+                  {currentPage < totalPages && (
+                    <Link
+                      href={buildPageUrl(params, currentPage + 1)}
+                      className="filt-input hover:border-muted-foreground"
+                    >
+                      Siguiente
+                    </Link>
+                  )}
                 </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

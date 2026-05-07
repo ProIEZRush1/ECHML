@@ -2,17 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StockIndicator } from "@/components/shared/stock-indicator";
 import { ProductFormDialog } from "@/components/products/product-form-dialog";
@@ -98,154 +88,183 @@ export function ProductTable({ products }: ProductTableProps) {
 
   return (
     <>
-      <Card>
-        <CardContent className="pt-4">
-          <div className="mb-4 flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, codigo o marca..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <span className="text-sm text-muted-foreground">
-              {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
-            </span>
-          </div>
+      {/* Filter bar */}
+      <div className="filt-bar">
+        <span className="lbl">Buscar</span>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Nombre, codigo o marca..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8 h-8 text-[12.5px]"
+          />
+        </div>
+        <span className="text-[11px] text-muted-foreground ml-auto">
+          {filteredProducts.length} producto{filteredProducts.length !== 1 ? "s" : ""}
+        </span>
+      </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Codigo</TableHead>
-                <TableHead>
-                  <button
-                    onClick={() => toggleSort("name")}
-                    className="inline-flex items-center gap-1 hover:text-foreground"
-                  >
-                    Producto
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </TableHead>
-                <TableHead>Marca</TableHead>
-                <TableHead>Costo</TableHead>
-                {allStandard ? (
-                  STANDARD_COLORS.map((color) => (
-                    <TableHead key={color} className="text-center">
-                      <span className={`flex items-center justify-center gap-1 ${COLOR_MAP[color].text}`}>
-                        <span className={`inline-block size-2 rounded-full ${COLOR_MAP[color].bg}`} />
-                        {COLOR_MAP[color].label}
-                      </span>
-                    </TableHead>
-                  ))
-                ) : (
-                  <TableHead className="text-center">Variantes</TableHead>
-                )}
-                <TableHead>
-                  <button
-                    onClick={() => toggleSort("totalStock")}
-                    className="inline-flex items-center gap-1 hover:text-foreground"
-                  >
-                    Stock Total
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={allStandard ? 9 : 8} className="text-center py-8">
-                    <p className="text-muted-foreground">No se encontraron productos</p>
-                  </TableCell>
-                </TableRow>
+      {/* Table card */}
+      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <table className="w-full text-[12.5px]">
+          <thead>
+            <tr className="border-b border-border bg-muted/30">
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Codigo
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                <button
+                  onClick={() => toggleSort("name")}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                >
+                  Producto
+                  <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Marca
+              </th>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Costo
+              </th>
+              {allStandard ? (
+                STANDARD_COLORS.map((color) => (
+                  <th key={color} className="px-3 py-2.5 text-center text-[11px] font-medium uppercase tracking-[0.05em]">
+                    <span className={`flex items-center justify-center gap-1 ${COLOR_MAP[color].text}`}>
+                      <span className={`inline-block size-2 rounded-full ${COLOR_MAP[color].bg}`} />
+                      {COLOR_MAP[color].label}
+                    </span>
+                  </th>
+                ))
               ) : (
-                filteredProducts.map((product) => {
-                  const totalStock = product.variants.reduce(
-                    (sum, v) => sum + v.stock,
-                    0
-                  );
-                  const isStandard = hasStandardColors(product);
-
-                  return (
-                    <TableRow key={product.id} className="hover:bg-muted/50">
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {product.supplierCode}
-                      </TableCell>
-                      <TableCell>
-                        <Link
-                          href={`/productos/${product.id}`}
-                          className="font-medium hover:underline"
-                        >
-                          {product.name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {product.brand || "—"}
-                      </TableCell>
-                      <TableCell>{formatCurrency(product.unitCost)}</TableCell>
-                      {allStandard ? (
-                        STANDARD_COLORS.map((color) => {
-                          const variant = product.variants.find((v) => v.color === color);
-                          return (
-                            <TableCell key={color} className="text-center">
-                              {variant ? (
-                                <StockIndicator stock={variant.stock} showBadge={false} />
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          );
-                        })
-                      ) : (
-                        <TableCell className="text-center">
-                          <div className="flex flex-wrap items-center justify-center gap-1">
-                            {product.variants.map((variant) => {
-                              const display = getVariantDisplay(variant);
-                              return (
-                                <Badge
-                                  key={variant.id}
-                                  variant="secondary"
-                                  className="text-xs gap-1"
-                                >
-                                  <span
-                                    className={`inline-block size-2 rounded-full ${display.bg}`}
-                                  />
-                                  {display.label}: {variant.stock}
-                                </Badge>
-                              );
-                            })}
-                          </div>
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        <StockIndicator stock={totalStock} showBadge={false} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => handleEdit(product)}
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                          </Button>
-                          <ProductDeleteButton
-                            productId={product.id}
-                            productName={product.name}
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                <th className="px-3 py-2.5 text-center text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                  Variantes
+                </th>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                <button
+                  onClick={() => toggleSort("totalStock")}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                >
+                  Stock Total
+                  <ArrowUpDown className="h-3 w-3" />
+                </button>
+              </th>
+              <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProducts.length === 0 ? (
+              <tr>
+                <td colSpan={allStandard ? 9 : 8} className="text-center py-8 text-muted-foreground text-[12.5px]">
+                  No se encontraron productos
+                </td>
+              </tr>
+            ) : (
+              filteredProducts.map((product) => {
+                const totalStock = product.variants.reduce(
+                  (sum, v) => sum + v.stock,
+                  0
+                );
+
+                return (
+                  <tr key={product.id} className="border-b border-border last:border-0 hover:bg-muted/40">
+                    <td className="px-3 py-2.5 mono text-[11.5px] text-muted-foreground">
+                      {product.supplierCode}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <Link
+                        href={`/productos/${product.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {product.name}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2.5 text-muted-foreground">
+                      {product.brand || "—"}
+                    </td>
+                    <td className="px-3 py-2.5">{formatCurrency(product.unitCost)}</td>
+                    {allStandard ? (
+                      STANDARD_COLORS.map((color) => {
+                        const variant = product.variants.find((v) => v.color === color);
+                        return (
+                          <td key={color} className="px-3 py-2.5 text-center">
+                            {variant ? (
+                              <span
+                                className={`mono text-[12px] font-semibold ${
+                                  variant.stock === 0
+                                    ? "text-destructive"
+                                    : variant.stock <= 5
+                                      ? "text-[oklch(0.48_0.13_70)]"
+                                      : "text-success"
+                                }`}
+                              >
+                                {variant.stock}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        );
+                      })
+                    ) : (
+                      <td className="px-3 py-2.5 text-center">
+                        <div className="flex flex-wrap items-center justify-center gap-1">
+                          {product.variants.map((variant) => {
+                            const display = getVariantDisplay(variant);
+                            return (
+                              <Badge
+                                key={variant.id}
+                                variant="secondary"
+                                className="text-[10.5px] gap-1"
+                              >
+                                <span
+                                  className={`inline-block size-2 rounded-full ${display.bg}`}
+                                />
+                                {display.label}: {variant.stock}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </td>
+                    )}
+                    <td className="px-3 py-2.5">
+                      <span
+                        className={`mono text-[12px] font-semibold ${
+                          totalStock === 0
+                            ? "text-destructive"
+                            : totalStock <= 5
+                              ? "text-[oklch(0.48_0.13_70)]"
+                              : "text-success"
+                        }`}
+                      >
+                        {totalStock}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="size-7 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:bg-muted"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <ProductDeleteButton
+                          productId={product.id}
+                          productName={product.name}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <ProductFormDialog
         open={dialogOpen}

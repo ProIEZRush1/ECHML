@@ -11,19 +11,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Receipt } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExpenseCreateButton } from "@/components/expenses/expense-create-button";
 import { ExpenseDeleteButton } from "@/components/expenses/expense-delete-button";
 
-const CATEGORY_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "outline"; className: string }> = {
-  proveedor: { label: "Proveedor", variant: "default", className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100" },
-  envio: { label: "Envio", variant: "default", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100" },
-  suscripcion: { label: "Suscripcion", variant: "default", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100" },
-  publicidad: { label: "Publicidad", variant: "default", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100" },
-  empaque: { label: "Empaque", variant: "default", className: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 hover:bg-teal-100" },
-  otro: { label: "Otro", variant: "secondary", className: "" },
+const CATEGORY_CSS: Record<string, { label: string; cls: string }> = {
+  proveedor: { label: "Proveedor", cls: "tx-pill fee" },
+  envio: { label: "Envio", cls: "tx-pill shipping" },
+  suscripcion: { label: "Suscripcion", cls: "tx-pill tax" },
+  publicidad: { label: "Publicidad", cls: "tx-pill sale" },
+  empaque: { label: "Empaque", cls: "tx-pill flex" },
+  otro: { label: "Otro", cls: "tx-pill expense" },
 };
 
 export default async function GastosPage() {
@@ -38,7 +37,7 @@ export default async function GastosPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Gastos"
         description="Registro de gastos operativos"
@@ -53,48 +52,45 @@ export default async function GastosPage() {
           description="Los gastos operativos apareceran aqui cuando los registres."
         />
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead className="text-right">Monto</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Concepto</TableHead>
-                <TableHead>Asignado a</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
+              <TableRow className="bg-muted/50">
+                <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider">Tipo</TableHead>
+                <TableHead className="text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider">Categoria</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider">Concepto</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider">Asignado a</TableHead>
+                <TableHead className="text-right text-[11px] uppercase tracking-wider">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {expenses.map((expense) => {
-                const catConfig = CATEGORY_CONFIG[expense.category] || CATEGORY_CONFIG.otro;
+                const catConfig = CATEGORY_CSS[expense.category] || CATEGORY_CSS.otro;
 
                 return (
                   <TableRow key={expense.id} className="hover:bg-muted/50">
-                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                    <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                       {formatDate(expense.date)}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={expense.type === "compra" ? "outline" : "secondary"} className="text-xs">
+                      <span className={expense.type === "compra" ? "tx-pill withdraw" : "tx-pill expense"}>
                         {expense.type === "compra" ? "Compra" : "Gasto"}
-                      </Badge>
+                      </span>
                     </TableCell>
-                    <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
+                    <TableCell className="text-right num font-semibold margin-bad">
                       -{formatCurrency(Number(expense.amount))}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={catConfig.variant}
-                        className={catConfig.className}
-                      >
+                      <span className={catConfig.cls}>
                         {catConfig.label}
-                      </Badge>
+                      </span>
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium text-[12.5px]">
                       {expense.concept}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-[12.5px] text-muted-foreground">
                       {expense.product?.name || expense.pack?.name || expense.productGroup?.name || expense.supplier?.name || "-"}
                     </TableCell>
                     <TableCell className="text-right">

@@ -1,5 +1,3 @@
-import { Package, Boxes, DollarSign, AlertTriangle } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import type { DashboardStats } from "@/types";
 
@@ -10,69 +8,47 @@ interface KpiCardsProps {
 export function KpiCards({ stats }: KpiCardsProps) {
   const cards = [
     {
-      title: "Productos",
-      value: stats.totalProducts,
-      description: `${stats.totalVariants} variantes registradas`,
-      icon: Package,
-      iconBg: "bg-blue-100 dark:bg-blue-900/30",
-      iconColor: "text-blue-600 dark:text-blue-400",
+      label: "PRODUCTOS",
+      value: String(stats.totalProducts),
+      desc: `${stats.totalVariants} variantes registradas`,
     },
     {
-      title: "Packs",
-      value: stats.totalPacks,
-      description: `${stats.totalListings} publicaciones activas`,
-      icon: Boxes,
-      iconBg: "bg-green-100 dark:bg-green-900/30",
-      iconColor: "text-green-600 dark:text-green-400",
+      label: "PACKS",
+      value: String(stats.totalPacks),
+      desc: `${stats.totalListings} publicaciones activas`,
     },
     {
-      title: "Valor de Inventario",
+      label: "VALOR INVENTARIO",
       value: formatCurrency(stats.totalStockValue),
-      description: "Costo total en stock",
-      icon: DollarSign,
-      iconBg: "bg-amber-100 dark:bg-amber-900/30",
-      iconColor: "text-amber-600 dark:text-amber-400",
+      desc: "Costo total en stock",
     },
     {
-      title: "Alertas de Stock",
-      value: stats.lowStockAlerts,
-      description: stats.outOfStockAlerts > 0
+      label: "ALERTAS STOCK",
+      value: String(stats.lowStockAlerts),
+      desc: stats.outOfStockAlerts > 0
         ? `${stats.outOfStockAlerts} sin stock`
         : "Todos con stock",
-      icon: AlertTriangle,
-      iconBg: stats.lowStockAlerts > 0
-        ? "bg-red-100 dark:bg-red-900/30"
-        : "bg-green-100 dark:bg-green-900/30",
-      iconColor: stats.lowStockAlerts > 0
-        ? "text-red-600 dark:text-red-400"
-        : "text-green-600 dark:text-green-400",
-      valueColor: stats.outOfStockAlerts > 0
-        ? "text-red-600 dark:text-red-400"
-        : undefined,
+      valueColor: stats.outOfStockAlerts > 0 ? "text-destructive" : undefined,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
-        <Card key={card.title}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {card.title}
-            </CardTitle>
-            <div className={`rounded-md p-2 ${card.iconBg}`}>
-              <card.icon className={`h-4 w-4 ${card.iconColor}`} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${card.valueColor || ""}`}>
-              {card.value}
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {card.description}
-            </p>
-          </CardContent>
-        </Card>
+        <div
+          key={card.label}
+          className="rounded-[9px] border border-border bg-card p-3.5 sm:p-4 flex flex-col gap-1.5"
+        >
+          <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
+            {card.label}
+          </div>
+          <div className={`mono num text-2xl font-semibold tracking-tight ${card.valueColor || ""}`}>
+            {card.value}
+          </div>
+          <div className="text-[11.5px] text-muted-foreground">
+            {card.desc}
+          </div>
+        </div>
       ))}
     </div>
   );

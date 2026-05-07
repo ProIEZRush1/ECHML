@@ -97,7 +97,7 @@ export default async function StockPage() {
   const lowStockAlerts = stockProducts.filter((p) => p.status === "low" || p.status === "out").length;
 
   return (
-    <div className="space-y-6">
+    <div>
       <PageHeader
         title="Inventario"
         description="Vista general del stock por producto y variante"
