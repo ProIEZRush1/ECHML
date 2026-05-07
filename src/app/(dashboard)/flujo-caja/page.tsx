@@ -21,6 +21,7 @@ import {
   Package,
   ShoppingBag,
   Receipt,
+  Landmark,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
@@ -221,8 +222,16 @@ export default async function FlujoCajaPage({
     totalProductCost += costPerUnit * count;
   }
 
+  // Tax calculation (Mexico RESICO regime)
+  // IVA withholding: 8% of base (sale / 1.16)
+  // ISR withholding: 2.5% of base
+  const totalBase = totalIncome / 1.16;
+  const totalRetencionIVA = totalBase * 0.08;
+  const totalRetencionISR = totalBase * 0.025;
+  const totalImpuestos = totalRetencionIVA + totalRetencionISR;
+
   const totalGastos = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const totalNet = totalIncome - totalFees - totalShipping - totalProductCost - totalGastos;
+  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos;
 
   // Calculate balance per pack — apply same pack filter as KPI cards
   const packWhere: {
@@ -393,6 +402,25 @@ export default async function FlujoCajaPage({
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Impuestos
+            </CardTitle>
+            <div className="rounded-md p-2 bg-amber-100 dark:bg-amber-900/30">
+              <Landmark className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-amber-600 dark:text-amber-400 truncate">
+              -{formatCurrency(totalImpuestos)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              IVA {formatCurrency(totalRetencionIVA)} + ISR {formatCurrency(totalRetencionISR)}
+            </p>
+          </CardContent>
+        </Card>
+
         {totalProductCost > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -449,7 +477,7 @@ export default async function FlujoCajaPage({
               {formatCurrency(totalNet)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Ingresos - comisiones - envios - costo - gastos
+              Despues de todo: comisiones, envios, impuestos, costo, gastos
             </p>
           </CardContent>
         </Card>
