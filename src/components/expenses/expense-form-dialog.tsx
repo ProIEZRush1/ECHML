@@ -308,7 +308,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                     className="pl-8 h-8 text-xs"
                   />
                 </div>
-                <div className="max-h-40 overflow-y-auto rounded-md border">
+                <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
                   {sales
                     .filter((s) => {
                       if (!salesSearch) return true;
@@ -325,7 +325,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                       return (
                         <label
                           key={sale.id}
-                          className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 ${checked ? "bg-primary/5" : ""}`}
+                          className={`flex items-start gap-2.5 px-3 py-2 cursor-pointer transition-colors hover:bg-muted/50 ${checked ? "bg-primary/10 border-l-2 border-l-primary" : ""}`}
                         >
                           <input
                             type="checkbox"
@@ -335,23 +335,23 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                                 checked ? prev.filter((id) => id !== sale.id) : [...prev, sale.id]
                               )
                             }
-                            className="rounded border-input h-3.5 w-3.5 shrink-0"
+                            className="rounded border-input h-4 w-4 shrink-0 mt-0.5"
                           />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <span className="text-xs truncate font-medium">
-                                {sale.description || `Venta #${sale.mpId}`}
-                              </span>
-                              <span className="text-xs font-semibold text-green-600 dark:text-green-400 shrink-0">
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold text-green-600 dark:text-green-400">
                                 ${sale.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                               </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                              <span>{new Date(sale.dateCreated).toLocaleDateString("es-MX")}</span>
                               {sale.pack?.sku && (
-                                <span className="font-mono bg-muted px-1 rounded">{sale.pack.sku}</span>
+                                <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded">{sale.pack.sku}</span>
                               )}
+                              <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
+                                {new Date(sale.dateCreated).toLocaleDateString("es-MX")}
+                              </span>
                             </div>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {sale.description || `Venta #${sale.mpId}`}
+                            </p>
                           </div>
                         </label>
                       );
