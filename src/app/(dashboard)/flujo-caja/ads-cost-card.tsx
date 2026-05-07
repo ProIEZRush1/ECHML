@@ -67,12 +67,7 @@ export function AdsCostCard() {
 
     fetch(`/api/ads-costs?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d && (productIds || packIds)) {
-          d = filterByProductsOrPacks(d, productIds, packIds);
-        }
-        setData(d);
-      })
+      .then((d) => setData(d))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [dateFrom, dateTo, productIds, packIds]);

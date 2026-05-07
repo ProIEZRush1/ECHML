@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
 
   const dateFrom = request.nextUrl.searchParams.get("dateFrom") || new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
   const dateTo = request.nextUrl.searchParams.get("dateTo") || new Date().toISOString().split("T")[0];
+  const productIdsParam = request.nextUrl.searchParams.get("productIds");
+  const packIdsParam = request.nextUrl.searchParams.get("packIds");
 
   try {
     const advertiserId = 853025;
@@ -83,9 +85,42 @@ export async function GET(request: NextRequest) {
 
     const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
+    // Build allowed ML item IDs filter based on productIds/packIds params
+    let allowedItemIds: Set<string> | null = null;
+    if (productIdsParam || packIdsParam) {
+      allowedItemIds = new Set<string>();
+      const filterProductIds = productIdsParam ? productIdsParam.split(",").filter(Boolean) : [];
+      const filterPackIds = packIdsParam ? packIdsParam.split(",").filter(Boolean) : [];
+
+      // Find packs linked to these products via PackItem → ProductVariant
+      if (filterProductIds.length > 0) {
+        const packItems = await prisma.packItem.findMany({
+          where: { productVariant: { productId: { in: filterProductIds } } },
+          select: { packId: true },
+        });
+        const linkedPackIds = [...new Set(packItems.map((pi) => pi.packId))];
+        const linkedListings = await prisma.mLListing.findMany({
+          where: { packId: { in: linkedPackIds } },
+          select: { mlItemId: true },
+        });
+        linkedListings.forEach((l) => allowedItemIds!.add(l.mlItemId));
+      }
+
+      if (filterPackIds.length > 0) {
+        const packListings = await prisma.mLListing.findMany({
+          where: { packId: { in: filterPackIds } },
+          select: { mlItemId: true },
+        });
+        packListings.forEach((l) => allowedItemIds!.add(l.mlItemId));
+      }
+    }
+
+    // Filter allItems by allowed IDs if filter is active
+    const filteredItems = allowedItemIds ? allItems.filter((i) => allowedItemIds!.has(i.item_id)) : allItems;
+
     const productCosts: Record<string, { name: string; brand: string | null; cost: number; clicks: number; prints: number; salesAmount: number; units: number; items: string[] }> = {};
 
-    for (const item of allItems) {
+    for (const item of filteredItems) {
       const listing = listingMap.get(item.item_id);
       const products = listing?.pack?.items?.map((i) => i.productVariant.product) || [];
       const productName = products[0]?.name || item.title;
@@ -105,9 +140,9 @@ export async function GET(request: NextRequest) {
       p.items.push(item.item_id);
     }
 
-    const totalCost = allItems.reduce((s, i) => s + (i.metrics.cost || 0), 0);
-    const totalClicks = allItems.reduce((s, i) => s + (i.metrics.clicks || 0), 0);
-    const totalSales = allItems.reduce((s, i) => s + (i.metrics.total_amount || 0), 0);
+    const totalCost = filteredItems.reduce((s, i) => s + (i.metrics.cost || 0), 0);
+    const totalClicks = filteredItems.reduce((s, i) => s + (i.metrics.clicks || 0), 0);
+    const totalSales = filteredItems.reduce((s, i) => s + (i.metrics.total_amount || 0), 0);
 
     return NextResponse.json({
       dateFrom,
@@ -116,7 +151,7 @@ export async function GET(request: NextRequest) {
       totalClicks,
       totalSalesFromAds: Math.round(totalSales * 100) / 100,
       overallAcos: totalSales > 0 ? Math.round((totalCost / totalSales) * 10000) / 100 : 0,
-      itemCount: allItems.length,
+      itemCount: filteredItems.length,
       byProduct: Object.entries(productCosts)
         .map(([id, data]) => ({
           productId: id,
