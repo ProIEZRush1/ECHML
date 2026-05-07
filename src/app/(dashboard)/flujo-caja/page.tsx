@@ -42,10 +42,15 @@ interface PackBalance {
   taxes: number;
   productCost: number;
   flexCost: number;
+  gastos: number;
   salesCount: number;
   netIncome: number;
   transactionCount: number;
 }
+
+type MovimientoRow =
+  | { kind: "tx"; id: string; date: Date; label: string; description: string | null; amount: number; balanceChange: number; type: string; pack: { id: string; sku: string; name: string; imageUrl: string | null } | null }
+  | { kind: "expense"; id: string; date: Date; concept: string; amount: number; category: string; packIds: string[] };
 
 export default async function FlujoCajaPage({
   searchParams,
@@ -176,14 +181,61 @@ export default async function FlujoCajaPage({
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
         },
-        ...(effectivePackIds.length > 0 ? { packId: effectivePackIds.length === 1 ? effectivePackIds[0] : { in: effectivePackIds } } : {}),
-        ...(productIdList.length > 0 ? { productId: { in: productIdList } } : {}),
       },
-      select: { amount: true },
+      select: { id: true, amount: true, date: true, concept: true, category: true, transactionIds: true, packId: true, productId: true },
     }),
   ]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  // Resolve expense transactionIds → packIds for filtering and distribution
+  const allTxIdsFromExpenses = new Set<string>();
+  for (const exp of filteredExpenses) {
+    if (exp.transactionIds) {
+      exp.transactionIds.split(",").filter(Boolean).forEach((id) => allTxIdsFromExpenses.add(id));
+    }
+  }
+
+  const txToPackMap = new Map<string, string>();
+  if (allTxIdsFromExpenses.size > 0) {
+    const linkedTxs = await prisma.mPTransaction.findMany({
+      where: { id: { in: [...allTxIdsFromExpenses] } },
+      select: { id: true, packId: true },
+    });
+    for (const ltx of linkedTxs) {
+      if (ltx.packId) txToPackMap.set(ltx.id, ltx.packId);
+    }
+  }
+
+  // Filter expenses: include if packId/productId matches OR transactionIds link to matching packs
+  const hasPackFilter = effectivePackIds.length > 0;
+  const hasProductFilter = productIdList.length > 0;
+  const effectivePackSet = new Set(effectivePackIds);
+
+  type ExpenseWithDetails = typeof filteredExpenses[number] & { resolvedPackIds: string[] };
+  const relevantExpenses: ExpenseWithDetails[] = [];
+
+  for (const exp of filteredExpenses) {
+    const resolvedPackIds: string[] = [];
+    if (exp.transactionIds) {
+      for (const txId of exp.transactionIds.split(",").filter(Boolean)) {
+        const pId = txToPackMap.get(txId);
+        if (pId) resolvedPackIds.push(pId);
+      }
+    }
+    const uniquePacks = [...new Set(resolvedPackIds)];
+
+    if (!hasPackFilter && !hasProductFilter) {
+      relevantExpenses.push({ ...exp, resolvedPackIds: uniquePacks });
+    } else {
+      const matchesPack = exp.packId && effectivePackSet.has(exp.packId);
+      const matchesProduct = exp.productId && productIdList.includes(exp.productId);
+      const matchesTxPacks = uniquePacks.some((pId) => effectivePackSet.has(pId));
+      if (matchesPack || matchesProduct || matchesTxPacks) {
+        relevantExpenses.push({ ...exp, resolvedPackIds: uniquePacks });
+      }
+    }
+  }
 
   // Aggregate KPIs with same filters (no pagination)
   const allFilteredTransactions = await prisma.mPTransaction.findMany({
@@ -238,14 +290,12 @@ export default async function FlujoCajaPage({
   }
 
   // Tax calculation (Mexico RESICO regime)
-  // IVA withholding: 8% of base (sale / 1.16)
-  // ISR withholding: 2.5% of base
   const totalBase = totalIncome / 1.16;
   const totalRetencionIVA = totalBase * 0.08;
   const totalRetencionISR = totalBase * 0.025;
   const totalImpuestos = totalRetencionIVA + totalRetencionISR;
 
-  const totalGastos = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalGastos = relevantExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
@@ -284,12 +334,12 @@ export default async function FlujoCajaPage({
   // Aggregate by pack
   const packMap = new Map<
     string,
-    { income: number; fees: number; shipping: number; flexCost: number; salesCount: number; count: number }
+    { income: number; fees: number; shipping: number; flexCost: number; gastos: number; salesCount: number; count: number }
   >();
 
   for (const tx of packTransactions) {
     if (!tx.packId) continue;
-    const existing = packMap.get(tx.packId) || { income: 0, fees: 0, shipping: 0, flexCost: 0, salesCount: 0, count: 0 };
+    const existing = packMap.get(tx.packId) || { income: 0, fees: 0, shipping: 0, flexCost: 0, gastos: 0, salesCount: 0, count: 0 };
     const amount = Number(tx.amount);
 
     if (tx.label === "sale") {
@@ -306,6 +356,24 @@ export default async function FlujoCajaPage({
     }
     existing.count += 1;
     packMap.set(tx.packId, existing);
+  }
+
+  // Distribute expenses to packs via transactionIds
+  for (const exp of relevantExpenses) {
+    const amt = Number(exp.amount);
+    if (exp.resolvedPackIds.length > 0) {
+      const uniquePacks = [...new Set(exp.resolvedPackIds)];
+      const share = amt / uniquePacks.length;
+      for (const pId of uniquePacks) {
+        const existing = packMap.get(pId) || { income: 0, fees: 0, shipping: 0, flexCost: 0, gastos: 0, salesCount: 0, count: 0 };
+        existing.gastos += share;
+        packMap.set(pId, existing);
+      }
+    } else if (exp.packId) {
+      const existing = packMap.get(exp.packId) || { income: 0, fees: 0, shipping: 0, flexCost: 0, gastos: 0, salesCount: 0, count: 0 };
+      existing.gastos += amt;
+      packMap.set(exp.packId, existing);
+    }
   }
 
   // Build pack balances with taxes and product cost
@@ -329,8 +397,9 @@ export default async function FlujoCajaPage({
       taxes: packTaxes,
       productCost: packProductCost,
       flexCost: data.flexCost,
+      gastos: data.gastos,
       salesCount: data.salesCount,
-      netIncome: data.income - data.fees - data.shipping - packTaxes - packProductCost - data.flexCost,
+      netIncome: data.income - data.fees - data.shipping - packTaxes - packProductCost - data.flexCost - data.gastos,
       transactionCount: data.count,
     });
   }
@@ -610,6 +679,14 @@ export default async function FlujoCajaPage({
                               </span>
                             </div>
                           )}
+                          {pack.gastos > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Gastos</span>
+                              <span className="font-medium text-rose-600 dark:text-rose-400">
+                                -{formatCurrency(pack.gastos)}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Progress bar: income vs fees ratio */}
@@ -648,11 +725,12 @@ export default async function FlujoCajaPage({
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               {totalCount} resultado{totalCount !== 1 ? "s" : ""}
+              {relevantExpenses.length > 0 && ` + ${relevantExpenses.length} gasto${relevantExpenses.length > 1 ? "s" : ""}`}
             </p>
           </div>
         </CardHeader>
         <CardContent>
-          {mpTransactions.length === 0 ? (
+          {mpTransactions.length === 0 && relevantExpenses.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
               No hay movimientos que coincidan con los filtros.
             </p>
@@ -670,90 +748,150 @@ export default async function FlujoCajaPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {mpTransactions.map((tx) => {
-                    const amount = Number(tx.amount);
-                    const balance = Number(tx.balanceChange);
-                    const isCredit = tx.type === "credit";
-
-                    return (
-                      <TableRow key={tx.id} className="hover:bg-muted/50">
-                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                          {formatDate(tx.dateCreated)}
-                        </TableCell>
-                        <TableCell>
-                          {tx.label === "sale" && (
-                            <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100">
-                              Venta
-                            </Badge>
-                          )}
-                          {(tx.label === "fee" || tx.label === "commission") && (
-                            <Badge variant="default" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100">
-                              Comision
-                            </Badge>
-                          )}
-                          {tx.label === "shipping" && (
-                            <Badge variant="default" className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 hover:bg-orange-100">
-                              Envio
-                            </Badge>
-                          )}
-                          {tx.label === "flex_cost" && (
-                            <Badge variant="default" className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 hover:bg-cyan-100">
-                              Flex
-                            </Badge>
-                          )}
-                          {tx.label === "flex_bonificacion" && (
-                            <Badge variant="default" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-100">
-                              Bonif. Flex
-                            </Badge>
-                          )}
-                          {!["sale", "fee", "commission", "shipping", "flex_cost", "flex_bonificacion"].includes(tx.label) && (
-                            <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
-                              {tx.label}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm max-w-[200px] truncate">
-                          {tx.description || `Movimiento: ${tx.label}`}
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {tx.pack ? (
-                            <div className="flex items-center gap-2">
-                              {tx.pack.imageUrl && (
-                                <div className="shrink-0 h-6 w-6 rounded overflow-hidden border bg-muted">
-                                  <Image
-                                    src={tx.pack.imageUrl}
-                                    alt={tx.pack.name}
-                                    width={24}
-                                    height={24}
-                                    className="h-full w-full object-cover"
-                                    unoptimized
-                                  />
-                                </div>
+                  {/* Merge MP transactions + expenses, sort by date desc */}
+                  {(() => {
+                    const txRows: MovimientoRow[] = mpTransactions.map((tx) => ({
+                      kind: "tx" as const,
+                      id: tx.id,
+                      date: tx.dateCreated,
+                      label: tx.label,
+                      description: tx.description,
+                      amount: Number(tx.amount),
+                      balanceChange: Number(tx.balanceChange),
+                      type: tx.type,
+                      pack: tx.pack,
+                    }));
+                    const expRows: MovimientoRow[] = relevantExpenses
+                      .filter((e) => currentPage === 1)
+                      .map((exp) => ({
+                        kind: "expense" as const,
+                        id: exp.id,
+                        date: exp.date,
+                        concept: exp.concept,
+                        amount: Number(exp.amount),
+                        category: exp.category,
+                        packIds: exp.resolvedPackIds,
+                      }));
+                    const allRows = [...txRows, ...expRows].sort((a, b) => b.date.getTime() - a.date.getTime());
+                    return allRows.map((row) => {
+                      if (row.kind === "expense") {
+                        const packSkus = row.packIds
+                          .map((pId) => allPacks.find((p) => p.id === pId)?.sku)
+                          .filter(Boolean);
+                        return (
+                          <TableRow key={`exp-${row.id}`} className="hover:bg-muted/50 bg-rose-50/30 dark:bg-rose-950/10">
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                              {formatDate(row.date)}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="default" className="bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300 hover:bg-rose-100">
+                                Gasto
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                              {row.concept}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {packSkus.length > 0 ? (
+                                <span className="font-mono text-xs text-muted-foreground">{packSkus.join(", ")}</span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
                               )}
-                              <Link
-                                href={`/flujo-caja?packIds=${tx.pack.id}`}
-                                className="text-primary hover:underline font-mono text-xs"
-                              >
-                                {tx.pack.sku}
-                              </Link>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap">
-                          <span className={isCredit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                            {isCredit ? "+" : "-"}{formatCurrency(Math.abs(amount))}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap">
-                          <span className={balance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                            {balance >= 0 ? "+" : ""}{formatCurrency(balance)}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                            </TableCell>
+                            <TableCell className="text-right font-medium whitespace-nowrap">
+                              <span className="text-rose-600 dark:text-rose-400">
+                                -{formatCurrency(row.amount)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right font-medium whitespace-nowrap">
+                              <span className="text-rose-600 dark:text-rose-400">
+                                -{formatCurrency(row.amount)}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+                      const isCredit = row.type === "credit";
+                      return (
+                        <TableRow key={row.id} className="hover:bg-muted/50">
+                          <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                            {formatDate(row.date)}
+                          </TableCell>
+                          <TableCell>
+                            {row.label === "sale" && (
+                              <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100">
+                                Venta
+                              </Badge>
+                            )}
+                            {(row.label === "fee" || row.label === "commission") && (
+                              <Badge variant="default" className="bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100">
+                                Comision
+                              </Badge>
+                            )}
+                            {row.label === "shipping" && (
+                              <Badge variant="default" className="bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 hover:bg-orange-100">
+                                Envio
+                              </Badge>
+                            )}
+                            {row.label === "flex_cost" && (
+                              <Badge variant="default" className="bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300 hover:bg-cyan-100">
+                                Flex
+                              </Badge>
+                            )}
+                            {row.label === "flex_bonificacion" && (
+                              <Badge variant="default" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-100">
+                                Bonif. Flex
+                              </Badge>
+                            )}
+                            {!["sale", "fee", "commission", "shipping", "flex_cost", "flex_bonificacion"].includes(row.label) && (
+                              <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
+                                {row.label}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                            {row.description || `Movimiento: ${row.label}`}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.pack ? (
+                              <div className="flex items-center gap-2">
+                                {row.pack.imageUrl && (
+                                  <div className="shrink-0 h-6 w-6 rounded overflow-hidden border bg-muted">
+                                    <Image
+                                      src={row.pack.imageUrl}
+                                      alt={row.pack.name}
+                                      width={24}
+                                      height={24}
+                                      className="h-full w-full object-cover"
+                                      unoptimized
+                                    />
+                                  </div>
+                                )}
+                                <Link
+                                  href={`/flujo-caja?packIds=${row.pack.id}`}
+                                  className="text-primary hover:underline font-mono text-xs"
+                                >
+                                  {row.pack.sku}
+                                </Link>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium whitespace-nowrap">
+                            <span className={isCredit ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                              {isCredit ? "+" : "-"}{formatCurrency(Math.abs(row.amount))}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right font-medium whitespace-nowrap">
+                            <span className={row.balanceChange >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                              {row.balanceChange >= 0 ? "+" : ""}{formatCurrency(row.balanceChange)}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
                 </TableBody>
               </Table>
 
