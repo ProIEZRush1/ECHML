@@ -916,6 +916,63 @@ server.tool(
 
 // ─── ML Generic API ─────────────────────────────────────────────────────────
 
+// ─── Rentabilidad (Profitability) ──────────────────────────────────────────
+
+server.tool(
+  "get_profitability",
+  "Obtener reporte de rentabilidad/utilidad por pack: precio, comision, envio, costo producto, costos adicionales, ganancia neta y margen",
+  {},
+  async () => {
+    const data = await apiRequest("/api/rentabilidad");
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "add_pack_cost",
+  "Agregar un costo adicional a un pack (caja, papel, etiqueta, empaque, etc.)",
+  {
+    packId: z.string().describe("ID del pack"),
+    category: z.string().describe("Categoria del costo: caja, papel, etiqueta, empaque, sticker, otro"),
+    amount: z.number().describe("Monto del costo en MXN"),
+    notes: z.string().optional().describe("Notas adicionales"),
+  },
+  async ({ packId, category, amount, notes }) => {
+    const data = await apiRequest("/api/pack-costs", {
+      method: "POST",
+      body: JSON.stringify({ packId, category, amount, notes }),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "list_pack_costs",
+  "Listar costos adicionales de un pack o de todos los packs",
+  {
+    packId: z.string().optional().describe("ID del pack (opcional, sin filtro muestra todos)"),
+  },
+  async ({ packId }) => {
+    let path = "/api/pack-costs";
+    if (packId) path += `?packId=${packId}`;
+    const data = await apiRequest(path);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
+server.tool(
+  "delete_pack_cost",
+  "Eliminar un costo adicional de un pack",
+  { id: z.string().describe("ID del costo a eliminar") },
+  async ({ id }) => {
+    const data = await apiRequest("/api/pack-costs", {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    });
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── ML Listing Costs ──────────────────────────────────────────────────────
 
 server.tool(

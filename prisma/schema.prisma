@@ -151,6 +151,7 @@ model Pack {
   mlListings            MLListing[]
   withdrawalAllocations WithdrawalAllocation[]
   mpTransactions        MPTransaction[]
+  costs                 PackCost[]
 
   @@index([sku])
 }
@@ -359,6 +360,18 @@ model ProductGroupItem {
   product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productGroupId, productId])
+}
+
+model PackCost {
+  id       String  @id @default(cuid())
+  packId   String
+  category String
+  amount   Decimal @db.Decimal(10, 2)
+  notes    String?
+
+  pack Pack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@index([packId])
 }
 
 model SystemConfig {

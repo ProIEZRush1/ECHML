@@ -63,6 +63,7 @@ const salesNavItems = [
 
 const finanzasNavItems = [
   { title: "Flujo de Caja", href: "/flujo-caja", icon: TrendingUp },
+  { title: "Rentabilidad", href: "/rentabilidad", icon: BarChart3 },
   { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
   { title: "Gastos", href: "/gastos", icon: Receipt },
 ];
