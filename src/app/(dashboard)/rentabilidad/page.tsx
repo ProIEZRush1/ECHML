@@ -28,14 +28,17 @@ export default async function RentabilidadPage() {
   });
 
   const report = packs.map((pack) => {
-    const salePrice = Number(pack.salePrice);
+    const listPrice = Number(pack.salePrice);
     const sales = pack.mpTransactions.filter((t) => t.label === "sale");
     const fees = pack.mpTransactions.filter((t) => t.label === "fee");
     const shipping = pack.mpTransactions.filter((t) => t.label === "shipping");
 
+    const totalSalesAmount = sales.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalFees = fees.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalShipping = shipping.reduce((sum, t) => sum + Number(t.amount), 0);
     const salesCount = sales.length;
+
+    const salePrice = salesCount > 0 ? totalSalesAmount / salesCount : listPrice;
 
     const productCost = pack.items.reduce(
       (sum, item) => sum + Number(item.productVariant.product.unitCost) * item.quantity,
