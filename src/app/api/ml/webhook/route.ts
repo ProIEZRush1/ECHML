@@ -33,7 +33,10 @@ interface MLOrder {
     shipping_cost: number;
     marketplace_fee: number;
   }>;
+  shipping?: { id: number };
 }
+
+const FLEX_COST = 115;
 
 export async function POST(request: NextRequest) {
   try {
@@ -132,6 +135,48 @@ export async function POST(request: NextRequest) {
                 },
                 update: { amount: shippingCost, balanceChange: -shippingCost, packId, syncedAt: new Date() },
               });
+            }
+
+            // Fetch shipment for real shipping cost (base_cost) and Flex detection
+            if (order.shipping?.id) {
+              try {
+                const shipment = await mlFetch<{ logistic_type?: string; base_cost?: number }>(`/shipments/${order.shipping.id}`);
+
+                // Use base_cost as shipping when payment.shipping_cost is 0 (free shipping)
+                if (shippingCost === 0 && shipment.base_cost && shipment.base_cost > 0) {
+                  const realShipCost = shipment.base_cost;
+                  const shipId = BigInt(order.id) * BigInt(100) + BigInt(2);
+                  await prisma.mPTransaction.upsert({
+                    where: { mpId: shipId },
+                    create: {
+                      mpId: shipId, type: "debit", amount: realShipCost,
+                      balanceChange: -realShipCost, status: "approved", label: "shipping",
+                      description: `Envio - ${item.item.title}`,
+                      referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                      packId, dateCreated: new Date(order.date_closed || order.date_created),
+                    },
+                    update: { amount: realShipCost, balanceChange: -realShipCost, packId, syncedAt: new Date() },
+                  });
+                }
+
+                // Flex detection: self_service = seller delivers personally
+                if (shipment.logistic_type === "self_service") {
+                  const flexCostId = BigInt(order.id) * BigInt(100) + BigInt(3);
+                  await prisma.mPTransaction.upsert({
+                    where: { mpId: flexCostId },
+                    create: {
+                      mpId: flexCostId, type: "debit", amount: FLEX_COST,
+                      balanceChange: -FLEX_COST, status: "approved", label: "flex_cost",
+                      description: `Costo Flex $${FLEX_COST} - ${item.item.title}`,
+                      referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                      packId, dateCreated: new Date(order.date_closed || order.date_created),
+                    },
+                    update: { amount: FLEX_COST, balanceChange: -FLEX_COST, packId, syncedAt: new Date() },
+                  });
+                }
+              } catch (shipErr) {
+                console.error(`Shipment check failed for order ${order.id}:`, shipErr);
+              }
             }
 
           }
