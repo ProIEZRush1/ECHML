@@ -23,6 +23,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
 import { CashflowFilters } from "./cashflow-filters";
+import { AdsCostCard } from "./ads-cost-card";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -365,6 +366,9 @@ export default async function FlujoCajaPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Ads Cost */}
+      <AdsCostCard />
 
       {/* Balance por Pack */}
       {packBalances.length > 0 && (
