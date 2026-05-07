@@ -16,20 +16,18 @@ import {
   TrendingUp,
   Percent,
   Truck,
-  Wallet,
   Activity,
   Package,
   ShoppingBag,
   Receipt,
   Landmark,
-  Megaphone,
   Bike,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { mlFetch } from "@/lib/ml/client";
 import { MPSyncButton } from "./mp-sync-button";
 import { CashflowFilters } from "./cashflow-filters";
 import { AdsCostCard } from "./ads-cost-card";
+import { UtilidadNetaCard } from "./utilidad-neta-card";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -47,62 +45,6 @@ interface PackBalance {
   salesCount: number;
   netIncome: number;
   transactionCount: number;
-}
-
-async function fetchAdsCost(
-  dateFrom: string,
-  dateTo: string,
-  packIds: string[],
-  productIds: string[]
-): Promise<number> {
-  try {
-    const advertiserId = 853025;
-    if (packIds.length === 0 && productIds.length === 0) {
-      const data = await mlFetch<{ metrics_summary?: { cost: number }; paging: { total: number } }>(
-        `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=1&offset=0&date_from=${dateFrom}&date_to=${dateTo}&filters[statuses]=active,paused,hold,idle&metrics=cost&metrics_summary=true`,
-        { headers: { "api-version": "2" } }
-      );
-      return data.metrics_summary?.cost || 0;
-    }
-    const allItems: Array<{ item_id: string; metrics: { cost: number } }> = [];
-    let offset = 0;
-    const limit = 50;
-    let total = Infinity;
-    while (offset < total) {
-      const data = await mlFetch<{ results: typeof allItems; paging: { total: number } }>(
-        `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}&offset=${offset}&date_from=${dateFrom}&date_to=${dateTo}&filters[statuses]=active,paused,hold,idle&metrics=cost`,
-        { headers: { "api-version": "2" } }
-      );
-      total = data.paging.total;
-      allItems.push(...data.results);
-      offset += limit;
-    }
-    const allowedItemIds = new Set<string>();
-    if (productIds.length > 0) {
-      const packItems = await prisma.packItem.findMany({
-        where: { productVariant: { productId: { in: productIds } } },
-        select: { packId: true },
-      });
-      const linkedPackIds = [...new Set(packItems.map((pi) => pi.packId))];
-      const linkedListings = await prisma.mLListing.findMany({
-        where: { packId: { in: linkedPackIds } },
-        select: { mlItemId: true },
-      });
-      linkedListings.forEach((l) => allowedItemIds.add(l.mlItemId));
-    }
-    if (packIds.length > 0) {
-      const packListings = await prisma.mLListing.findMany({
-        where: { packId: { in: packIds } },
-        select: { mlItemId: true },
-      });
-      packListings.forEach((l) => allowedItemIds.add(l.mlItemId));
-    }
-    return allItems
-      .filter((item) => allowedItemIds.has(item.item_id))
-      .reduce((sum, item) => sum + (item.metrics?.cost || 0), 0);
-  } catch {
-    return 0;
-  }
 }
 
 export default async function FlujoCajaPage({
@@ -197,9 +139,7 @@ export default async function FlujoCajaPage({
   }
 
   // Fetch filtered data
-  const effectiveDateTo = params.dateTo || new Date().toISOString().split("T")[0];
-
-  const [mpTransactions, totalCount, allPacks, packsWithCosts, filteredExpenses, totalAdsCost] = await Promise.all([
+  const [mpTransactions, totalCount, allPacks, packsWithCosts, filteredExpenses] = await Promise.all([
     prisma.mPTransaction.findMany({
       where,
       orderBy: { dateCreated: "desc" },
@@ -241,10 +181,6 @@ export default async function FlujoCajaPage({
       },
       select: { amount: true },
     }),
-    Promise.race([
-      fetchAdsCost(effectiveDateFrom, effectiveDateTo, effectivePackIds, productIdList),
-      new Promise<number>((resolve) => setTimeout(() => resolve(0), 4000)),
-    ]),
   ]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -308,7 +244,7 @@ export default async function FlujoCajaPage({
 
   const totalGastos = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
-  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalAdsCost - totalFlexCost;
+  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexCost;
 
   // Calculate balance per pack — apply same pack filter as KPI cards
   const packWhere: {
@@ -551,27 +487,6 @@ export default async function FlujoCajaPage({
           </Card>
         )}
 
-        {totalAdsCost > 0 && (
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Publicidad
-              </CardTitle>
-              <div className="rounded-md p-2 bg-pink-100 dark:bg-pink-900/30">
-                <Megaphone className="h-4 w-4 text-pink-600 dark:text-pink-400" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xl font-bold text-pink-600 dark:text-pink-400 truncate">
-                -{formatCurrency(totalAdsCost)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Costo de ads del periodo
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {totalFlexCost > 0 && (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -593,24 +508,7 @@ export default async function FlujoCajaPage({
           </Card>
         )}
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Utilidad Neta
-            </CardTitle>
-            <div className="rounded-md p-2 bg-blue-100 dark:bg-blue-900/30">
-              <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-xl font-bold truncate ${totalNet >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400"}`}>
-              {formatCurrency(totalNet)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Todo: comisiones, envios, impuestos, costo, gastos, ads, flex
-            </p>
-          </CardContent>
-        </Card>
+        <UtilidadNetaCard serverNet={totalNet} />
       </div>
 
       {/* Ads Cost */}

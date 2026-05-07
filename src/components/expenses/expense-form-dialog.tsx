@@ -21,13 +21,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 interface Option {
   id: string;
   name: string;
   sku?: string;
+}
+
+interface SaleTransaction {
+  id: string;
+  mpId: string;
+  description: string | null;
+  amount: number;
+  dateCreated: string;
+  pack: { id: string; sku: string; name: string } | null;
 }
 
 interface ExpenseFormDialogProps {
@@ -57,11 +67,14 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
   const [packId, setPackId] = useState("");
   const [productGroupId, setProductGroupId] = useState("");
   const [notes, setNotes] = useState("");
+  const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
+  const [salesSearch, setSalesSearch] = useState("");
 
   const [suppliers, setSuppliers] = useState<Option[]>([]);
   const [products, setProducts] = useState<Option[]>([]);
   const [packs, setPacks] = useState<Option[]>([]);
   const [groups, setGroups] = useState<Option[]>([]);
+  const [sales, setSales] = useState<SaleTransaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(false);
 
@@ -83,16 +96,19 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
     setPackId("");
     setProductGroupId("");
     setNotes("");
+    setSelectedSaleIds([]);
+    setSalesSearch("");
   }
 
   async function fetchOptions() {
     setLoadingOptions(true);
     try {
-      const [suppRes, prodRes, packRes, groupRes] = await Promise.all([
+      const [suppRes, prodRes, packRes, groupRes, salesRes] = await Promise.all([
         fetch("/api/suppliers"),
         fetch("/api/products"),
         fetch("/api/packs"),
         fetch("/api/product-groups"),
+        fetch("/api/mp/transactions?label=sale&limit=50"),
       ]);
       if (suppRes.ok) setSuppliers(await suppRes.json());
       if (prodRes.ok) {
@@ -104,6 +120,10 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
         setPacks(data.map((p: Record<string, string>) => ({ id: p.id, name: p.name, sku: p.sku })));
       }
       if (groupRes.ok) setGroups(await groupRes.json());
+      if (salesRes.ok) {
+        const data = await salesRes.json();
+        setSales(data.transactions || []);
+      }
     } catch {
       toast.error("Error al cargar opciones");
     } finally {
@@ -133,6 +153,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
         productId: productId || undefined,
         packId: packId || undefined,
         productGroupId: productGroupId || undefined,
+        transactionIds: selectedSaleIds.length > 0 ? selectedSaleIds.join(",") : undefined,
         notes: notes.trim() || undefined,
       };
 
@@ -260,6 +281,95 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                 </>
               )}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-2">
+              Asignar a ventas (opcional)
+              {selectedSaleIds.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {selectedSaleIds.length}
+                </Badge>
+              )}
+            </Label>
+            {loadingOptions ? (
+              <div className="flex items-center gap-2 h-8">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Cargando...</span>
+              </div>
+            ) : sales.length > 0 ? (
+              <div className="space-y-1.5">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar venta..."
+                    value={salesSearch}
+                    onChange={(e) => setSalesSearch(e.target.value)}
+                    className="pl-8 h-8 text-xs"
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto rounded-md border">
+                  {sales
+                    .filter((s) => {
+                      if (!salesSearch) return true;
+                      const q = salesSearch.toLowerCase();
+                      return (
+                        (s.description || "").toLowerCase().includes(q) ||
+                        (s.pack?.sku || "").toLowerCase().includes(q) ||
+                        (s.pack?.name || "").toLowerCase().includes(q) ||
+                        s.mpId.includes(q)
+                      );
+                    })
+                    .map((sale) => {
+                      const checked = selectedSaleIds.includes(sale.id);
+                      return (
+                        <label
+                          key={sale.id}
+                          className={`flex items-center gap-2 px-2.5 py-1.5 cursor-pointer transition-colors hover:bg-muted/50 ${checked ? "bg-primary/5" : ""}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setSelectedSaleIds((prev) =>
+                                checked ? prev.filter((id) => id !== sale.id) : [...prev, sale.id]
+                              )
+                            }
+                            className="rounded border-input h-3.5 w-3.5 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-xs truncate font-medium">
+                                {sale.description || `Venta #${sale.mpId}`}
+                              </span>
+                              <span className="text-xs font-semibold text-green-600 dark:text-green-400 shrink-0">
+                                ${sale.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                              <span>{new Date(sale.dateCreated).toLocaleDateString("es-MX")}</span>
+                              {sale.pack?.sku && (
+                                <span className="font-mono bg-muted px-1 rounded">{sale.pack.sku}</span>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                </div>
+                {selectedSaleIds.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSaleIds([])}
+                    className="text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    Limpiar seleccion
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No hay ventas recientes</p>
+            )}
           </div>
 
           <div className="space-y-1.5">
