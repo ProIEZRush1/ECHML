@@ -181,13 +181,13 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Nuevo Gasto</DialogTitle>
           <DialogDescription>Registra un nuevo gasto operativo.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-4 py-2 overflow-y-auto overflow-x-hidden flex-1 min-h-0">
           <div className="space-y-1.5">
             <Label>Tipo</Label>
             <div className="flex gap-2">
