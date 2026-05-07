@@ -211,6 +211,7 @@ export default async function FlujoCajaPage({
   let totalShipping = 0;
   let totalProductCost = 0;
   let totalFlexCost = 0;
+  let totalFlexBonificacion = 0;
   const salesPerPack = new Map<string, number>();
 
   for (const tx of allFilteredTransactions) {
@@ -226,6 +227,8 @@ export default async function FlujoCajaPage({
       totalShipping += Math.abs(amount);
     } else if (tx.label === "flex_cost") {
       totalFlexCost += Math.abs(amount);
+    } else if (tx.label === "flex_bonificacion") {
+      totalFlexBonificacion += amount;
     }
   }
 
@@ -244,7 +247,8 @@ export default async function FlujoCajaPage({
 
   const totalGastos = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
-  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexCost;
+  const totalFlexNet = totalFlexCost - totalFlexBonificacion;
+  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
 
   // Calculate balance per pack — apply same pack filter as KPI cards
   const packWhere: {
@@ -297,6 +301,8 @@ export default async function FlujoCajaPage({
       existing.shipping += Math.abs(amount);
     } else if (tx.label === "flex_cost") {
       existing.flexCost += Math.abs(amount);
+    } else if (tx.label === "flex_bonificacion") {
+      existing.flexCost -= amount;
     }
     existing.count += 1;
     packMap.set(tx.packId, existing);
@@ -491,7 +497,7 @@ export default async function FlujoCajaPage({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Costo Flex
+                Flex
               </CardTitle>
               <div className="rounded-md p-2 bg-cyan-100 dark:bg-cyan-900/30">
                 <Bike className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
@@ -499,10 +505,11 @@ export default async function FlujoCajaPage({
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold text-cyan-600 dark:text-cyan-400 truncate">
-                -{formatCurrency(totalFlexCost)}
+                -{formatCurrency(totalFlexNet)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {flexCount} envio{flexCount !== 1 ? "s" : ""} Flex · $115 c/u
+                {flexCount} envio{flexCount !== 1 ? "s" : ""} · Costo {formatCurrency(totalFlexCost)}
+                {totalFlexBonificacion > 0 && ` · Bonif +${formatCurrency(totalFlexBonificacion)}`}
               </p>
             </CardContent>
           </Card>
@@ -694,7 +701,12 @@ export default async function FlujoCajaPage({
                               Flex
                             </Badge>
                           )}
-                          {!["sale", "fee", "commission", "shipping", "flex_cost"].includes(tx.label) && (
+                          {tx.label === "flex_bonificacion" && (
+                            <Badge variant="default" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-100">
+                              Bonif. Flex
+                            </Badge>
+                          )}
+                          {!["sale", "fee", "commission", "shipping", "flex_cost", "flex_bonificacion"].includes(tx.label) && (
                             <Badge variant="default" className="bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300 hover:bg-slate-100">
                               {tx.label}
                             </Badge>

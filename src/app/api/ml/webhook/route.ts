@@ -36,6 +36,14 @@ interface MLOrder {
   shipping?: { id: number };
 }
 
+interface ShipmentCosts {
+  senders: Array<{
+    cost: number;
+    save: number;
+    user_id: number;
+  }>;
+}
+
 const FLEX_COST = 115;
 
 export async function POST(request: NextRequest) {
@@ -60,20 +68,18 @@ export async function POST(request: NextRequest) {
         if (order.status === "paid") {
           const item = order.order_items?.[0];
           if (item) {
-            // Stock update
             try {
               await processSale(BigInt(order.id), item.item.id, item.quantity);
             } catch (err) {
               console.error(`processSale failed for order ${order.id}:`, err);
             }
 
-            // MP Transaction sync (same logic as syncOrdersFromML but for single order)
             const payment = order.payments?.[0];
             const saleFee = item.sale_fee ?? 0;
             const marketplaceFee = payment?.marketplace_fee ?? 0;
             const commission = Math.max(saleFee, marketplaceFee);
-            const shippingCost = payment?.shipping_cost ?? 0;
-            const netReceived = order.total_amount - commission - shippingCost;
+            const paymentShippingCost = payment?.shipping_cost ?? 0;
+            const netReceived = order.total_amount - commission - paymentShippingCost;
 
             let packId: string | null = null;
             const listing = await prisma.mLListing.findUnique({
@@ -82,31 +88,24 @@ export async function POST(request: NextRequest) {
             });
             if (listing) packId = listing.packId;
 
+            const txDate = new Date(order.date_closed || order.date_created);
+
+            // Sale credit
             await prisma.mPTransaction.upsert({
               where: { mpId: BigInt(order.id) },
               create: {
-                mpId: BigInt(order.id),
-                type: "credit",
-                amount: order.total_amount,
-                balanceChange: netReceived,
-                status: order.status,
-                label: "sale",
-                description: item.item.title,
-                referenceId: String(order.id),
-                mlOrderId: BigInt(order.id),
-                packId,
-                dateCreated: new Date(order.date_closed || order.date_created),
+                mpId: BigInt(order.id), type: "credit", amount: order.total_amount,
+                balanceChange: netReceived, status: order.status, label: "sale",
+                description: item.item.title, referenceId: String(order.id),
+                mlOrderId: BigInt(order.id), packId, dateCreated: txDate,
               },
               update: {
-                amount: order.total_amount,
-                balanceChange: netReceived,
-                status: order.status,
-                description: item.item.title,
-                packId,
-                syncedAt: new Date(),
+                amount: order.total_amount, balanceChange: netReceived,
+                status: order.status, description: item.item.title, packId, syncedAt: new Date(),
               },
             });
 
+            // Commission debit
             if (commission > 0) {
               const feeId = BigInt(order.id) * BigInt(100) + BigInt(1);
               await prisma.mPTransaction.upsert({
@@ -116,51 +115,25 @@ export async function POST(request: NextRequest) {
                   balanceChange: -commission, status: "approved", label: "fee",
                   description: `Comision ML - ${item.item.title}`,
                   referenceId: String(order.id), mlOrderId: BigInt(order.id),
-                  packId, dateCreated: new Date(order.date_closed || order.date_created),
+                  packId, dateCreated: txDate,
                 },
                 update: { amount: commission, balanceChange: -commission, packId, syncedAt: new Date() },
               });
             }
 
-            if (shippingCost > 0) {
-              const shipId = BigInt(order.id) * BigInt(100) + BigInt(2);
-              await prisma.mPTransaction.upsert({
-                where: { mpId: shipId },
-                create: {
-                  mpId: shipId, type: "debit", amount: shippingCost,
-                  balanceChange: -shippingCost, status: "approved", label: "shipping",
-                  description: `Envio - ${item.item.title}`,
-                  referenceId: String(order.id), mlOrderId: BigInt(order.id),
-                  packId, dateCreated: new Date(order.date_closed || order.date_created),
-                },
-                update: { amount: shippingCost, balanceChange: -shippingCost, packId, syncedAt: new Date() },
-              });
-            }
-
-            // Fetch shipment for real shipping cost (base_cost) and Flex detection
+            // Fetch shipment for real shipping cost and Flex detection
             if (order.shipping?.id) {
               try {
-                const shipment = await mlFetch<{ logistic_type?: string; base_cost?: number }>(`/shipments/${order.shipping.id}`);
+                const [shipment, shipCosts] = await Promise.all([
+                  mlFetch<{ logistic_type?: string }>(`/shipments/${order.shipping.id}`),
+                  mlFetch<ShipmentCosts>(`/shipments/${order.shipping.id}/costs`),
+                ]);
 
-                // Use base_cost as shipping when payment.shipping_cost is 0 (free shipping)
-                if (shippingCost === 0 && shipment.base_cost && shipment.base_cost > 0) {
-                  const realShipCost = shipment.base_cost;
-                  const shipId = BigInt(order.id) * BigInt(100) + BigInt(2);
-                  await prisma.mPTransaction.upsert({
-                    where: { mpId: shipId },
-                    create: {
-                      mpId: shipId, type: "debit", amount: realShipCost,
-                      balanceChange: -realShipCost, status: "approved", label: "shipping",
-                      description: `Envio - ${item.item.title}`,
-                      referenceId: String(order.id), mlOrderId: BigInt(order.id),
-                      packId, dateCreated: new Date(order.date_closed || order.date_created),
-                    },
-                    update: { amount: realShipCost, balanceChange: -realShipCost, packId, syncedAt: new Date() },
-                  });
-                }
+                const isFlex = shipment.logistic_type === "self_service";
+                const sender = shipCosts.senders?.[0];
 
-                // Flex detection: self_service = seller delivers personally
-                if (shipment.logistic_type === "self_service") {
+                if (isFlex) {
+                  // Flex: $115 internal cost + bonificación credit from ML
                   const flexCostId = BigInt(order.id) * BigInt(100) + BigInt(3);
                   await prisma.mPTransaction.upsert({
                     where: { mpId: flexCostId },
@@ -169,16 +142,48 @@ export async function POST(request: NextRequest) {
                       balanceChange: -FLEX_COST, status: "approved", label: "flex_cost",
                       description: `Costo Flex $${FLEX_COST} - ${item.item.title}`,
                       referenceId: String(order.id), mlOrderId: BigInt(order.id),
-                      packId, dateCreated: new Date(order.date_closed || order.date_created),
+                      packId, dateCreated: txDate,
                     },
                     update: { amount: FLEX_COST, balanceChange: -FLEX_COST, packId, syncedAt: new Date() },
                   });
+
+                  const bonificacion = sender?.save || 0;
+                  if (bonificacion > 0) {
+                    const bonifId = BigInt(order.id) * BigInt(100) + BigInt(4);
+                    await prisma.mPTransaction.upsert({
+                      where: { mpId: bonifId },
+                      create: {
+                        mpId: bonifId, type: "credit", amount: bonificacion,
+                        balanceChange: bonificacion, status: "approved", label: "flex_bonificacion",
+                        description: `Bonificacion Flex - ${item.item.title}`,
+                        referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                        packId, dateCreated: txDate,
+                      },
+                      update: { amount: bonificacion, balanceChange: bonificacion, packId, syncedAt: new Date() },
+                    });
+                  }
+                } else {
+                  // Non-Flex: real shipping cost from senders[0].cost
+                  const sellerShipping = sender?.cost || 0;
+                  if (sellerShipping > 0) {
+                    const shipId = BigInt(order.id) * BigInt(100) + BigInt(2);
+                    await prisma.mPTransaction.upsert({
+                      where: { mpId: shipId },
+                      create: {
+                        mpId: shipId, type: "debit", amount: sellerShipping,
+                        balanceChange: -sellerShipping, status: "approved", label: "shipping",
+                        description: `Envio - ${item.item.title}`,
+                        referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                        packId, dateCreated: txDate,
+                      },
+                      update: { amount: sellerShipping, balanceChange: -sellerShipping, packId, syncedAt: new Date() },
+                    });
+                  }
                 }
               } catch (shipErr) {
                 console.error(`Shipment check failed for order ${order.id}:`, shipErr);
               }
             }
-
           }
         }
       } catch (err) {
