@@ -22,6 +22,30 @@ interface AdsCostData {
   }>;
 }
 
+function filterByProductsOrPacks(data: AdsCostData, productIds: string, packIds: string): AdsCostData {
+  const pIds = productIds ? productIds.split(",").filter(Boolean) : [];
+  const pkIds = packIds ? packIds.split(",").filter(Boolean) : [];
+
+  if (pIds.length === 0 && pkIds.length === 0) return data;
+
+  const filtered = data.byProduct.filter((p) => {
+    if (pIds.length > 0 && pIds.includes(p.productId)) return true;
+    return false;
+  });
+
+  const totalCost = filtered.reduce((s, p) => s + p.cost, 0);
+  const totalClicks = filtered.reduce((s, p) => s + p.clicks, 0);
+  const totalSales = filtered.reduce((s, p) => s + p.salesAmount, 0);
+
+  return {
+    totalAdsCost: Math.round(totalCost * 100) / 100,
+    totalClicks,
+    totalSalesFromAds: Math.round(totalSales * 100) / 100,
+    overallAcos: totalSales > 0 ? Math.round((totalCost / totalSales) * 10000) / 100 : 0,
+    byProduct: filtered,
+  };
+}
+
 export function AdsCostCard() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<AdsCostData | null>(null);
@@ -30,19 +54,28 @@ export function AdsCostCard() {
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
+  const productIds = searchParams.get("productIds") || searchParams.get("productId") || "";
+  const packIds = searchParams.get("packIds") || searchParams.get("packId") || "";
 
   useEffect(() => {
     setLoading(true);
     const params = new URLSearchParams();
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    if (productIds) params.set("productIds", productIds);
+    if (packIds) params.set("packIds", packIds);
 
     fetch(`/api/ads-costs?${params.toString()}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setData(d))
+      .then((d) => {
+        if (d && (productIds || packIds)) {
+          d = filterByProductsOrPacks(d, productIds, packIds);
+        }
+        setData(d);
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, productIds, packIds]);
 
   const fmt = (n: number) =>
     `$${n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
