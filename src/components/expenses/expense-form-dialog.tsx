@@ -181,7 +181,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Nuevo Gasto</DialogTitle>
           <DialogDescription>Registra un nuevo gasto operativo.</DialogDescription>
