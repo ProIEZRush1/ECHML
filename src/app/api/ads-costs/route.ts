@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
     while (offset < total) {
       const data = await mlFetch<AdsSearchResponse>(
-        `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}&offset=${offset}&date_from=${dateFrom}&date_to=${dateTo}&metrics=cost,clicks,prints,total_amount,acos,roas,direct_amount,indirect_amount,units_quantity&metrics_summary=true`,
+        `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}&offset=${offset}&date_from=${dateFrom}&date_to=${dateTo}&filters[statuses]=active,paused,hold,idle&metrics=cost,clicks,prints,total_amount,acos,roas,direct_amount,indirect_amount,units_quantity&metrics_summary=true`,
         { headers: { "api-version": "2" } }
       );
       total = data.paging.total;
