@@ -38,6 +38,9 @@ interface PackBalance {
   income: number;
   fees: number;
   shipping: number;
+  taxes: number;
+  productCost: number;
+  salesCount: number;
   netIncome: number;
   transactionCount: number;
 }
@@ -271,16 +274,17 @@ export default async function FlujoCajaPage({
   // Aggregate by pack
   const packMap = new Map<
     string,
-    { income: number; fees: number; shipping: number; count: number }
+    { income: number; fees: number; shipping: number; salesCount: number; count: number }
   >();
 
   for (const tx of packTransactions) {
     if (!tx.packId) continue;
-    const existing = packMap.get(tx.packId) || { income: 0, fees: 0, shipping: 0, count: 0 };
+    const existing = packMap.get(tx.packId) || { income: 0, fees: 0, shipping: 0, salesCount: 0, count: 0 };
     const amount = Number(tx.amount);
 
     if (tx.label === "sale") {
       existing.income += amount;
+      existing.salesCount += 1;
     } else if (tx.label === "fee" || tx.label === "commission") {
       existing.fees += Math.abs(amount);
     } else if (tx.label === "shipping") {
@@ -290,11 +294,15 @@ export default async function FlujoCajaPage({
     packMap.set(tx.packId, existing);
   }
 
-  // Build pack balances
+  // Build pack balances with taxes and product cost
   const packBalances: PackBalance[] = [];
   for (const pack of allPacks) {
     const data = packMap.get(pack.id);
     if (!data) continue;
+
+    const packBase = data.income / 1.16;
+    const packTaxes = packBase * 0.08 + packBase * 0.025;
+    const packProductCost = (packCostMap.get(pack.id) || 0) * data.salesCount;
 
     packBalances.push({
       id: pack.id,
@@ -304,7 +312,10 @@ export default async function FlujoCajaPage({
       income: data.income,
       fees: data.fees,
       shipping: data.shipping,
-      netIncome: data.income - data.fees - data.shipping,
+      taxes: packTaxes,
+      productCost: packProductCost,
+      salesCount: data.salesCount,
+      netIncome: data.income - data.fees - data.shipping - packTaxes - packProductCost,
       transactionCount: data.count,
     });
   }
@@ -496,7 +507,7 @@ export default async function FlujoCajaPage({
           <h2 className="text-lg font-semibold tracking-tight">Balance por Pack</h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {packBalances.map((pack) => {
-              const feeRatio = pack.income > 0 ? ((pack.fees + pack.shipping) / pack.income) * 100 : 0;
+              const feeRatio = pack.income > 0 ? ((pack.income - pack.netIncome) / pack.income) * 100 : 0;
               const isSelected = packIdList.includes(pack.id);
 
               return (
@@ -552,6 +563,22 @@ export default async function FlujoCajaPage({
                               <span className="text-muted-foreground">Envios</span>
                               <span className="font-medium text-orange-600 dark:text-orange-400">
                                 -{formatCurrency(pack.shipping)}
+                              </span>
+                            </div>
+                          )}
+                          {pack.taxes > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Impuestos</span>
+                              <span className="font-medium text-amber-600 dark:text-amber-400">
+                                -{formatCurrency(pack.taxes)}
+                              </span>
+                            </div>
+                          )}
+                          {pack.productCost > 0 && (
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-muted-foreground">Costo producto</span>
+                              <span className="font-medium text-red-600 dark:text-red-400">
+                                -{formatCurrency(pack.productCost)}
                               </span>
                             </div>
                           )}
