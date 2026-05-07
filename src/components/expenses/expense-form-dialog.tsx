@@ -47,6 +47,7 @@ const CATEGORIES = [
 export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps) {
   const router = useRouter();
 
+  const [expenseType, setExpenseType] = useState("gasto");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [category, setCategory] = useState("");
@@ -72,6 +73,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
   }, [open]);
 
   function resetForm() {
+    setExpenseType("gasto");
     setAmount("");
     setDate(new Date().toISOString().split("T")[0]);
     setCategory("");
@@ -122,6 +124,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
     setLoading(true);
     try {
       const payload = {
+        type: expenseType,
         amount: parseFloat(amount),
         date,
         category,
@@ -164,6 +167,21 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label>Tipo</Label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setExpenseType("gasto")} className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${expenseType === "gasto" ? "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-900/30 dark:border-rose-700 dark:text-rose-300" : "bg-background border-input text-muted-foreground"}`}>
+                Gasto Operativo
+              </button>
+              <button type="button" onClick={() => setExpenseType("compra")} className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${expenseType === "compra" ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300" : "bg-background border-input text-muted-foreground"}`}>
+                Compra de Productos
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {expenseType === "gasto" ? "Aparece en Flujo de Caja como deduccion" : "No aparece en Flujo de Caja (solo registro de compra)"}
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="expense-amount">Monto</Label>

@@ -305,6 +305,7 @@ model WithdrawalAllocation {
 
 model Expense {
   id              String   @id @default(cuid())
+  type            String   @default("gasto")
   amount          Decimal  @db.Decimal(10, 2)
   date            DateTime
   category        String

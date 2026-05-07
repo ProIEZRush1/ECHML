@@ -14,6 +14,7 @@ const createExpenseSchema = z.object({
     error: "Categoría inválida. Opciones: proveedor, envio, suscripcion, publicidad, otro",
   }),
   concept: z.string().min(1, "El concepto es obligatorio"),
+  type: z.enum(["gasto", "compra"]).optional(),
   supplierId: z.string().optional(),
   productId: z.string().optional(),
   packId: z.string().optional(),
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { amount, date, category, concept, supplierId, productId, packId, productGroupId, notes } = result.data;
+    const { amount, date, category, concept, type, supplierId, productId, packId, productGroupId, notes } = result.data;
 
     if (supplierId) {
       const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
 
     const expense = await prisma.expense.create({
       data: {
+        type: type || "gasto",
         amount,
         date: new Date(date),
         category,

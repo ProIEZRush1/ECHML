@@ -19,6 +19,8 @@ import {
   Wallet,
   Activity,
   Package,
+  ShoppingBag,
+  Receipt,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
@@ -131,7 +133,7 @@ export default async function FlujoCajaPage({
   }
 
   // Fetch filtered data
-  const [mpTransactions, totalCount, allPacks] = await Promise.all([
+  const [mpTransactions, totalCount, allPacks, packsWithCosts, filteredExpenses] = await Promise.all([
     prisma.mPTransaction.findMany({
       where,
       orderBy: { dateCreated: "desc" },
@@ -145,6 +147,29 @@ export default async function FlujoCajaPage({
     prisma.pack.findMany({
       select: { id: true, sku: true, name: true, imageUrl: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.pack.findMany({
+      select: {
+        id: true,
+        items: {
+          select: {
+            quantity: true,
+            productVariant: { select: { product: { select: { unitCost: true } } } },
+          },
+        },
+      },
+    }),
+    prisma.expense.findMany({
+      where: {
+        type: "gasto",
+        date: {
+          gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
+          ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
+        },
+        ...(effectivePackIds.length > 0 ? { packId: effectivePackIds.length === 1 ? effectivePackIds[0] : { in: effectivePackIds } } : {}),
+        ...(productIdList.length > 0 ? { productId: { in: productIdList } } : {}),
+      },
+      select: { amount: true },
     }),
   ]);
 
@@ -161,14 +186,29 @@ export default async function FlujoCajaPage({
     },
   });
 
+  // Build pack cost map: packId → cost per unit sold
+  const packCostMap = new Map<string, number>();
+  for (const pack of packsWithCosts) {
+    const cost = pack.items.reduce(
+      (sum, item) => sum + item.quantity * Number(item.productVariant.product.unitCost),
+      0
+    );
+    if (cost > 0) packCostMap.set(pack.id, cost);
+  }
+
   let totalIncome = 0;
   let totalFees = 0;
   let totalShipping = 0;
+  let totalProductCost = 0;
+  const salesPerPack = new Map<string, number>();
 
   for (const tx of allFilteredTransactions) {
     const amount = Number(tx.amount);
     if (tx.label === "sale") {
       totalIncome += amount;
+      if (tx.packId) {
+        salesPerPack.set(tx.packId, (salesPerPack.get(tx.packId) || 0) + 1);
+      }
     } else if (tx.label === "fee" || tx.label === "commission") {
       totalFees += Math.abs(amount);
     } else if (tx.label === "shipping") {
@@ -176,7 +216,13 @@ export default async function FlujoCajaPage({
     }
   }
 
-  const totalNet = totalIncome - totalFees - totalShipping;
+  for (const [packId, count] of salesPerPack) {
+    const costPerUnit = packCostMap.get(packId) || 0;
+    totalProductCost += costPerUnit * count;
+  }
+
+  const totalGastos = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalNet = totalIncome - totalFees - totalShipping - totalProductCost - totalGastos;
 
   // Calculate balance per pack — apply same pack filter as KPI cards
   const packWhere: {
@@ -285,7 +331,7 @@ export default async function FlujoCajaPage({
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -347,10 +393,52 @@ export default async function FlujoCajaPage({
           </CardContent>
         </Card>
 
+        {totalProductCost > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Costo Producto
+              </CardTitle>
+              <div className="rounded-md p-2 bg-red-100 dark:bg-red-900/30">
+                <ShoppingBag className="h-4 w-4 text-red-600 dark:text-red-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-red-600 dark:text-red-400 truncate">
+                -{formatCurrency(totalProductCost)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Costo de mercancia vendida
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {totalGastos > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Gastos
+              </CardTitle>
+              <div className="rounded-md p-2 bg-rose-100 dark:bg-rose-900/30">
+                <Receipt className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold text-rose-600 dark:text-rose-400 truncate">
+                -{formatCurrency(totalGastos)}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Gastos operativos del periodo
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Neto
+              Utilidad Neta
             </CardTitle>
             <div className="rounded-md p-2 bg-blue-100 dark:bg-blue-900/30">
               <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
@@ -361,7 +449,7 @@ export default async function FlujoCajaPage({
               {formatCurrency(totalNet)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Despues de comisiones y envios
+              Ingresos - comisiones - envios - costo - gastos
             </p>
           </CardContent>
         </Card>

@@ -58,6 +58,7 @@ export default async function GastosPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Fecha</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Concepto</TableHead>
@@ -73,6 +74,11 @@ export default async function GastosPage() {
                   <TableRow key={expense.id} className="hover:bg-muted/50">
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                       {formatDate(expense.date)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={expense.type === "compra" ? "outline" : "secondary"} className="text-xs">
+                        {expense.type === "compra" ? "Compra" : "Gasto"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium text-red-600 dark:text-red-400">
                       -{formatCurrency(Number(expense.amount))}
