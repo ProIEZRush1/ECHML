@@ -179,30 +179,6 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
         });
       }
 
-      // Flex detection: check shipment logistic_type
-      if (order.shipping?.id) {
-        try {
-          const shipment = await mlFetch<{ logistic_type?: string }>(`/shipments/${order.shipping.id}`);
-          if (shipment.logistic_type === "xd_drop_off") {
-            const FLEX_COST = 115;
-            const flexCostId = BigInt(order.id) * BigInt(100) + BigInt(3);
-            await prisma.mPTransaction.upsert({
-              where: { mpId: flexCostId },
-              create: {
-                mpId: flexCostId, type: "debit", amount: FLEX_COST,
-                balanceChange: -FLEX_COST, status: "approved", label: "flex_cost",
-                description: `Costo Flex $${FLEX_COST} - ${item.item.title}`,
-                referenceId: String(order.id), mlOrderId: BigInt(order.id),
-                packId, dateCreated: new Date(order.date_closed || order.date_created),
-              },
-              update: { amount: FLEX_COST, balanceChange: -FLEX_COST, packId, syncedAt: new Date() },
-            });
-          }
-        } catch (flexErr) {
-          console.error(`Flex check failed for order ${order.id}:`, flexErr);
-        }
-      }
-
       synced++;
     }
 
