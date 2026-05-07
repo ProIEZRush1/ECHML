@@ -118,7 +118,8 @@ export async function GET(request: NextRequest) {
     // Filter allItems by allowed IDs if filter is active
     const filteredItems = allowedItemIds ? allItems.filter((i) => allowedItemIds!.has(i.item_id)) : allItems;
 
-    const productCosts: Record<string, { name: string; brand: string | null; cost: number; clicks: number; prints: number; salesAmount: number; units: number; items: string[] }> = {};
+    interface ItemDetail { id: string; title: string; cost: number; clicks: number; prints: number; salesAmount: number; units: number }
+    const productCosts: Record<string, { name: string; brand: string | null; cost: number; clicks: number; prints: number; salesAmount: number; units: number; items: ItemDetail[] }> = {};
 
     for (const item of filteredItems) {
       const listing = listingMap.get(item.item_id);
@@ -132,12 +133,29 @@ export async function GET(request: NextRequest) {
       }
 
       const p = productCosts[productId];
-      p.cost += item.metrics.cost || 0;
-      p.clicks += item.metrics.clicks || 0;
-      p.prints += item.metrics.prints || 0;
-      p.salesAmount += item.metrics.total_amount || 0;
-      p.units += item.metrics.units_quantity || 0;
-      p.items.push(item.item_id);
+      const itemCost = item.metrics.cost || 0;
+      const itemClicks = item.metrics.clicks || 0;
+      const itemPrints = item.metrics.prints || 0;
+      const itemSales = item.metrics.total_amount || 0;
+      const itemUnits = item.metrics.units_quantity || 0;
+
+      p.cost += itemCost;
+      p.clicks += itemClicks;
+      p.prints += itemPrints;
+      p.salesAmount += itemSales;
+      p.units += itemUnits;
+
+      if (itemCost > 0 || itemClicks > 0 || itemSales > 0) {
+        p.items.push({
+          id: item.item_id,
+          title: item.title,
+          cost: Math.round(itemCost * 100) / 100,
+          clicks: itemClicks,
+          prints: itemPrints,
+          salesAmount: Math.round(itemSales * 100) / 100,
+          units: itemUnits,
+        });
+      }
     }
 
     const totalCost = filteredItems.reduce((s, i) => s + (i.metrics.cost || 0), 0);

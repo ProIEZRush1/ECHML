@@ -18,7 +18,7 @@ interface AdsCostData {
     clicks: number;
     salesAmount: number;
     acos: number;
-    items: string[];
+    items: Array<{ id: string; title: string; cost: number; clicks: number; salesAmount: number; units: number }>;
   }>;
 }
 
@@ -129,21 +129,40 @@ export function AdsCostCard() {
           </CardHeader>
           {(expanded || data.byProduct.length <= 5) && (
             <CardContent className="pt-0">
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {data.byProduct.slice(0, expanded ? 50 : 5).map((p) => (
-                  <div key={p.productId} className="flex items-center justify-between text-sm">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-xs">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {p.clicks} clicks · ACOS {p.acos}% · {p.items.length} listing{p.items.length > 1 ? "s" : ""}
-                      </p>
+                  <div key={p.productId} className="border-b pb-2 last:border-0">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-xs">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {p.clicks} clicks · ACOS {p.acos}% · {p.items.length} listing{p.items.length > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0 ml-3">
+                        <p className="font-semibold text-pink-600 dark:text-pink-400 text-xs">{fmt(p.cost)}</p>
+                        {p.salesAmount > 0 && (
+                          <p className="text-xs text-green-600 dark:text-green-400">+{fmt(p.salesAmount)}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 ml-3">
-                      <p className="font-semibold text-pink-600 dark:text-pink-400 text-xs">{fmt(p.cost)}</p>
-                      {p.salesAmount > 0 && (
-                        <p className="text-xs text-green-600 dark:text-green-400">+{fmt(p.salesAmount)}</p>
-                      )}
-                    </div>
+                    {p.items.length > 0 && (
+                      <div className="mt-1.5 ml-2 space-y-1">
+                        {p.items.sort((a, b) => b.cost - a.cost).map((item) => (
+                          <div key={item.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-mono">{item.id}</span>
+                              <span className="ml-1.5">{item.clicks} clicks</span>
+                              {item.units > 0 && <span className="ml-1 text-green-600">· {item.units} ventas</span>}
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <span className="text-pink-600 dark:text-pink-400">{fmt(item.cost)}</span>
+                              {item.salesAmount > 0 && <span className="ml-1 text-green-600">+{fmt(item.salesAmount)}</span>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
