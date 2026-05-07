@@ -406,6 +406,13 @@ export default async function FlujoCajaPage({
 
   packBalances.sort((a, b) => b.income - a.income);
 
+  const packShippingPcts = packBalances
+    .filter((p) => p.income > 0 && p.shipping > 0)
+    .map((p) => (p.shipping / p.income) * 100);
+  const packFeePcts = packBalances
+    .filter((p) => p.income > 0 && p.fees > 0)
+    .map((p) => (p.fees / p.income) * 100);
+
   // Determine if any filters are active
   const hasFilters = !!(packIdList.length > 0 || productIdList.length > 0 || params.dateFrom || params.dateTo || params.label);
 
@@ -474,7 +481,9 @@ export default async function FlujoCajaPage({
             </div>
             {totalIncome > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos
+                {packFeePcts.length >= 2
+                  ? `${Math.min(...packFeePcts).toFixed(1)}% - ${Math.max(...packFeePcts).toFixed(1)}% segun producto`
+                  : `${((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos`}
               </p>
             )}
           </CardContent>
@@ -495,7 +504,9 @@ export default async function FlujoCajaPage({
             </div>
             {totalIncome > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {((totalShipping / totalIncome) * 100).toFixed(1)}% de ingresos
+                {packShippingPcts.length >= 2
+                  ? `${Math.min(...packShippingPcts).toFixed(1)}% - ${Math.max(...packShippingPcts).toFixed(1)}% segun producto`
+                  : `${((totalShipping / totalIncome) * 100).toFixed(1)}% de ingresos`}
               </p>
             )}
           </CardContent>

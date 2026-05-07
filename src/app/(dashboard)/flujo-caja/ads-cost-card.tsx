@@ -148,7 +148,7 @@ export function AdsCostCard() {
                     </div>
                     {p.items.length > 0 && (
                       <div className="mt-1.5 ml-2 space-y-1">
-                        {p.items.sort((a, b) => b.cost - a.cost).map((item) => (
+                        {p.items.sort((a, b) => b.clicks - a.clicks || b.cost - a.cost).map((item) => (
                           <div key={item.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
                             <div className="min-w-0 flex-1">
                               <span className="font-mono">{item.id}</span>

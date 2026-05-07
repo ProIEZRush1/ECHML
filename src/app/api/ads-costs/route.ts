@@ -145,17 +145,15 @@ export async function GET(request: NextRequest) {
       p.salesAmount += itemSales;
       p.units += itemUnits;
 
-      if (itemCost > 0 || itemClicks > 0 || itemSales > 0) {
-        p.items.push({
-          id: item.item_id,
-          title: item.title,
-          cost: Math.round(itemCost * 100) / 100,
-          clicks: itemClicks,
-          prints: itemPrints,
-          salesAmount: Math.round(itemSales * 100) / 100,
-          units: itemUnits,
-        });
-      }
+      p.items.push({
+        id: item.item_id,
+        title: item.title,
+        cost: Math.round(itemCost * 100) / 100,
+        clicks: itemClicks,
+        prints: itemPrints,
+        salesAmount: Math.round(itemSales * 100) / 100,
+        units: itemUnits,
+      });
     }
 
     const totalCost = filteredItems.reduce((s, i) => s + (i.metrics.cost || 0), 0);
