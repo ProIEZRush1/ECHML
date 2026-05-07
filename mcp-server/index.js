@@ -976,6 +976,24 @@ server.tool(
   }
 );
 
+server.tool(
+  "get_ads_costs",
+  "Obtener costos exactos de publicidad (Product Ads) por producto/listing para un rango de fechas. Incluye costo, clicks, impresiones, ventas por ads, ACOS.",
+  {
+    dateFrom: z.string().optional().describe("Fecha inicio (YYYY-MM-DD, default: hace 30 dias)"),
+    dateTo: z.string().optional().describe("Fecha fin (YYYY-MM-DD, default: hoy)"),
+  },
+  async ({ dateFrom, dateTo }) => {
+    let path = "/api/ads-costs";
+    const params = [];
+    if (dateFrom) params.push(`dateFrom=${dateFrom}`);
+    if (dateTo) params.push(`dateTo=${dateTo}`);
+    if (params.length) path += `?${params.join("&")}`;
+    const data = await apiRequest(path);
+    return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+  }
+);
+
 // ─── ML Listing Costs ──────────────────────────────────────────────────────
 
 server.tool(
