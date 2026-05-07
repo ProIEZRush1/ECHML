@@ -241,7 +241,10 @@ export default async function FlujoCajaPage({
       },
       select: { amount: true },
     }),
-    fetchAdsCost(effectiveDateFrom, effectiveDateTo, effectivePackIds, productIdList),
+    Promise.race([
+      fetchAdsCost(effectiveDateFrom, effectiveDateTo, effectivePackIds, productIdList),
+      new Promise<number>((resolve) => setTimeout(() => resolve(0), 4000)),
+    ]),
   ]);
 
   const totalPages = Math.ceil(totalCount / pageSize);
