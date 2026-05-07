@@ -1,0 +1,7 @@
+ALTER TABLE "Expense" ADD COLUMN "productId" TEXT;
+ALTER TABLE "Expense" ADD COLUMN "packId" TEXT;
+ALTER TABLE "Expense" ADD COLUMN "productGroupId" TEXT;
+
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_packId_fkey" FOREIGN KEY ("packId") REFERENCES "Pack"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "Expense" ADD CONSTRAINT "Expense_productGroupId_fkey" FOREIGN KEY ("productGroupId") REFERENCES "ProductGroup"("id") ON DELETE SET NULL ON UPDATE CASCADE;

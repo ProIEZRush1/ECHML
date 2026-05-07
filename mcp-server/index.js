@@ -422,13 +422,16 @@ server.tool(
 
 server.tool(
   "create_expense",
-  "Registrar un gasto operativo",
+  "Registrar un gasto operativo. Puede asignarse a un producto, pack o grupo.",
   {
     amount: z.number().describe("Monto del gasto en MXN"),
     date: z.string().describe("Fecha del gasto (YYYY-MM-DD)"),
-    category: z.enum(["proveedor", "envio", "suscripcion", "publicidad", "otro"]).describe("Categoria"),
+    category: z.enum(["proveedor", "envio", "suscripcion", "publicidad", "empaque", "otro"]).describe("Categoria"),
     concept: z.string().describe("Concepto del gasto"),
-    supplierId: z.string().optional().describe("ID del proveedor (si aplica)"),
+    supplierId: z.string().optional().describe("ID del proveedor"),
+    productId: z.string().optional().describe("ID del producto al que se asigna"),
+    packId: z.string().optional().describe("ID del pack al que se asigna"),
+    productGroupId: z.string().optional().describe("ID del grupo de productos al que se asigna"),
     notes: z.string().optional().describe("Notas"),
   },
   async (params) => {

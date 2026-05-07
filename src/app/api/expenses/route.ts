@@ -5,7 +5,7 @@ import { verifyAnyAuth } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
-const EXPENSE_CATEGORIES = ["proveedor", "envio", "suscripcion", "publicidad", "otro"] as const;
+const EXPENSE_CATEGORIES = ["proveedor", "envio", "suscripcion", "publicidad", "empaque", "otro"] as const;
 
 const createExpenseSchema = z.object({
   amount: z.number().positive("El monto debe ser mayor a 0"),
@@ -15,6 +15,9 @@ const createExpenseSchema = z.object({
   }),
   concept: z.string().min(1, "El concepto es obligatorio"),
   supplierId: z.string().optional(),
+  productId: z.string().optional(),
+  packId: z.string().optional(),
+  productGroupId: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -30,6 +33,9 @@ export async function GET(request: NextRequest) {
   const expenses = await prisma.expense.findMany({
     include: {
       supplier: { select: { id: true, name: true } },
+      product: { select: { id: true, name: true } },
+      pack: { select: { id: true, sku: true, name: true } },
+      productGroup: { select: { id: true, name: true } },
       user: { select: { id: true, name: true } },
     },
     orderBy: { date: "desc" },
@@ -58,15 +64,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { amount, date, category, concept, supplierId, notes } = result.data;
+    const { amount, date, category, concept, supplierId, productId, packId, productGroupId, notes } = result.data;
 
     if (supplierId) {
       const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
       if (!supplier) {
-        return NextResponse.json(
-          { error: "Proveedor no encontrado" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Proveedor no encontrado" }, { status: 404 });
       }
     }
 
@@ -77,11 +80,17 @@ export async function POST(request: NextRequest) {
         category,
         concept,
         supplierId: supplierId || null,
+        productId: productId || null,
+        packId: packId || null,
+        productGroupId: productGroupId || null,
         notes,
         userId: session.id,
       },
       include: {
         supplier: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true } },
+        pack: { select: { id: true, sku: true, name: true } },
+        productGroup: { select: { id: true, name: true } },
         user: { select: { id: true, name: true } },
       },
     });

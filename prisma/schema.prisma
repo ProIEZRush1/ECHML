@@ -110,6 +110,7 @@ model Product {
   variants              ProductVariant[]
   withdrawalAllocations WithdrawalAllocation[]
   groupItems            ProductGroupItem[]
+  expenses              Expense[]
 
   @@unique([supplierId, supplierCode])
   @@index([supplierCode])
@@ -152,6 +153,7 @@ model Pack {
   withdrawalAllocations WithdrawalAllocation[]
   mpTransactions        MPTransaction[]
   costs                 PackCost[]
+  expenses              Expense[]
 
   @@index([sku])
 }
@@ -302,18 +304,24 @@ model WithdrawalAllocation {
 }
 
 model Expense {
-  id         String   @id @default(cuid())
-  amount     Decimal  @db.Decimal(10, 2)
-  date       DateTime
-  category   String
-  concept    String
-  supplierId String?
-  notes      String?
-  userId     String
-  createdAt  DateTime @default(now())
+  id              String   @id @default(cuid())
+  amount          Decimal  @db.Decimal(10, 2)
+  date            DateTime
+  category        String
+  concept         String
+  supplierId      String?
+  productId       String?
+  packId          String?
+  productGroupId  String?
+  notes           String?
+  userId          String
+  createdAt       DateTime @default(now())
 
-  user     User      @relation(fields: [userId], references: [id])
-  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  supplier     Supplier?     @relation(fields: [supplierId], references: [id])
+  product      Product?      @relation(fields: [productId], references: [id])
+  pack         Pack?         @relation(fields: [packId], references: [id])
+  productGroup ProductGroup? @relation(fields: [productGroupId], references: [id])
 
   @@index([date])
   @@index([category])
@@ -348,7 +356,8 @@ model ProductGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items ProductGroupItem[]
+  items    ProductGroupItem[]
+  expenses Expense[]
 }
 
 model ProductGroupItem {

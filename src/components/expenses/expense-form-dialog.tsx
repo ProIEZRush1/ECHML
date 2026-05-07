@@ -24,9 +24,10 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-interface SupplierOption {
+interface Option {
   id: string;
   name: string;
+  sku?: string;
 }
 
 interface ExpenseFormDialogProps {
@@ -39,6 +40,7 @@ const CATEGORIES = [
   { value: "envio", label: "Envio" },
   { value: "suscripcion", label: "Suscripcion" },
   { value: "publicidad", label: "Publicidad" },
+  { value: "empaque", label: "Empaque" },
   { value: "otro", label: "Otro" },
 ];
 
@@ -50,14 +52,21 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
   const [category, setCategory] = useState("");
   const [concept, setConcept] = useState("");
   const [supplierId, setSupplierId] = useState("");
+  const [productId, setProductId] = useState("");
+  const [packId, setPackId] = useState("");
+  const [productGroupId, setProductGroupId] = useState("");
   const [notes, setNotes] = useState("");
-  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+
+  const [suppliers, setSuppliers] = useState<Option[]>([]);
+  const [products, setProducts] = useState<Option[]>([]);
+  const [packs, setPacks] = useState<Option[]>([]);
+  const [groups, setGroups] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchSuppliers();
+      fetchOptions();
       resetForm();
     }
   }, [open]);
@@ -68,21 +77,35 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
     setCategory("");
     setConcept("");
     setSupplierId("");
+    setProductId("");
+    setPackId("");
+    setProductGroupId("");
     setNotes("");
   }
 
-  async function fetchSuppliers() {
-    setLoadingSuppliers(true);
+  async function fetchOptions() {
+    setLoadingOptions(true);
     try {
-      const res = await fetch("/api/suppliers");
-      if (res.ok) {
-        const data = await res.json();
-        setSuppliers(data);
+      const [suppRes, prodRes, packRes, groupRes] = await Promise.all([
+        fetch("/api/suppliers"),
+        fetch("/api/products"),
+        fetch("/api/packs"),
+        fetch("/api/product-groups"),
+      ]);
+      if (suppRes.ok) setSuppliers(await suppRes.json());
+      if (prodRes.ok) {
+        const data = await prodRes.json();
+        setProducts(data.map((p: Record<string, string>) => ({ id: p.id, name: p.name })));
       }
+      if (packRes.ok) {
+        const data = await packRes.json();
+        setPacks(data.map((p: Record<string, string>) => ({ id: p.id, name: p.name, sku: p.sku })));
+      }
+      if (groupRes.ok) setGroups(await groupRes.json());
     } catch {
-      toast.error("Error al cargar proveedores");
+      toast.error("Error al cargar opciones");
     } finally {
-      setLoadingSuppliers(false);
+      setLoadingOptions(false);
     }
   }
 
@@ -91,16 +114,8 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
       toast.error("El monto debe ser mayor a 0");
       return;
     }
-    if (!date) {
-      toast.error("La fecha es obligatoria");
-      return;
-    }
-    if (!category) {
-      toast.error("La categoria es obligatoria");
-      return;
-    }
-    if (!concept.trim()) {
-      toast.error("El concepto es obligatorio");
+    if (!date || !category || !concept.trim()) {
+      toast.error("Fecha, categoria y concepto son obligatorios");
       return;
     }
 
@@ -112,6 +127,9 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
         category,
         concept: concept.trim(),
         supplierId: supplierId || undefined,
+        productId: productId || undefined,
+        packId: packId || undefined,
+        productGroupId: productGroupId || undefined,
         notes: notes.trim() || undefined,
       };
 
@@ -139,36 +157,21 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nuevo Gasto</DialogTitle>
-          <DialogDescription>
-            Registra un nuevo gasto operativo.
-          </DialogDescription>
+          <DialogDescription>Registra un nuevo gasto operativo.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="expense-amount">Monto</Label>
-              <Input
-                id="expense-amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
+              <Input id="expense-amount" type="number" step="0.01" min="0" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="expense-date">Fecha</Label>
-              <Input
-                id="expense-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <Input id="expense-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
           </div>
 
@@ -180,9 +183,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
               </SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </SelectItem>
+                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -190,54 +191,82 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
 
           <div className="space-y-1.5">
             <Label htmlFor="expense-concept">Concepto</Label>
-            <Input
-              id="expense-concept"
-              placeholder="Ej: Compra de mercancia"
-              value={concept}
-              onChange={(e) => setConcept(e.target.value)}
-            />
+            <Input id="expense-concept" placeholder="Ej: Compra de mercancia" value={concept} onChange={(e) => setConcept(e.target.value)} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Asignar a (opcional)</Label>
+            <div className="grid grid-cols-1 gap-2">
+              {loadingOptions ? (
+                <div className="flex items-center gap-2 h-8">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Cargando...</span>
+                </div>
+              ) : (
+                <>
+                  <Select value={productId} onValueChange={(v) => setProductId(v ?? "")}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Producto..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin producto</SelectItem>
+                      {products.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={packId} onValueChange={(v) => setPackId(v ?? "")}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Pack..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin pack</SelectItem>
+                      {packs.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.sku ? `${p.sku} — ` : ""}{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={productGroupId} onValueChange={(v) => setProductGroupId(v ?? "")}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Grupo..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin grupo</SelectItem>
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <Label>Proveedor (opcional)</Label>
-            {loadingSuppliers ? (
-              <div className="flex items-center gap-2 h-8">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Cargando...</span>
-              </div>
-            ) : (
-              <Select value={supplierId} onValueChange={(v) => setSupplierId(v ?? "")}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccionar proveedor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-            )}
+            <Select value={supplierId} onValueChange={(v) => setSupplierId(v ?? "")}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Seleccionar proveedor..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin proveedor</SelectItem>
+                {suppliers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="expense-notes">Notas (opcional)</Label>
-            <Textarea
-              id="expense-notes"
-              placeholder="Notas adicionales..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-            />
+            <Textarea id="expense-notes" placeholder="Notas adicionales..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
           </div>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancelar
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
           <Button onClick={handleSubmit} disabled={loading}>
             {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" data-icon="inline-start" />}
             Crear gasto

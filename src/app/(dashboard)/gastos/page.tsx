@@ -22,6 +22,7 @@ const CATEGORY_CONFIG: Record<string, { label: string; variant: "default" | "sec
   envio: { label: "Envio", variant: "default", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100" },
   suscripcion: { label: "Suscripcion", variant: "default", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 hover:bg-amber-100" },
   publicidad: { label: "Publicidad", variant: "default", className: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100" },
+  empaque: { label: "Empaque", variant: "default", className: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 hover:bg-teal-100" },
   otro: { label: "Otro", variant: "secondary", className: "" },
 };
 
@@ -29,6 +30,9 @@ export default async function GastosPage() {
   const expenses = await prisma.expense.findMany({
     include: {
       supplier: { select: { name: true } },
+      product: { select: { name: true } },
+      pack: { select: { sku: true, name: true } },
+      productGroup: { select: { name: true } },
     },
     orderBy: { date: "desc" },
   });
@@ -57,7 +61,7 @@ export default async function GastosPage() {
                 <TableHead className="text-right">Monto</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Concepto</TableHead>
-                <TableHead>Proveedor</TableHead>
+                <TableHead>Asignado a</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -85,7 +89,7 @@ export default async function GastosPage() {
                       {expense.concept}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {expense.supplier?.name || "-"}
+                      {expense.product?.name || expense.pack?.name || expense.productGroup?.name || expense.supplier?.name || "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       <ExpenseDeleteButton
