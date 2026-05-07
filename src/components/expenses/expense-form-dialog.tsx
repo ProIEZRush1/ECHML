@@ -181,7 +181,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Nuevo Gasto</DialogTitle>
           <DialogDescription>Registra un nuevo gasto operativo.</DialogDescription>
@@ -308,7 +308,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                     className="pl-8 h-8 text-xs"
                   />
                 </div>
-                <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
+                <div className="max-h-48 overflow-y-auto overflow-x-hidden rounded-md border divide-y">
                   {sales
                     .filter((s) => {
                       if (!salesSearch) return true;
@@ -338,14 +338,14 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                             className="rounded border-input h-4 w-4 shrink-0 mt-0.5"
                           />
                           <div className="flex-1 min-w-0 space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-green-600 dark:text-green-400">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-bold text-green-600 dark:text-green-400 shrink-0">
                                 ${sale.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                               </span>
                               {sale.pack?.sku && (
-                                <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded">{sale.pack.sku}</span>
+                                <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded max-w-[100px] truncate">{sale.pack.sku}</span>
                               )}
-                              <span className="text-[11px] text-muted-foreground ml-auto shrink-0">
+                              <span className="text-[11px] text-muted-foreground shrink-0">
                                 {new Date(sale.dateCreated).toLocaleDateString("es-MX")}
                               </span>
                             </div>
