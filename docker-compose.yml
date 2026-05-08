@@ -24,6 +24,10 @@ services:
     networks:
       - default
       - coolify
+    labels:
+      - traefik.http.routers.http-0-jjwbwooyqamuftaedh3jyhwq-app.service=ech-crm-http
+      - traefik.http.routers.https-0-jjwbwooyqamuftaedh3jyhwq-app.service=ech-crm-http
+      - traefik.http.services.ech-crm-http.loadbalancer.server.port=3000
 
   db:
     image: postgres:16-alpine
