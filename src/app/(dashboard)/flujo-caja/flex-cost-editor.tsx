@@ -124,17 +124,15 @@ export function FlexCostEditor({ transactionId, amount, isCredit }: FlexCostEdit
   }
 
   return (
-    <span className="inline-flex items-center gap-1 group">
+    <button
+      onClick={handleOpen}
+      className="inline-flex items-center gap-1.5 hover:bg-muted/50 rounded px-1 -mx-1 py-0.5 transition-colors cursor-pointer"
+      title="Click para editar monto Flex"
+    >
       <span className={isCredit ? "margin-good" : "margin-bad"}>
         {isCredit ? "+" : "-"}{formatCurrency(Math.abs(amount))}
       </span>
-      <button
-        onClick={handleOpen}
-        className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity"
-        title="Editar monto Flex"
-      >
-        <Pencil className="h-3 w-3 text-muted-foreground" />
-      </button>
-    </span>
+      <Pencil className="h-3 w-3 text-muted-foreground shrink-0" />
+    </button>
   );
 }
