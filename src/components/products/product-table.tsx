@@ -35,6 +35,7 @@ export function ProductTable({ products }: ProductTableProps) {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [editingProduct, setEditingProduct] = useState<ProductWithVariants | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [enlargedImage, setEnlargedImage] = useState<{ url: string; name: string } | null>(null);
 
   const filteredProducts = useMemo(() => {
     let result = products;
@@ -179,13 +180,20 @@ export function ProductTable({ products }: ProductTableProps) {
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
                         {product.imageUrl ? (
-                          <Image
-                            src={product.imageUrl}
-                            alt={product.name}
-                            width={40}
-                            height={40}
-                            className="size-10 rounded-md object-cover bg-muted flex-shrink-0"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => setEnlargedImage({ url: product.imageUrl!, name: product.name })}
+                            className="flex-shrink-0 cursor-zoom-in"
+                          >
+                            <Image
+                              src={product.imageUrl}
+                              alt={product.name}
+                              width={40}
+                              height={40}
+                              className="size-10 rounded-md object-cover bg-muted"
+                              unoptimized
+                            />
+                          </button>
                         ) : (
                           <div className="size-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
                             <Package className="size-4 text-muted-foreground" />
@@ -287,6 +295,31 @@ export function ProductTable({ products }: ProductTableProps) {
         onOpenChange={handleDialogChange}
         product={editingProduct}
       />
+
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <div className="relative max-w-md max-h-[80vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <Image
+              src={enlargedImage.url}
+              alt={enlargedImage.name}
+              width={400}
+              height={400}
+              className="rounded-lg object-contain max-h-[75vh] w-auto"
+              unoptimized
+            />
+            <p className="text-center text-white text-sm mt-2">{enlargedImage.name}</p>
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="absolute -top-2 -right-2 size-8 rounded-full bg-white/90 text-black flex items-center justify-center text-lg font-bold hover:bg-white"
+            >
+              &times;
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
