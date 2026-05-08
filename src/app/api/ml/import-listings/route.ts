@@ -240,6 +240,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const productCache = new Map<string, { productId: string; variants: Map<string, string> }>();
 
     for (const item of items) {
+      // Only import active listings with stock
+      if (item.status !== "active" || (item.available_quantity ?? 0) <= 0) continue;
+
       const statusMap: Record<string, string> = {
         active: "ACTIVE",
         paused: "PAUSED",
