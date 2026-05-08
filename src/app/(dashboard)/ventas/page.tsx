@@ -39,10 +39,11 @@ export default async function VentasPage({
       { pack: { name: { contains: q, mode: "insensitive" } } },
     ];
 
-    // If the search term looks numeric, also match mlOrderId exactly
     if (/^\d+$/.test(q)) {
       try {
-        orConditions.push({ mlOrderId: BigInt(q) });
+        const bigQ = BigInt(q);
+        orConditions.push({ mlOrderId: bigQ });
+        orConditions.push({ mlPackId: bigQ });
       } catch {
         // ignore if BigInt conversion fails
       }
