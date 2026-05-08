@@ -24,21 +24,6 @@ services:
     networks:
       - default
       - coolify
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.echml-http.entryPoints=http
-      - traefik.http.routers.echml-http.rule=Host(`echml.overcloud.us`)
-      - traefik.http.routers.echml-http.middlewares=redirect-to-https
-      - traefik.http.routers.echml-https.entryPoints=https
-      - traefik.http.routers.echml-https.rule=Host(`echml.overcloud.us`)
-      - traefik.http.routers.echml-https.tls=true
-      - traefik.http.routers.echml-https.tls.certresolver=letsencrypt
-      - traefik.http.routers.echml-https.middlewares=gzip
-      - traefik.http.services.echml-app.loadbalancer.server.port=3000
-      - traefik.http.routers.echml-http.service=echml-app
-      - traefik.http.routers.echml-https.service=echml-app
-      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-      - traefik.http.middlewares.gzip.compress=true
 
   db:
     image: postgres:16-alpine
