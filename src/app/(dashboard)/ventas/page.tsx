@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
@@ -15,18 +16,40 @@ import { ShoppingCart } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
+import { VentasSearch } from "./ventas-search";
 
 export default async function VentasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; packId?: string }>;
+  searchParams: Promise<{ page?: string; packId?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const currentPage = Math.max(1, parseInt(params.page || "1", 10));
   const pageSize = 50;
+  const q = params.q?.trim() || "";
 
-  const where: { label: string; packId?: string } = { label: "sale" };
+  const where: Prisma.MPTransactionWhereInput = { label: "sale" };
   if (params.packId) where.packId = params.packId;
+
+  if (q) {
+    const orConditions: Prisma.MPTransactionWhereInput[] = [
+      { description: { contains: q, mode: "insensitive" } },
+      { referenceId: { contains: q } },
+      { pack: { sku: { contains: q, mode: "insensitive" } } },
+      { pack: { name: { contains: q, mode: "insensitive" } } },
+    ];
+
+    // If the search term looks numeric, also match mlOrderId exactly
+    if (/^\d+$/.test(q)) {
+      try {
+        orConditions.push({ mlOrderId: BigInt(q) });
+      } catch {
+        // ignore if BigInt conversion fails
+      }
+    }
+
+    where.OR = orConditions;
+  }
 
   const [sales, totalCount, totalRevenue, allPacks] = await Promise.all([
     prisma.mPTransaction.findMany({
@@ -58,6 +81,7 @@ export default async function VentasPage({
   function buildPageUrl(page: number) {
     const p = new URLSearchParams();
     if (params.packId) p.set("packId", params.packId);
+    if (q) p.set("q", q);
     if (page > 1) p.set("page", String(page));
     const qs = p.toString();
     return `/ventas${qs ? `?${qs}` : ""}`;
@@ -69,6 +93,8 @@ export default async function VentasPage({
         title="Ventas"
         description="Historial de ventas sincronizadas desde MercadoLibre"
       />
+
+      <VentasSearch />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -115,7 +141,7 @@ export default async function VentasPage({
 
       {/* Results info */}
       <div className="flex items-center justify-between text-[12px] text-muted-foreground">
-        <span>{totalCount} ventas{params.packId ? " (filtrado)" : ""}</span>
+        <span>{totalCount} ventas{params.packId || q ? " (filtrado)" : ""}</span>
         {totalPages > 1 && (
           <span>Pagina {currentPage} de {totalPages}</span>
         )}
