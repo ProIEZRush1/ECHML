@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
         getProductIds: async () => {
           const products = await prisma.product.findMany({
             where: {
-              supplier: { name: "SUPLYADORNOS" },
+              supplier: { name: { in: ["SUPLYADORNOS", "Timi's"] } },
             },
             select: { id: true },
           });
