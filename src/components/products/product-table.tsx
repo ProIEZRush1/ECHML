@@ -298,22 +298,21 @@ export function ProductTable({ products }: ProductTableProps) {
 
       {enlargedImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm cursor-pointer"
           onClick={() => setEnlargedImage(null)}
         >
-          <div className="relative max-w-md max-h-[80vh] p-2" onClick={(e) => e.stopPropagation()}>
-            <Image
-              src={enlargedImage.url}
+          <div className="relative max-w-2xl max-h-[85vh] p-4" onClick={(e) => e.stopPropagation()}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={enlargedImage.url.replace(/-[A-Z]\.jpg/, "-O.jpg").replace(/\/D_NQ_NP_\d+x\d+-/, "/D_NQ_NP_2X_")}
               alt={enlargedImage.name}
-              width={400}
-              height={400}
-              className="rounded-lg object-contain max-h-[75vh] w-auto"
-              unoptimized
+              className="rounded-lg object-contain max-h-[75vh] max-w-full mx-auto"
+              style={{ minWidth: "300px", minHeight: "300px" }}
             />
-            <p className="text-center text-white text-sm mt-2">{enlargedImage.name}</p>
+            <p className="text-center text-white text-sm mt-3 font-medium">{enlargedImage.name}</p>
             <button
               onClick={() => setEnlargedImage(null)}
-              className="absolute -top-2 -right-2 size-8 rounded-full bg-white/90 text-black flex items-center justify-center text-lg font-bold hover:bg-white"
+              className="absolute top-0 right-0 size-9 rounded-full bg-white/90 text-black flex items-center justify-center text-xl font-bold hover:bg-white shadow-lg"
             >
               &times;
             </button>
