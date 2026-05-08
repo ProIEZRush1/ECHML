@@ -14,6 +14,7 @@ import {
 import { ShoppingCart } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
 
 export default async function VentasPage({
   searchParams,
@@ -132,48 +133,88 @@ export default async function VentasPage({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
-                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
-                  <TableHead className="min-w-[200px] text-[11px] uppercase tracking-wider">Producto</TableHead>
+                  <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                  <TableHead className="w-[44px] text-[11px] uppercase tracking-wider"></TableHead>
+                  <TableHead className="max-w-[300px] text-[11px] uppercase tracking-wider">Producto</TableHead>
+                  <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Pack</TableHead>
+                  <TableHead className="w-[50px] text-center text-[11px] uppercase tracking-wider">Cant</TableHead>
                   <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
                   <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Neto</TableHead>
                   <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sales.map((sale) => (
-                  <TableRow key={sale.id} className="hover:bg-muted/50">
-                    <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
-                      {formatDate(sale.dateCreated)}
-                    </TableCell>
-                    <TableCell>
-                      {sale.pack ? (
-                        <Link
-                          href={`/ventas?packId=${sale.pack.id}`}
-                          className="mono text-[11.5px] hover:underline"
-                        >
-                          {sale.pack.sku}
-                        </Link>
-                      ) : (
-                        <span className="text-[11.5px] text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-[12.5px] line-clamp-1" title={sale.description || ""}>
-                        {sale.description || "Venta ML"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right num text-[12.5px] font-semibold margin-good">
-                      {formatCurrency(Number(sale.amount))}
-                    </TableCell>
-                    <TableCell className="text-right num text-[12.5px] text-muted-foreground">
-                      {formatCurrency(Number(sale.balanceChange))}
-                    </TableCell>
-                    <TableCell>
-                      <span className="tx-pill sale">{sale.status}</span>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {sales.map((sale) => {
+                  const rowHref = sale.packId
+                    ? `/flujo-caja?packIds=${sale.packId}`
+                    : undefined;
+                  return (
+                    <TableRow key={sale.id} className="hover:bg-muted/50 group">
+                      <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
+                        {rowHref ? (
+                          <Link href={rowHref} className="hover:underline">
+                            {formatDate(sale.dateCreated)}
+                          </Link>
+                        ) : (
+                          formatDate(sale.dateCreated)
+                        )}
+                      </TableCell>
+                      <TableCell className="px-1">
+                        {sale.pack?.imageUrl ? (
+                          <div className="shrink-0 h-8 w-8 rounded overflow-hidden border bg-muted">
+                            <Image
+                              src={sale.pack.imageUrl}
+                              alt={sale.pack.name}
+                              width={32}
+                              height={32}
+                              className="h-full w-full object-cover"
+                              unoptimized
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                            <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[300px]">
+                        {rowHref ? (
+                          <Link href={rowHref} className="block truncate text-[12.5px] hover:underline" title={sale.description || ""}>
+                            {sale.description || "Venta ML"}
+                          </Link>
+                        ) : (
+                          <span className="block truncate text-[12.5px]" title={sale.description || ""}>
+                            {sale.description || "Venta ML"}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {sale.pack ? (
+                          <Link
+                            href={`/ventas?packId=${sale.pack.id}`}
+                            className="mono text-[11.5px] hover:underline"
+                          >
+                            {sale.pack.sku}
+                          </Link>
+                        ) : (
+                          <span className="text-[11.5px] text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center num text-[12.5px]">
+                        {sale.quantity}
+                      </TableCell>
+                      <TableCell className="text-right num text-[12.5px] font-semibold margin-good">
+                        {formatCurrency(Number(sale.amount))}
+                      </TableCell>
+                      <TableCell className="text-right num text-[12.5px] text-muted-foreground">
+                        {formatCurrency(Number(sale.balanceChange))}
+                      </TableCell>
+                      <TableCell>
+                        <span className="tx-pill sale">{sale.status}</span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
