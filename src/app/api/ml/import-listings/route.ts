@@ -95,23 +95,38 @@ function classifyListing(item: MLItemData): ProductGroupInfo {
     };
   }
 
-  // NaturalSlim / Magimag — group by sub-product
-  if (t.includes("magimag") || t.includes("magnesio") || t.includes("naturalslim")) {
-    let productName = "Magimag Citrato de Magnesio";
+  // NaturalSlim / Magimag — group by specific sub-product
+  if (t.includes("magimag") || t.includes("magicmag") || t.includes("magnesio") || t.includes("naturalslim") || t.includes("kadsorb") || t.includes("meta-b") || t.includes("proteina")) {
+    let productName = "NaturalSlim Otro";
     let groupKey = "naturalslim-other";
 
-    if (t.includes("magimag") || t.includes("citrato")) {
-      groupKey = "naturalslim-magimag-citrato";
-      productName = "Magimag Citrato de Magnesio";
-    } else if (t.includes("meta-b") || t.includes("proteina")) {
+    if (t.includes("meta-b") || (t.includes("proteina") && !t.includes("magnesio"))) {
       groupKey = "naturalslim-meta-b";
       productName = "Meta-B Proteina NaturalSlim";
-    } else if (t.includes("kadsorb") || t.includes("potasio")) {
+    } else if (t.includes("duo") || t.includes("dúo") || (t.includes("kadsorb") && t.includes("magimag"))) {
+      groupKey = "naturalslim-combo-kadsorb-magimag";
+      productName = "Kadsorb + Magimag-C Combo NaturalSlim";
+    } else if (t.includes("kit") && t.includes("naturalslim")) {
+      groupKey = "naturalslim-kit";
+      productName = "Kit NaturalSlim Potasio + Magnesio";
+    } else if (t.includes("kadsorb") || (t.includes("potasio") && !t.includes("magnesio"))) {
       groupKey = "naturalslim-kadsorb";
       productName = "Kadsorb Potasio NaturalSlim";
-    } else if (t.includes("duo") || t.includes("dúo")) {
-      groupKey = "naturalslim-duo";
-      productName = "Duo Dinamico Potasio y Magnesio";
+    } else if (t.includes("magicmag") && t.includes("polvo")) {
+      groupKey = "naturalslim-magicmag-usa";
+      productName = "MagicMag Polvo NaturalSlim (USA)";
+    } else if (t.includes("magimag-c") || t.includes("magimag c") || (t.includes("capsulas") && t.includes("magnesio")) || (t.includes("caps") && t.includes("magnesio"))) {
+      groupKey = "naturalslim-magimag-c-capsulas";
+      productName = "Magimag-C Capsulas NaturalSlim";
+    } else if (t.includes("magimag") && (t.includes("polvo") || t.includes("citrato"))) {
+      groupKey = "naturalslim-magimag-polvo";
+      productName = "Magimag Citrato Polvo NaturalSlim";
+    } else if (t.includes("magimag")) {
+      groupKey = "naturalslim-magimag-polvo";
+      productName = "Magimag Citrato Polvo NaturalSlim";
+    } else {
+      groupKey = `naturalslim-${item.id}`;
+      productName = shortenTitle(item.title);
     }
 
     return { groupKey, productName, variantLabel, brand: "NaturalSlim", skip: false };
