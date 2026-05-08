@@ -161,7 +161,8 @@ export default async function VentasPage({
                         )}
                       </TableCell>
                       <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                        {sale.mlOrderId ? String(sale.mlOrderId) : "-"}
+                        <div>{sale.mlOrderId ? String(sale.mlOrderId) : "-"}</div>
+                        {sale.mlPackId && <div className="text-[10px] text-muted-foreground/60">pack: {String(sale.mlPackId)}</div>}
                       </TableCell>
                       <TableCell className="px-1">
                         {sale.pack?.imageUrl ? (

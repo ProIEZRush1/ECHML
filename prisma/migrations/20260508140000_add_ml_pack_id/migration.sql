@@ -1,0 +1,1 @@
+ALTER TABLE "MPTransaction" ADD COLUMN "mlPackId" BIGINT;

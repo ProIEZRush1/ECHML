@@ -41,7 +41,7 @@ interface PackBalance {
 }
 
 type MovimientoRow =
-  | { kind: "tx"; id: string; date: Date; label: string; description: string | null; amount: number; balanceChange: number; type: string; mlOrderId: string | null; pack: { id: string; sku: string; name: string; imageUrl: string | null } | null }
+  | { kind: "tx"; id: string; date: Date; label: string; description: string | null; amount: number; balanceChange: number; type: string; mlOrderId: string | null; mlPackId: string | null; pack: { id: string; sku: string; name: string; imageUrl: string | null } | null }
   | { kind: "expense"; id: string; date: Date; concept: string; amount: number; category: string; packIds: string[] };
 
 export default async function FlujoCajaPage({
@@ -699,6 +699,7 @@ export default async function FlujoCajaPage({
                       label: tx.label,
                       description: tx.description,
                       mlOrderId: tx.mlOrderId ? String(tx.mlOrderId) : null,
+                      mlPackId: tx.mlPackId ? String(tx.mlPackId) : null,
                       amount: Number(tx.amount),
                       balanceChange: Number(tx.balanceChange),
                       type: tx.type,
@@ -774,7 +775,8 @@ export default async function FlujoCajaPage({
                             {formatDate(row.date)}
                           </TableCell>
                           <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                            {row.mlOrderId || "-"}
+                            <div>{row.mlOrderId || "-"}</div>
+                            {row.mlPackId && <div className="text-[10px] text-muted-foreground/60">pack: {row.mlPackId}</div>}
                           </TableCell>
                           <TableCell>
                             <span className={labelToPillClass[row.label] || "tx-pill expense"}>

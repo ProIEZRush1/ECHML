@@ -26,6 +26,7 @@ interface MLOrderResult {
   date_closed: string;
   total_amount: number;
   currency_id: string;
+  pack_id?: number | null;
   order_items: MLOrderItem[];
   payments: MLOrderPayment[];
   shipping: { id: number };
@@ -110,6 +111,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
           description: item.item.title,
           referenceId: String(order.id),
           mlOrderId: BigInt(order.id),
+          mlPackId: order.pack_id ? BigInt(order.pack_id) : null,
           packId,
           quantity: item.quantity,
           dateCreated: new Date(order.date_closed || order.date_created),
@@ -120,6 +122,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
           status: order.status,
           description: item.item.title,
           packId,
+          mlPackId: order.pack_id ? BigInt(order.pack_id) : null,
           quantity: item.quantity,
           syncedAt: new Date(),
         },

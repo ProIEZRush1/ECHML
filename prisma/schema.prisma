@@ -340,6 +340,7 @@ model MPTransaction {
   description   String?
   referenceId   String?
   mlOrderId     BigInt?
+  mlPackId      BigInt?
   packId        String?
   quantity      Int      @default(1)
   dateCreated   DateTime

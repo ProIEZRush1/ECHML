@@ -22,6 +22,7 @@ interface MLOrder {
   total_amount: number;
   date_created: string;
   date_closed: string;
+  pack_id?: number | null;
   order_items: Array<{
     item: { id: string; title: string };
     quantity: number;
@@ -97,12 +98,13 @@ export async function POST(request: NextRequest) {
                 mpId: BigInt(order.id), type: "credit", amount: order.total_amount,
                 balanceChange: netReceived, status: order.status, label: "sale",
                 description: item.item.title, referenceId: String(order.id),
-                mlOrderId: BigInt(order.id), packId, quantity: item.quantity,
-                dateCreated: txDate,
+                mlOrderId: BigInt(order.id), mlPackId: order.pack_id ? BigInt(order.pack_id) : null,
+                packId, quantity: item.quantity, dateCreated: txDate,
               },
               update: {
                 amount: order.total_amount, balanceChange: netReceived,
                 status: order.status, description: item.item.title, packId,
+                mlPackId: order.pack_id ? BigInt(order.pack_id) : null,
                 quantity: item.quantity, syncedAt: new Date(),
               },
             });

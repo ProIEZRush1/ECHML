@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
       ...tx,
       mpId: tx.mpId.toString(),
       mlOrderId: tx.mlOrderId?.toString() || null,
+      mlPackId: tx.mlPackId?.toString() || null,
       amount: Number(tx.amount),
       balanceChange: Number(tx.balanceChange),
       quantity: tx.quantity,
