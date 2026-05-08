@@ -44,11 +44,17 @@ export const COLOR_MAP = {
 export type ColorKey = keyof typeof COLOR_MAP;
 
 export function getVariantDisplay(variant: { color?: string | null; variantLabel?: string | null }): { label: string; hex: string; bg: string; text: string } {
-  if (variant.variantLabel) {
-    return { label: variant.variantLabel, hex: "#6b7280", bg: "bg-gray-500", text: "text-gray-600" };
-  }
   if (variant.color && variant.color in COLOR_MAP) {
     return COLOR_MAP[variant.color as ColorKey];
+  }
+  if (variant.variantLabel) {
+    const labelLower = variant.variantLabel.toLowerCase();
+    const labelColorMap: Record<string, ColorKey> = { azul: "AZUL", verde: "VERDE", rosa: "ROSA", morado: "MORADO", lila: "MORADO", blue: "AZUL", green: "VERDE", pink: "ROSA", purple: "MORADO" };
+    if (labelLower in labelColorMap) {
+      const mapped = COLOR_MAP[labelColorMap[labelLower]];
+      return { ...mapped, label: variant.variantLabel };
+    }
+    return { label: variant.variantLabel, hex: "#6b7280", bg: "bg-gray-500", text: "text-gray-600" };
   }
   return { label: "Sin variante", hex: "#9ca3af", bg: "bg-gray-400", text: "text-gray-500" };
 }
