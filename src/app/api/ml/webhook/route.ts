@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
             if (listing) packId = listing.packId;
 
             const txDate = new Date(order.date_closed || order.date_created);
+            const mlPack = order.pack_id ? BigInt(order.pack_id) : null;
 
             // Sale credit
             await prisma.mPTransaction.upsert({
@@ -98,13 +99,13 @@ export async function POST(request: NextRequest) {
                 mpId: BigInt(order.id), type: "credit", amount: order.total_amount,
                 balanceChange: netReceived, status: order.status, label: "sale",
                 description: item.item.title, referenceId: String(order.id),
-                mlOrderId: BigInt(order.id), mlPackId: order.pack_id ? BigInt(order.pack_id) : null,
+                mlOrderId: BigInt(order.id), mlPackId: mlPack,
                 packId, quantity: item.quantity, dateCreated: txDate,
               },
               update: {
                 amount: order.total_amount, balanceChange: netReceived,
                 status: order.status, description: item.item.title, packId,
-                mlPackId: order.pack_id ? BigInt(order.pack_id) : null,
+                mlPackId: mlPack,
                 quantity: item.quantity, syncedAt: new Date(),
               },
             });
@@ -118,10 +119,10 @@ export async function POST(request: NextRequest) {
                   mpId: feeId, type: "debit", amount: commission,
                   balanceChange: -commission, status: "approved", label: "fee",
                   description: `Comision ML - ${item.item.title}`,
-                  referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                  referenceId: String(order.id), mlOrderId: BigInt(order.id), mlPackId: mlPack,
                   packId, dateCreated: txDate,
                 },
-                update: { amount: commission, balanceChange: -commission, packId, syncedAt: new Date() },
+                update: { amount: commission, balanceChange: -commission, packId, mlPackId: mlPack, syncedAt: new Date() },
               });
             }
 
@@ -145,10 +146,10 @@ export async function POST(request: NextRequest) {
                       mpId: flexCostId, type: "debit", amount: FLEX_COST,
                       balanceChange: -FLEX_COST, status: "approved", label: "flex_cost",
                       description: `Costo Flex $${FLEX_COST} - ${item.item.title}`,
-                      referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                      referenceId: String(order.id), mlOrderId: BigInt(order.id), mlPackId: mlPack,
                       packId, dateCreated: txDate,
                     },
-                    update: { amount: FLEX_COST, balanceChange: -FLEX_COST, packId, syncedAt: new Date() },
+                    update: { amount: FLEX_COST, balanceChange: -FLEX_COST, packId, mlPackId: mlPack, syncedAt: new Date() },
                   });
 
                   const bonificacion = sender?.save || 0;
@@ -160,10 +161,10 @@ export async function POST(request: NextRequest) {
                         mpId: bonifId, type: "credit", amount: bonificacion,
                         balanceChange: bonificacion, status: "approved", label: "flex_bonificacion",
                         description: `Bonificacion Flex - ${item.item.title}`,
-                        referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                        referenceId: String(order.id), mlOrderId: BigInt(order.id), mlPackId: mlPack,
                         packId, dateCreated: txDate,
                       },
-                      update: { amount: bonificacion, balanceChange: bonificacion, packId, syncedAt: new Date() },
+                      update: { amount: bonificacion, balanceChange: bonificacion, packId, mlPackId: mlPack, syncedAt: new Date() },
                     });
                   }
                 } else {
@@ -177,10 +178,10 @@ export async function POST(request: NextRequest) {
                         mpId: shipId, type: "debit", amount: sellerShipping,
                         balanceChange: -sellerShipping, status: "approved", label: "shipping",
                         description: `Envio - ${item.item.title}`,
-                        referenceId: String(order.id), mlOrderId: BigInt(order.id),
+                        referenceId: String(order.id), mlOrderId: BigInt(order.id), mlPackId: mlPack,
                         packId, dateCreated: txDate,
                       },
-                      update: { amount: sellerShipping, balanceChange: -sellerShipping, packId, syncedAt: new Date() },
+                      update: { amount: sellerShipping, balanceChange: -sellerShipping, packId, mlPackId: mlPack, syncedAt: new Date() },
                     });
                   }
                 }
