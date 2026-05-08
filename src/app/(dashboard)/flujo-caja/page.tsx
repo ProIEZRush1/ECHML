@@ -41,7 +41,7 @@ interface PackBalance {
 }
 
 type MovimientoRow =
-  | { kind: "tx"; id: string; date: Date; label: string; description: string | null; amount: number; balanceChange: number; type: string; pack: { id: string; sku: string; name: string; imageUrl: string | null } | null }
+  | { kind: "tx"; id: string; date: Date; label: string; description: string | null; amount: number; balanceChange: number; type: string; mlOrderId: string | null; pack: { id: string; sku: string; name: string; imageUrl: string | null } | null }
   | { kind: "expense"; id: string; date: Date; concept: string; amount: number; category: string; packIds: string[] };
 
 export default async function FlujoCajaPage({
@@ -681,6 +681,7 @@ export default async function FlujoCajaPage({
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                    <TableHead className="text-[11px] uppercase tracking-wider">ID ML</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider">Tipo</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider">Descripcion</TableHead>
                     <TableHead className="text-[11px] uppercase tracking-wider">Pack</TableHead>
@@ -697,6 +698,7 @@ export default async function FlujoCajaPage({
                       date: tx.dateCreated,
                       label: tx.label,
                       description: tx.description,
+                      mlOrderId: tx.mlOrderId ? String(tx.mlOrderId) : null,
                       amount: Number(tx.amount),
                       balanceChange: Number(tx.balanceChange),
                       type: tx.type,
@@ -724,6 +726,7 @@ export default async function FlujoCajaPage({
                             <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                               {formatDate(row.date)}
                             </TableCell>
+                            <TableCell className="text-[11px] font-mono text-muted-foreground">-</TableCell>
                             <TableCell>
                               <span className="tx-pill expense">Gasto</span>
                             </TableCell>
@@ -769,6 +772,9 @@ export default async function FlujoCajaPage({
                         <TableRow key={row.id} className="hover:bg-muted/50">
                           <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                             {formatDate(row.date)}
+                          </TableCell>
+                          <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
+                            {row.mlOrderId ? `#${row.mlOrderId.slice(-6)}` : "-"}
                           </TableCell>
                           <TableCell>
                             <span className={labelToPillClass[row.label] || "tx-pill expense"}>

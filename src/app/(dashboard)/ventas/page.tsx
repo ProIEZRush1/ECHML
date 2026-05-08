@@ -134,6 +134,7 @@ export default async function VentasPage({
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                  <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">ID ML</TableHead>
                   <TableHead className="w-[44px] text-[11px] uppercase tracking-wider"></TableHead>
                   <TableHead className="max-w-[300px] text-[11px] uppercase tracking-wider">Producto</TableHead>
                   <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Pack</TableHead>
@@ -158,6 +159,9 @@ export default async function VentasPage({
                         ) : (
                           formatDate(sale.dateCreated)
                         )}
+                      </TableCell>
+                      <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
+                        {sale.mlOrderId ? `#${String(sale.mlOrderId).slice(-6)}` : "-"}
                       </TableCell>
                       <TableCell className="px-1">
                         {sale.pack?.imageUrl ? (
