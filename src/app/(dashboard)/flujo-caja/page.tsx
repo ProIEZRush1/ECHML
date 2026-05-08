@@ -237,6 +237,7 @@ export default async function FlujoCajaPage({
       label: true,
       type: true,
       packId: true,
+      quantity: true,
     },
   });
 
@@ -256,14 +257,16 @@ export default async function FlujoCajaPage({
   let totalProductCost = 0;
   let totalFlexCost = 0;
   let totalFlexBonificacion = 0;
+  let totalUnits = 0;
   const salesPerPack = new Map<string, number>();
 
   for (const tx of allFilteredTransactions) {
     const amount = Number(tx.amount);
     if (tx.label === "sale") {
       totalIncome += amount;
+      totalUnits += tx.quantity;
       if (tx.packId) {
-        salesPerPack.set(tx.packId, (salesPerPack.get(tx.packId) || 0) + 1);
+        salesPerPack.set(tx.packId, (salesPerPack.get(tx.packId) || 0) + tx.quantity);
       }
     } else if (tx.label === "fee" || tx.label === "commission") {
       totalFees += Math.abs(amount);
@@ -320,6 +323,7 @@ export default async function FlujoCajaPage({
       amount: true,
       label: true,
       packId: true,
+      quantity: true,
     },
   });
 
@@ -336,7 +340,7 @@ export default async function FlujoCajaPage({
 
     if (tx.label === "sale") {
       existing.income += amount;
-      existing.salesCount += 1;
+      existing.salesCount += tx.quantity;
     } else if (tx.label === "fee" || tx.label === "commission") {
       existing.fees += Math.abs(amount);
     } else if (tx.label === "shipping") {
@@ -448,7 +452,7 @@ export default async function FlujoCajaPage({
             <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
           </div>
           <p className="text-xl font-bold num margin-good truncate">{formatCurrency(totalIncome)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
         </div>
 
         {/* Comisiones */}

@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       mlOrderId: tx.mlOrderId?.toString() || null,
       amount: Number(tx.amount),
       balanceChange: Number(tx.balanceChange),
+      quantity: tx.quantity,
     }));
 
     return NextResponse.json({

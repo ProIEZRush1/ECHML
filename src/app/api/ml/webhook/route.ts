@@ -97,11 +97,13 @@ export async function POST(request: NextRequest) {
                 mpId: BigInt(order.id), type: "credit", amount: order.total_amount,
                 balanceChange: netReceived, status: order.status, label: "sale",
                 description: item.item.title, referenceId: String(order.id),
-                mlOrderId: BigInt(order.id), packId, dateCreated: txDate,
+                mlOrderId: BigInt(order.id), packId, quantity: item.quantity,
+                dateCreated: txDate,
               },
               update: {
                 amount: order.total_amount, balanceChange: netReceived,
-                status: order.status, description: item.item.title, packId, syncedAt: new Date(),
+                status: order.status, description: item.item.title, packId,
+                quantity: item.quantity, syncedAt: new Date(),
               },
             });
 

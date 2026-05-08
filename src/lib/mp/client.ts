@@ -111,6 +111,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
           referenceId: String(order.id),
           mlOrderId: BigInt(order.id),
           packId,
+          quantity: item.quantity,
           dateCreated: new Date(order.date_closed || order.date_created),
         },
         update: {
@@ -119,6 +120,7 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
           status: order.status,
           description: item.item.title,
           packId,
+          quantity: item.quantity,
           syncedAt: new Date(),
         },
       });
