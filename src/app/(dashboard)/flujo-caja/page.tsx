@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
+import { FlexCostEditor } from "./flex-cost-editor";
 import { CashflowFilters } from "./cashflow-filters";
 import { AdsCostCard } from "./ads-cost-card";
 import { UtilidadNetaCard } from "./utilidad-neta-card";
@@ -800,9 +801,17 @@ export default async function FlujoCajaPage({
                             )}
                           </TableCell>
                           <TableCell className="text-right num font-medium whitespace-nowrap">
-                            <span className={isCredit ? "margin-good" : "margin-bad"}>
-                              {isCredit ? "+" : "-"}{formatCurrency(Math.abs(row.amount))}
-                            </span>
+                            {row.label === "flex_cost" ? (
+                              <FlexCostEditor
+                                transactionId={row.id}
+                                amount={row.amount}
+                                isCredit={isCredit}
+                              />
+                            ) : (
+                              <span className={isCredit ? "margin-good" : "margin-bad"}>
+                                {isCredit ? "+" : "-"}{formatCurrency(Math.abs(row.amount))}
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right num font-medium whitespace-nowrap">
                             <span className={row.balanceChange >= 0 ? "margin-good" : "margin-bad"}>
