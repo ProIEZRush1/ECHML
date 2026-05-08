@@ -774,7 +774,7 @@ export default async function FlujoCajaPage({
                             {formatDate(row.date)}
                           </TableCell>
                           <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                            {row.mlOrderId ? `#${row.mlOrderId.slice(-6)}` : "-"}
+                            {row.mlOrderId || "-"}
                           </TableCell>
                           <TableCell>
                             <span className={labelToPillClass[row.label] || "tx-pill expense"}>

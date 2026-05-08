@@ -161,7 +161,7 @@ export default async function VentasPage({
                         )}
                       </TableCell>
                       <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                        {sale.mlOrderId ? `#${String(sale.mlOrderId).slice(-6)}` : "-"}
+                        {sale.mlOrderId ? String(sale.mlOrderId) : "-"}
                       </TableCell>
                       <TableCell className="px-1">
                         {sale.pack?.imageUrl ? (
