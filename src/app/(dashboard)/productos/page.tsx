@@ -11,23 +11,55 @@ export default async function ProductosPage() {
     include: {
       supplier: { select: { id: true, name: true } },
       variants: {
-        select: { id: true, color: true, variantLabel: true, stock: true, productId: true },
+        select: {
+          id: true,
+          color: true,
+          variantLabel: true,
+          stock: true,
+          productId: true,
+          packItems: {
+            select: {
+              pack: { select: { imageUrl: true } },
+            },
+            take: 1,
+          },
+        },
       },
     },
     orderBy: { name: "asc" },
   });
 
-  const typedProducts: ProductWithVariants[] = products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    supplierCode: p.supplierCode,
-    unitCost: p.unitCost.toString(),
-    brand: p.brand,
-    description: p.description,
-    imageUrl: p.imageUrl,
-    supplier: p.supplier,
-    variants: p.variants,
-  }));
+  const typedProducts: ProductWithVariants[] = products.map((p) => {
+    // Resolve image: product.imageUrl first, then first pack imageUrl
+    let resolvedImageUrl = p.imageUrl;
+    if (!resolvedImageUrl) {
+      for (const v of p.variants) {
+        const packImg = v.packItems?.[0]?.pack?.imageUrl;
+        if (packImg) {
+          resolvedImageUrl = packImg;
+          break;
+        }
+      }
+    }
+
+    return {
+      id: p.id,
+      name: p.name,
+      supplierCode: p.supplierCode,
+      unitCost: p.unitCost.toString(),
+      brand: p.brand,
+      description: p.description,
+      imageUrl: resolvedImageUrl,
+      supplier: p.supplier,
+      variants: p.variants.map((v) => ({
+        id: v.id,
+        color: v.color,
+        variantLabel: v.variantLabel,
+        stock: v.stock,
+        productId: v.productId,
+      })),
+    };
+  });
 
   return (
     <div className="space-y-6">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +9,7 @@ import { StockIndicator } from "@/components/shared/stock-indicator";
 import { ProductFormDialog } from "@/components/products/product-form-dialog";
 import { ProductDeleteButton } from "@/components/products/product-delete-button";
 import { formatCurrency, getVariantDisplay, COLOR_MAP } from "@/lib/utils";
-import { Search, ArrowUpDown, Pencil } from "lucide-react";
+import { Search, ArrowUpDown, Pencil, Package } from "lucide-react";
 import type { ProductWithVariants } from "@/types";
 import type { Color } from "@prisma/client";
 
@@ -176,12 +177,27 @@ export function ProductTable({ products }: ProductTableProps) {
                       {product.supplierCode}
                     </td>
                     <td className="px-3 py-2.5">
-                      <Link
-                        href={`/productos/${product.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {product.name}
-                      </Link>
+                      <div className="flex items-center gap-2.5">
+                        {product.imageUrl ? (
+                          <Image
+                            src={product.imageUrl}
+                            alt={product.name}
+                            width={40}
+                            height={40}
+                            className="size-10 rounded-md object-cover bg-muted flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="size-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                            <Package className="size-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <Link
+                          href={`/productos/${product.id}`}
+                          className="font-medium hover:underline"
+                        >
+                          {product.name}
+                        </Link>
+                      </div>
                     </td>
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {product.brand || "—"}
