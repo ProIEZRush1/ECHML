@@ -2187,6 +2187,69 @@ server.tool(
   }
 );
 
+// ─── ML Picture Upload ──────────────────────────────────────────────────────
+
+import { readdir, unlink } from "node:fs/promises";
+
+server.tool(
+  "ml_upload_picture",
+  "Subir una imagen local a MercadoLibre para usarla en publicaciones. Retorna el picture ID de ML. Auto-limpia imagenes generadas con mas de 5 dias.",
+  {
+    filePath: z.string().describe("Ruta al archivo de imagen local (PNG/JPG)"),
+  },
+  async ({ filePath }) => {
+    const fileData = await readFile(filePath);
+    const ext = filePath.split(".").pop()?.toLowerCase() || "png";
+    const mimeType = ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
+    const blob = new Blob([fileData], { type: mimeType });
+    const fname = basename(filePath);
+
+    const form = new FormData();
+    form.append("file", blob, fname);
+
+    const url = `${API_URL}/api/ml/upload-picture`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      body: form,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`ML picture upload failed ${res.status}: ${errText}`);
+    }
+
+    const data = await res.json();
+
+    // Auto-cleanup: delete generated images older than 5 days
+    try {
+      const genDir = join(filePath, "..");
+      const files = await readdir(genDir);
+      const fiveDaysAgo = Date.now() - 5 * 24 * 60 * 60 * 1000;
+      for (const f of files) {
+        if (f.startsWith("openai_") && (f.endsWith(".png") || f.endsWith(".jpg"))) {
+          const fPath = join(genDir, f);
+          const fStat = await stat(fPath).catch(() => null);
+          if (fStat && fStat.mtimeMs < fiveDaysAgo) {
+            await unlink(fPath).catch(() => {});
+          }
+        }
+      }
+    } catch { /* cleanup is best-effort */ }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          picture_id: data.id,
+          ...data,
+          uploaded_from: filePath,
+        }, null, 2),
+      }],
+    };
+  }
+);
+
 // ─── Start Server ────────────────────────────────────────────────────────────
 
 async function main() {
