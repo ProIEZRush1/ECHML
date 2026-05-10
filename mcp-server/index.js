@@ -1957,30 +1957,34 @@ server.tool(
     filename: z.string().optional().describe("Nombre del archivo (default: se toma del filePath o batch.jsonl)"),
   },
   async ({ filePath, content, purpose = "batch", filename }) => {
-    let fileContent = content;
     let fname = filename;
 
     if (filePath) {
-      fileContent = await readFile(filePath, "utf8");
       fname = fname || basename(filePath);
     }
 
-    if (!fileContent) throw new Error("Se requiere filePath o content");
     fname = fname || "batch.jsonl";
 
-    // Upload directly via CRM proxy for FormData handling
-    const url = `${API_URL}/api/openai/proxy`;
+    // Use multipart upload endpoint for files (handles large files)
+    const url = `${API_URL}/api/openai/upload-file`;
+    const form = new FormData();
+    form.append("purpose", purpose);
+
+    if (filePath) {
+      const fileData = await readFile(filePath);
+      const blob = new Blob([fileData], { type: "application/octet-stream" });
+      form.append("file", blob, fname);
+    } else if (content) {
+      const blob = new Blob([content], { type: "application/jsonl" });
+      form.append("file", blob, fname);
+    } else {
+      throw new Error("Se requiere filePath o content");
+    }
+
     const res = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${API_KEY}`,
-      },
-      body: JSON.stringify({
-        method: "POST",
-        endpoint: "/files",
-        payload: { content: fileContent, purpose, filename: fname },
-      }),
+      headers: { Authorization: `Bearer ${API_KEY}` },
+      body: form,
     });
 
     if (!res.ok) {
