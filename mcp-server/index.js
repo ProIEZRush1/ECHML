@@ -3,7 +3,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { writeFile, mkdir, readFile } from "node:fs/promises";
+import { writeFile, mkdir, readFile, stat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
@@ -1993,7 +1993,13 @@ server.tool(
     }
 
     const data = await res.json();
-    const sizeMB = (Buffer.byteLength(fileContent, "utf8") / 1024 / 1024).toFixed(2);
+    let sizeMB = "0";
+    if (filePath) {
+      const st = await stat(filePath);
+      sizeMB = (st.size / 1024 / 1024).toFixed(2);
+    } else if (content) {
+      sizeMB = (Buffer.byteLength(content, "utf8") / 1024 / 1024).toFixed(2);
+    }
     return {
       content: [{
         type: "text",
