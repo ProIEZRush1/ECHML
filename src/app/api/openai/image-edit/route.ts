@@ -35,9 +35,10 @@ export async function POST(request: NextRequest) {
     openaiForm.append("n", n);
 
     const images = formData.getAll("image");
+    const fieldName = images.length > 1 ? "image[]" : "image";
     for (const image of images) {
       if (image instanceof Blob) {
-        openaiForm.append("image", image);
+        openaiForm.append(fieldName, image);
       }
     }
 
