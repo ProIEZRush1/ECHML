@@ -117,11 +117,22 @@ function classifyListing(item: MLItemData): ProductGroupInfo {
 
   // Brand-specific rules FIRST (override catalog_product_id grouping)
 
-  // Bluemango — ALL are 1 product regardless of catalog_product_id
-  if (t.includes("bluemango")) {
+  // Bluemango termos
+  if (t.includes("bluemango") && !t.includes("playera")) {
     return {
       groupKey: "bluemango-termo",
       productName: "Bluemango Termo Deportivo",
+      variantLabel,
+      brand: "Bluemango",
+      skip: false,
+    };
+  }
+
+  // Playeras (Bluemango brand) — all playera/oversize listings are same product
+  if (t.includes("playera") || t.includes("playeras")) {
+    return {
+      groupKey: "bluemango-playera",
+      productName: "Playera Bluemango",
       variantLabel,
       brand: "Bluemango",
       skip: false,
