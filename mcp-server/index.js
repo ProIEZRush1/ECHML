@@ -195,10 +195,11 @@ server.tool(
 
 server.tool(
   "delete_pack",
-  "Eliminar un pack",
-  { id: z.string().describe("ID del pack") },
-  async ({ id }) => {
-    const data = await apiRequest(`/api/packs/${id}`, { method: "DELETE" });
+  "Eliminar un pack. Usar force=true para desvincular listings y forzar eliminación",
+  { id: z.string().describe("ID del pack"), force: z.boolean().optional().describe("Forzar eliminación desvinculando listings") },
+  async ({ id, force }) => {
+    const query = force ? "?force=true" : "";
+    const data = await apiRequest(`/api/packs/${id}${query}`, { method: "DELETE" });
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
   }
 );

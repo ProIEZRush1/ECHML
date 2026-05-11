@@ -213,7 +213,9 @@ export async function DELETE(
     );
   }
 
-  if (pack.mlListings.length > 0) {
+  const force = request.nextUrl.searchParams.get("force") === "true";
+
+  if (pack.mlListings.length > 0 && !force) {
     return NextResponse.json(
       { error: "No se puede eliminar el pack porque tiene publicaciones de MercadoLibre vinculadas" },
       { status: 409 }
@@ -221,6 +223,12 @@ export async function DELETE(
   }
 
   const affectedVariantIds = pack.items.map((i) => i.productVariantId);
+
+  if (pack.mlListings.length > 0) {
+    await prisma.mLListing.deleteMany({
+      where: { packId: id },
+    });
+  }
 
   await prisma.pack.delete({ where: { id } });
 
