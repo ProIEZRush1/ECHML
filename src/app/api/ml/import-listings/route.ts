@@ -70,13 +70,46 @@ function extractBrandFromML(item: MLItemData): string {
 function classifyListing(item: MLItemData): ProductGroupInfo {
   const t = item.title.toLowerCase();
 
-  // Skip Timi's products (already in Products table)
+  // Timi's products — map to existing products (not skip)
   if (
     t.includes("timi") || t.includes("biberon") || t.includes("chupon") ||
     t.includes("sujetador") || t.includes("dispensador de leche") ||
     (t.includes("vaso") && t.includes("entrenador"))
   ) {
-    return { groupKey: "", productName: "", variantLabel: "", brand: "", skip: true };
+    let productName = "Biberon 270ml Timi's";
+    let groupKey = "timis-biberon-270ml";
+    const variantLabel = extractVariantFromML(item);
+
+    if (t.includes("kit") || t.includes("set")) {
+      // Kits also contain biberons as primary product
+      groupKey = "timis-biberon-270ml";
+    } else if (t.includes("chupon") && t.includes("ortodontico")) {
+      groupKey = "timis-chupon-ortodontico";
+      productName = "Chupon Ortodontico Timi's";
+    } else if (t.includes("chupon")) {
+      groupKey = "timis-chupon-cierre";
+      productName = "Chupon Cierre Auto Timi's";
+    } else if (t.includes("sujetador")) {
+      groupKey = "timis-sujetador";
+      productName = "Sujetador Chupon Timi's";
+    } else if (t.includes("dispensador")) {
+      groupKey = "timis-dispensador";
+      productName = "Dispensador Leche Timi's";
+    } else if (t.includes("vaso") && t.includes("entrenador")) {
+      groupKey = "timis-vaso";
+      productName = "Vaso Entrenador Timi's";
+    } else if (t.includes("60ml") || t.includes("60 ml")) {
+      groupKey = "timis-biberon-60ml";
+      productName = "Biberon 60ml Timi's";
+    } else if (t.includes("150ml") || t.includes("150 ml")) {
+      groupKey = "timis-biberon-150ml";
+      productName = "Biberon 150ml Timi's";
+    } else if (t.includes("250ml") || t.includes("250 ml")) {
+      groupKey = "timis-biberon-250ml";
+      productName = "Biberon 250ml Timi's";
+    }
+
+    return { groupKey, productName, variantLabel, brand: "Timi's", skip: false };
   }
 
   const variantLabel = extractVariantFromML(item);
@@ -240,8 +273,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const productCache = new Map<string, { productId: string; variants: Map<string, string> }>();
 
     for (const item of items) {
-      // Only import active listings with stock
-      if (item.status !== "active" || (item.available_quantity ?? 0) <= 0) continue;
+      // Import active and under_review listings (under_review still need pack linkage)
+      if (!["active", "under_review"].includes(item.status) || (item.available_quantity ?? 0) <= 0) continue;
 
       const statusMap: Record<string, string> = {
         active: "ACTIVE",
@@ -330,14 +363,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         let cachedProduct = productCache.get(classification.groupKey);
 
         if (!cachedProduct) {
+          // Search across all suppliers first (finds manually-created products like Timi's)
           let product = await prisma.product.findFirst({
             where: {
-              supplierId: autoSupplierId,
               name: classification.productName,
               brand: classification.brand,
             },
             include: { variants: true },
           });
+
+          // Fall back to ML-AUTO supplier search
+          if (!product) {
+            product = await prisma.product.findFirst({
+              where: {
+                supplierId: autoSupplierId,
+                name: classification.productName,
+                brand: classification.brand,
+              },
+              include: { variants: true },
+            });
+          }
 
           if (!product) {
             product = await prisma.product.create({

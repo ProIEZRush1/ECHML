@@ -176,17 +176,21 @@ server.tool(
 
 server.tool(
   "update_pack",
-  "Actualizar un pack existente",
+  "Actualizar un pack existente. Puede cambiar nombre, precio, items (composicion de productos), etc.",
   {
     id: z.string().describe("ID del pack"),
     sku: z.string().optional().describe("SKU del pack"),
     name: z.string().optional().describe("Nombre del pack"),
     salePrice: z.number().optional().describe("Precio de venta"),
     description: z.string().optional().describe("Descripcion del pack"),
+    items: z.array(z.object({
+      productVariantId: z.string().describe("ID de la variante de producto"),
+      quantity: z.number().int().positive().describe("Cantidad"),
+    })).optional().describe("Composicion del pack: array de {productVariantId, quantity}"),
   },
   async ({ id, ...updates }) => {
     const data = await apiRequest(`/api/packs/${id}`, {
-      method: "PATCH",
+      method: "PUT",
       body: JSON.stringify(updates),
     });
     return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
