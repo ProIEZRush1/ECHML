@@ -18,6 +18,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { VentasSearch } from "./ventas-search";
 
+const VARIANT_DOT: Record<string, string> = {
+  AZUL: "bg-blue-500", VERDE: "bg-green-500", ROSA: "bg-pink-400", MORADO: "bg-purple-500",
+};
+const LABEL_DOT: Record<string, string> = {
+  "Blanco": "bg-white border border-gray-300", "Negro": "bg-black", "Gris": "bg-gray-400",
+  "Multicolor": "bg-gradient-to-r from-blue-500 via-green-500 to-pink-500",
+  "Azul": "bg-blue-500", "Verde": "bg-green-500", "Rosa": "bg-pink-400", "Morado": "bg-purple-500",
+};
+
 export default async function VentasPage({
   searchParams,
 }: {
@@ -59,7 +68,22 @@ export default async function VentasPage({
       skip: (currentPage - 1) * pageSize,
       take: pageSize,
       include: {
-        pack: { select: { id: true, sku: true, name: true, imageUrl: true } },
+        pack: {
+          select: {
+            id: true,
+            sku: true,
+            name: true,
+            imageUrl: true,
+            items: {
+              select: {
+                quantity: true,
+                productVariant: {
+                  select: { color: true, variantLabel: true },
+                },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.mPTransaction.count({ where }),
@@ -161,7 +185,6 @@ export default async function VentasPage({
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
-                  <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">ID ML</TableHead>
                   <TableHead className="w-[44px] text-[11px] uppercase tracking-wider"></TableHead>
                   <TableHead className="max-w-[300px] text-[11px] uppercase tracking-wider">Producto</TableHead>
                   <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Pack</TableHead>
@@ -186,10 +209,6 @@ export default async function VentasPage({
                         ) : (
                           formatDate(sale.dateCreated)
                         )}
-                      </TableCell>
-                      <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                        <div>{sale.mlOrderId ? String(sale.mlOrderId) : "-"}</div>
-                        {sale.mlPackId && <div className="text-[10px] text-muted-foreground/60">pack: {String(sale.mlPackId)}</div>}
                       </TableCell>
                       <TableCell className="px-1">
                         {sale.pack?.imageUrl ? (
@@ -222,12 +241,32 @@ export default async function VentasPage({
                       </TableCell>
                       <TableCell>
                         {sale.pack ? (
-                          <Link
-                            href={`/ventas?packId=${sale.pack.id}`}
-                            className="mono text-[11.5px] hover:underline"
-                          >
-                            {sale.pack.sku}
-                          </Link>
+                          <div>
+                            <Link
+                              href={`/ventas?packId=${sale.pack.id}`}
+                              className="mono text-[11.5px] hover:underline"
+                            >
+                              {sale.pack.sku}
+                            </Link>
+                            {sale.pack.items.length > 0 && (
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                {sale.pack.items.map((item, idx) => {
+                                  const dotClass = (item.productVariant.color && VARIANT_DOT[item.productVariant.color])
+                                    || (item.productVariant.variantLabel && LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
+                                  const label = item.productVariant.variantLabel || (item.productVariant.color || "");
+                                  return (
+                                    <span key={idx} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                      {dotClass && (
+                                        <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotClass}`} title={label} />
+                                      )}
+                                      {item.quantity > 1 && <span>×{item.quantity}</span>}
+                                      {!dotClass && <span>{label}</span>}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-[11.5px] text-muted-foreground">-</span>
                         )}
