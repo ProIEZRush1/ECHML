@@ -639,14 +639,13 @@ export default async function FlujoCajaPage({
                         <div className={`text-lg font-bold num ${pack.netIncome >= 0 ? "margin-good" : "margin-bad"}`}>
                           {formatCurrency(pack.netIncome)}
                         </div>
-                        <Link
+                        <a
                           href={`/packs/${pack.id}`}
-                          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
-                          onClick={(e) => e.stopPropagation()}
+                          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted relative z-10"
                           title="Ver detalle del pack"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
-                        </Link>
+                        </a>
                       </div>
                     </div>
 
