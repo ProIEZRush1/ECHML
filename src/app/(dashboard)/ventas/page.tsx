@@ -201,13 +201,20 @@ export default async function VentasPage({
                     : undefined;
                   return (
                     <TableRow key={sale.id} className="hover:bg-muted/50 group">
-                      <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
-                        {rowHref ? (
-                          <Link href={rowHref} className="hover:underline">
-                            {formatDate(sale.dateCreated)}
-                          </Link>
-                        ) : (
-                          formatDate(sale.dateCreated)
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        <div className="text-[12.5px]">
+                          {rowHref ? (
+                            <Link href={rowHref} className="hover:underline">
+                              {formatDate(sale.dateCreated)}
+                            </Link>
+                          ) : (
+                            formatDate(sale.dateCreated)
+                          )}
+                        </div>
+                        {sale.mlPackId && (
+                          <div className="text-[10px] text-muted-foreground/60 mono">
+                            pack {String(sale.mlPackId)}
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="px-1">
