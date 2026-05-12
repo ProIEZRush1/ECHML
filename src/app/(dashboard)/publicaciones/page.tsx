@@ -15,6 +15,21 @@ import type { MLListingStatus } from "@/types";
 import { SyncButton } from "./sync-button";
 import { PublicacionesFilters } from "./publicaciones-filters";
 import Link from "next/link";
+import { ExternalLink } from "lucide-react";
+
+const COLOR_DOT: Record<string, string> = {
+  AZUL: "bg-blue-500",
+  VERDE: "bg-green-500",
+  ROSA: "bg-pink-400",
+  MORADO: "bg-purple-500",
+};
+
+const COLOR_LABEL: Record<string, string> = {
+  AZUL: "Azul",
+  VERDE: "Verde",
+  ROSA: "Rosa",
+  MORADO: "Morado",
+};
 
 const STATUS_CSS: Record<MLListingStatus, string> = {
   ACTIVE: "list-status active",
@@ -71,7 +86,21 @@ export default async function PublicacionesPage({
     prisma.mLListing.findMany({
       where,
       include: {
-        pack: { select: { id: true, sku: true, name: true, stock: true } },
+        pack: {
+        select: {
+          id: true,
+          sku: true,
+          name: true,
+          stock: true,
+          items: {
+            select: {
+              productVariant: {
+                select: { color: true, product: { select: { name: true } } },
+              },
+            },
+          },
+        },
+      },
       },
       orderBy: { lastSyncedAt: "desc" },
       skip: (currentPage - 1) * pageSize,
@@ -172,6 +201,7 @@ export default async function PublicacionesPage({
               <TableRow className="bg-muted/50">
                 <TableHead className="w-[140px] text-[11px] uppercase tracking-wider">ML ID</TableHead>
                 <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
+                <TableHead className="w-[120px] text-[11px] uppercase tracking-wider">Colores</TableHead>
                 <TableHead className="min-w-[200px] text-[11px] uppercase tracking-wider">Titulo</TableHead>
                 <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Estado</TableHead>
                 <TableHead className="w-[80px] text-right text-[11px] uppercase tracking-wider">Precio</TableHead>
@@ -193,12 +223,42 @@ export default async function PublicacionesPage({
                       {listing.mlItemId}
                     </TableCell>
                     <TableCell>
-                      <Link
-                        href={`/publicaciones?packId=${listing.pack.id}`}
-                        className="text-[11.5px] font-medium hover:underline"
-                      >
-                        {listing.pack.sku}
-                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={`/packs/${listing.pack.id}`}
+                          className="text-[11.5px] font-medium hover:underline"
+                          title={listing.pack.name}
+                        >
+                          {listing.pack.sku}
+                        </Link>
+                        <Link
+                          href={`/packs/${listing.pack.id}`}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Link>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {listing.pack.items.map((item, idx) => {
+                          const color = item.productVariant.color;
+                          if (!color) return null;
+                          return (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+                              title={`${item.productVariant.product.name} - ${COLOR_LABEL[color]}`}
+                            >
+                              <span className={`inline-block h-2.5 w-2.5 rounded-full ${COLOR_DOT[color] || "bg-gray-400"}`} />
+                              <span className="hidden sm:inline">{COLOR_LABEL[color]}</span>
+                            </span>
+                          );
+                        })}
+                        {listing.pack.items.every((item) => !item.productVariant.color) && (
+                          <span className="text-[10px] text-muted-foreground">-</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span className="line-clamp-1 text-[12.5px]" title={listing.title || ""}>
@@ -240,7 +300,7 @@ export default async function PublicacionesPage({
               {listings.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="py-8 text-center text-muted-foreground"
                   >
                     {hasFilters
