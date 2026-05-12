@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import {
   Activity,
+  ExternalLink,
   Package,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -22,6 +23,20 @@ import { AdsCostCard } from "./ads-cost-card";
 import { UtilidadNetaCard } from "./utilidad-neta-card";
 import Link from "next/link";
 import Image from "next/image";
+
+const COLOR_DOT: Record<string, string> = {
+  AZUL: "bg-blue-500",
+  VERDE: "bg-green-500",
+  ROSA: "bg-pink-400",
+  MORADO: "bg-purple-500",
+};
+
+const COLOR_LABEL: Record<string, string> = {
+  AZUL: "Azul",
+  VERDE: "Verde",
+  ROSA: "Rosa",
+  MORADO: "Morado",
+};
 
 interface PackBalance {
   id: string;
@@ -38,6 +53,7 @@ interface PackBalance {
   salesCount: number;
   netIncome: number;
   transactionCount: number;
+  colors: { color: string | null; label: string | null }[];
 }
 
 type MovimientoRow =
@@ -148,7 +164,20 @@ export default async function FlujoCajaPage({
     }),
     prisma.mPTransaction.count({ where }),
     prisma.pack.findMany({
-      select: { id: true, sku: true, name: true, imageUrl: true },
+      select: {
+        id: true,
+        sku: true,
+        name: true,
+        imageUrl: true,
+        items: {
+          select: {
+            quantity: true,
+            productVariant: {
+              select: { color: true, variantLabel: true },
+            },
+          },
+        },
+      },
       orderBy: { name: "asc" },
     }),
     prisma.pack.findMany({
@@ -382,6 +411,12 @@ export default async function FlujoCajaPage({
     const packTaxes = packBase * 0.08 + packBase * 0.025;
     const packProductCost = (packCostMap.get(pack.id) || 0) * data.salesCount;
 
+    const packItems = (pack as typeof allPacks[number]).items || [];
+    const colors = packItems.map((item) => ({
+      color: item.productVariant.color,
+      label: item.productVariant.variantLabel,
+    }));
+
     packBalances.push({
       id: pack.id,
       sku: pack.sku,
@@ -397,6 +432,7 @@ export default async function FlujoCajaPage({
       salesCount: data.salesCount,
       netIncome: data.income - data.fees - data.shipping - packTaxes - packProductCost - data.flexCost - data.gastos,
       transactionCount: data.count,
+      colors,
     });
   }
 
@@ -577,11 +613,40 @@ export default async function FlujoCajaPage({
                         )}
                         <div className="min-w-0">
                           <p className="font-medium text-[12px] truncate">{pack.name}</p>
-                          <p className="mono text-[11px] text-muted-foreground">{pack.sku}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="mono text-[11px] text-muted-foreground">{pack.sku}</p>
+                            {pack.colors.map((c, idx) => {
+                              if (c.color && COLOR_DOT[c.color]) {
+                                return (
+                                  <span
+                                    key={idx}
+                                    className={`inline-block h-2 w-2 rounded-full ${COLOR_DOT[c.color]}`}
+                                    title={COLOR_LABEL[c.color]}
+                                  />
+                                );
+                              }
+                              if (c.label) {
+                                return (
+                                  <span key={idx} className="text-[10px] text-muted-foreground">{c.label}</span>
+                                );
+                              }
+                              return null;
+                            })}
+                          </div>
                         </div>
                       </div>
-                      <div className={`text-lg font-bold num shrink-0 ${pack.netIncome >= 0 ? "margin-good" : "margin-bad"}`}>
-                        {formatCurrency(pack.netIncome)}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className={`text-lg font-bold num ${pack.netIncome >= 0 ? "margin-good" : "margin-bad"}`}>
+                          {formatCurrency(pack.netIncome)}
+                        </div>
+                        <Link
+                          href={`/packs/${pack.id}`}
+                          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Ver detalle del pack"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Link>
                       </div>
                     </div>
 
