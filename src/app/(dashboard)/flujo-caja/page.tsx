@@ -38,6 +38,26 @@ const COLOR_LABEL: Record<string, string> = {
   MORADO: "Morado",
 };
 
+const LABEL_COLOR_DOT: Record<string, string> = {
+  "Blanco": "bg-white border border-gray-300",
+  "Negro": "bg-black",
+  "Gris": "bg-gray-400",
+  "Multicolor": "bg-gradient-to-r from-blue-500 via-green-500 to-pink-500",
+  "Azul": "bg-blue-500",
+  "Verde": "bg-green-500",
+  "Rosa": "bg-pink-400",
+  "Morado": "bg-purple-500",
+  "Blanco / S": "bg-white border border-gray-300",
+  "Blanco / M": "bg-white border border-gray-300",
+  "Blanco / L": "bg-white border border-gray-300",
+  "Negro / S": "bg-black",
+  "Negro / M": "bg-black",
+  "Negro / L": "bg-black",
+  "Gris / S": "bg-gray-400",
+  "Gris / M": "bg-gray-400",
+  "Gris / L": "bg-gray-400",
+};
+
 interface PackBalance {
   id: string;
   sku: string;
@@ -589,16 +609,13 @@ export default async function FlujoCajaPage({
               const feeRatio = pack.income > 0 ? ((pack.income - pack.netIncome) / pack.income) * 100 : 0;
               const isSelected = packIdList.includes(pack.id);
 
+              const flujoCajaUrl = `/flujo-caja?packIds=${pack.id}${params.dateFrom ? `&dateFrom=${params.dateFrom}` : ""}${params.dateTo ? `&dateTo=${params.dateTo}` : ""}`;
+
               return (
-                <Link
-                  key={pack.id}
-                  href={`/flujo-caja?packIds=${pack.id}${params.dateFrom ? `&dateFrom=${params.dateFrom}` : ""}${params.dateTo ? `&dateTo=${params.dateTo}` : ""}`}
-                  className="block"
-                >
-                  <div className={`bp-card ${isSelected ? "active" : ""}`}>
+                <div key={pack.id} className={`bp-card ${isSelected ? "active" : ""}`}>
                     {/* Header */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 min-w-0">
+                      <Link href={flujoCajaUrl} className="flex items-center gap-3 min-w-0">
                         {pack.imageUrl && (
                           <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">
                             <Image
@@ -612,16 +629,17 @@ export default async function FlujoCajaPage({
                           </div>
                         )}
                         <div className="min-w-0">
-                          <p className="font-medium text-[12px] truncate">{pack.name}</p>
+                          <p className="font-medium text-[12px] truncate hover:underline">{pack.name}</p>
                           <div className="flex items-center gap-1.5">
                             <p className="mono text-[11px] text-muted-foreground">{pack.sku}</p>
                             {pack.colors.map((c, idx) => {
-                              if (c.color && COLOR_DOT[c.color]) {
+                              const dotClass = (c.color && COLOR_DOT[c.color]) || (c.label && LABEL_COLOR_DOT[c.label]);
+                              if (dotClass) {
                                 return (
                                   <span
                                     key={idx}
-                                    className={`inline-block h-2 w-2 rounded-full ${COLOR_DOT[c.color]}`}
-                                    title={COLOR_LABEL[c.color]}
+                                    className={`inline-block h-2.5 w-2.5 rounded-full ${dotClass}`}
+                                    title={c.label || (c.color && COLOR_LABEL[c.color]) || ""}
                                   />
                                 );
                               }
@@ -634,18 +652,18 @@ export default async function FlujoCajaPage({
                             })}
                           </div>
                         </div>
-                      </div>
+                      </Link>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className={`text-lg font-bold num ${pack.netIncome >= 0 ? "margin-good" : "margin-bad"}`}>
                           {formatCurrency(pack.netIncome)}
                         </div>
-                        <a
+                        <Link
                           href={`/packs/${pack.id}`}
-                          className="text-muted-foreground hover:text-foreground p-1 rounded hover:bg-muted relative z-10"
+                          className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted border border-transparent hover:border-border"
                           title="Ver detalle del pack"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
+                        </Link>
                       </div>
                     </div>
 
@@ -709,8 +727,7 @@ export default async function FlujoCajaPage({
                         <span>{(100 - feeRatio).toFixed(0)}% rentabilidad</span>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                </div>
               );
             })}
           </div>
