@@ -27,8 +27,7 @@ const FILTER_TABS: { label: string; value: string }[] = [
   { label: "Todos", value: "" },
   { label: "En Camino", value: "SHIPPED" },
   { label: "Entregados", value: "DELIVERED" },
-  { label: "Devoluciones", value: "RETURNED" },
-  { label: "No Entregado", value: "NOT_DELIVERED" },
+  { label: "Devoluciones", value: "DEVOLUCIONES" },
   { label: "Pendientes", value: "PENDING" },
   { label: "Cancelados", value: "CANCELLED" },
 ];
@@ -50,10 +49,14 @@ export default async function PedidosPage({
   const params = await searchParams;
   const currentPage = Math.max(1, parseInt(params.page || "1", 10));
   const pageSize = 50;
-  const statusFilter = params.status as ShippingStatus | undefined;
+  const statusFilter = params.status || "";
 
-  const where: { shippingStatus?: ShippingStatus } = {};
-  if (statusFilter) where.shippingStatus = statusFilter;
+  const where: { shippingStatus?: ShippingStatus | { in: ShippingStatus[] } } = {};
+  if (statusFilter === "DEVOLUCIONES") {
+    where.shippingStatus = { in: ["RETURNED", "NOT_DELIVERED"] };
+  } else if (statusFilter) {
+    where.shippingStatus = statusFilter as ShippingStatus;
+  }
 
   const [orders, totalCount, statusCounts] = await Promise.all([
     prisma.mLOrder.findMany({
