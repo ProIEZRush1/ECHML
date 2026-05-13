@@ -31,14 +31,29 @@ interface Option {
   sku?: string;
 }
 
+interface SalePackItem {
+  quantity: number;
+  productVariant: { color: string | null; variantLabel: string | null };
+}
+
 interface SaleTransaction {
   id: string;
   mpId: string;
   description: string | null;
   amount: number;
+  label: string;
   dateCreated: string;
-  pack: { id: string; sku: string; name: string } | null;
+  pack: { id: string; sku: string; name: string; imageUrl: string | null; items: SalePackItem[] } | null;
 }
+
+const SALE_LABEL_DOT: Record<string, string> = {
+  "Blanco": "bg-white border border-gray-300", "Negro": "bg-black", "Gris": "bg-gray-400",
+  "Multicolor": "bg-gradient-to-r from-blue-500 via-green-500 to-pink-500",
+  "Azul": "bg-blue-500", "Verde": "bg-green-500", "Rosa": "bg-pink-400", "Morado": "bg-purple-500",
+};
+const SALE_ENUM_DOT: Record<string, string> = {
+  AZUL: "bg-blue-500", VERDE: "bg-green-500", ROSA: "bg-pink-400", MORADO: "bg-purple-500",
+};
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -108,7 +123,7 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
         fetch("/api/products"),
         fetch("/api/packs"),
         fetch("/api/product-groups"),
-        fetch("/api/mp/transactions?label=sale&limit=50"),
+        fetch("/api/mp/transactions?label=sale&limit=100"),
       ]);
       if (suppRes.ok) setSuppliers(await suppRes.json());
       if (prodRes.ok) {
@@ -335,15 +350,22 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                                 checked ? prev.filter((id) => id !== sale.id) : [...prev, sale.id]
                               )
                             }
-                            className="rounded border-input h-4 w-4 shrink-0 mt-0.5"
+                            className="rounded border-input h-4 w-4 shrink-0 mt-1"
                           />
+                          {sale.pack?.imageUrl && (
+                            <img
+                              src={sale.pack.imageUrl}
+                              alt=""
+                              className="h-8 w-8 rounded object-cover shrink-0 border bg-muted"
+                            />
+                          )}
                           <div className="flex-1 min-w-0 space-y-0.5">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-sm font-bold text-green-600 dark:text-green-400 shrink-0">
                                 ${sale.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                               </span>
                               {sale.pack?.sku && (
-                                <span className="font-mono text-[11px] bg-muted px-1.5 py-0.5 rounded max-w-[100px] truncate">{sale.pack.sku}</span>
+                                <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded max-w-[110px] truncate">{sale.pack.sku}</span>
                               )}
                               <span className="text-[11px] text-muted-foreground shrink-0">
                                 {new Date(sale.dateCreated).toLocaleDateString("es-MX")}
@@ -352,6 +374,22 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
                             <p className="text-xs text-muted-foreground truncate">
                               {sale.description || `Venta #${sale.mpId}`}
                             </p>
+                            {sale.pack?.items && sale.pack.items.length > 0 && (
+                              <div className="flex items-center gap-1 flex-wrap">
+                                {sale.pack.items.map((item, idx) => {
+                                  const dotClass = (item.productVariant.color && SALE_ENUM_DOT[item.productVariant.color])
+                                    || (item.productVariant.variantLabel && SALE_LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
+                                  const label = item.productVariant.variantLabel || item.productVariant.color || "";
+                                  return (
+                                    <span key={idx} className="inline-flex items-center gap-0.5 text-[9px] text-muted-foreground">
+                                      {dotClass && <span className={`inline-block h-2 w-2 rounded-full ${dotClass}`} />}
+                                      {item.quantity > 1 && <span>×{item.quantity}</span>}
+                                      {!dotClass && label && <span>{label}</span>}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </div>
                         </label>
                       );

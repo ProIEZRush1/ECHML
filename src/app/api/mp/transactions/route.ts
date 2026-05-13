@@ -45,7 +45,20 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           pack: {
-            select: { id: true, sku: true, name: true },
+            select: {
+              id: true,
+              sku: true,
+              name: true,
+              imageUrl: true,
+              items: {
+                select: {
+                  quantity: true,
+                  productVariant: {
+                    select: { color: true, variantLabel: true },
+                  },
+                },
+              },
+            },
           },
         },
         orderBy: { dateCreated: "desc" },
