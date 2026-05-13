@@ -15,7 +15,7 @@ import {
   ExternalLink,
   Package,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { MPSyncButton } from "./mp-sync-button";
 import { FlexCostEditor } from "./flex-cost-editor";
 import { CashflowFilters } from "./cashflow-filters";
@@ -818,8 +818,8 @@ export default async function FlujoCajaPage({
                           .filter(Boolean);
                         return (
                           <TableRow key={`exp-${row.id}`} className="hover:bg-muted/50">
-                            <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
-                              {formatDate(row.date)}
+                            <TableCell className="text-[12px] text-muted-foreground whitespace-nowrap">
+                              {formatDateTime(row.date)}
                             </TableCell>
                             <TableCell className="text-[11px] font-mono text-muted-foreground">-</TableCell>
                             <TableCell>
@@ -865,8 +865,8 @@ export default async function FlujoCajaPage({
 
                       return (
                         <TableRow key={row.id} className="hover:bg-muted/50">
-                          <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
-                            {formatDate(row.date)}
+                          <TableCell className="text-[12px] text-muted-foreground whitespace-nowrap">
+                            {formatDateTime(row.date)}
                           </TableCell>
                           <TableCell className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
                             <div>{row.mlOrderId || "-"}</div>

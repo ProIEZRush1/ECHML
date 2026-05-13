@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ShoppingCart } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
 import { VentasSearch } from "./ventas-search";
@@ -205,10 +205,10 @@ export default async function VentasPage({
                         <div className="text-[12.5px]">
                           {rowHref ? (
                             <Link href={rowHref} className="hover:underline">
-                              {formatDate(sale.dateCreated)}
+                              {formatDateTime(sale.dateCreated)}
                             </Link>
                           ) : (
-                            formatDate(sale.dateCreated)
+                            formatDateTime(sale.dateCreated)
                           )}
                         </div>
                         {sale.mlPackId && (

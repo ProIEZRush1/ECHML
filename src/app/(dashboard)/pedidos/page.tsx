@@ -7,8 +7,9 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Truck } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
+import Image from "next/image";
 import type { ShippingStatus } from "@prisma/client";
 import { SyncStatusButton } from "./sync-status-button";
 
@@ -31,6 +32,15 @@ const FILTER_TABS: { label: string; value: string }[] = [
   { label: "Pendientes", value: "PENDING" },
   { label: "Cancelados", value: "CANCELLED" },
 ];
+
+const VARIANT_DOT: Record<string, string> = {
+  AZUL: "bg-blue-500", VERDE: "bg-green-500", ROSA: "bg-pink-400", MORADO: "bg-purple-500",
+};
+const LABEL_DOT: Record<string, string> = {
+  "Blanco": "bg-white border border-gray-300", "Negro": "bg-black", "Gris": "bg-gray-400",
+  "Multicolor": "bg-gradient-to-r from-blue-500 via-green-500 to-pink-500",
+  "Azul": "bg-blue-500", "Verde": "bg-green-500", "Rosa": "bg-pink-400", "Morado": "bg-purple-500",
+};
 
 export default async function PedidosPage({
   searchParams,
@@ -59,6 +69,27 @@ export default async function PedidosPage({
     }),
   ]);
 
+  const mlItemIds = [...new Set(orders.map((o) => o.mlItemId))];
+  const listings = await prisma.mLListing.findMany({
+    where: { mlItemId: { in: mlItemIds } },
+    select: {
+      mlItemId: true,
+      title: true,
+      pack: {
+        select: {
+          id: true, sku: true, name: true, imageUrl: true,
+          items: {
+            select: {
+              quantity: true,
+              productVariant: { select: { color: true, variantLabel: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
+
   const totalPages = Math.ceil(totalCount / pageSize);
   const totalOrders = statusCounts.reduce((s, c) => s + c._count, 0);
   const deliveredCount = statusCounts.find((c) => c.shippingStatus === "DELIVERED")?._count ?? 0;
@@ -77,10 +108,7 @@ export default async function PedidosPage({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <PageHeader
-          title="Pedidos"
-          description="Estado de envio y devoluciones"
-        />
+        <PageHeader title="Pedidos" description="Estado de envio y devoluciones" />
         <SyncStatusButton />
       </div>
 
@@ -118,59 +146,84 @@ export default async function PedidosPage({
         ))}
       </div>
 
-      {/* Results info */}
       <div className="flex items-center justify-between text-[12px] text-muted-foreground">
         <span>{totalCount} pedidos{statusFilter ? " (filtrado)" : ""}</span>
         {totalPages > 1 && <span>Pagina {currentPage} de {totalPages}</span>}
       </div>
 
       {orders.length === 0 ? (
-        <EmptyState
-          icon={Truck}
-          title="Sin pedidos"
-          description="Sincroniza ordenes desde Flujo de Caja y luego actualiza estados aqui."
-        />
+        <EmptyState icon={Truck} title="Sin pedidos" description="Sincroniza ordenes desde Flujo de Caja y luego actualiza estados aqui." />
       ) : (
         <div className="rounded-[9px] border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
-                  <TableHead className="w-[110px] text-[11px] uppercase tracking-wider">Orden ML</TableHead>
-                  <TableHead className="text-[11px] uppercase tracking-wider">Item ML</TableHead>
+                  <TableHead className="w-[120px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                  <TableHead className="w-[44px] text-[11px] uppercase tracking-wider"></TableHead>
+                  <TableHead className="max-w-[300px] text-[11px] uppercase tracking-wider">Producto</TableHead>
+                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
                   <TableHead className="w-[50px] text-center text-[11px] uppercase tracking-wider">Cant</TableHead>
                   <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
                   <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Comprador</TableHead>
-                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Estado Envio</TableHead>
+                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {orders.map((order) => {
                   const config = STATUS_CONFIG[order.shippingStatus];
+                  const listing = listingMap.get(order.mlItemId);
+                  const pack = listing?.pack;
                   return (
                     <TableRow key={order.id} className="hover:bg-muted/50">
-                      <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
-                        {formatDate(order.dateCreated)}
+                      <TableCell className="text-[12px] text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(order.dateCreated)}
                       </TableCell>
-                      <TableCell className="text-[11px] font-mono text-muted-foreground">
-                        {String(order.mlOrderId)}
+                      <TableCell className="px-1">
+                        {pack?.imageUrl ? (
+                          <div className="shrink-0 h-8 w-8 rounded overflow-hidden border bg-muted">
+                            <Image src={pack.imageUrl} alt={pack.name} width={32} height={32} className="h-full w-full object-cover" unoptimized />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
+                            <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                          </div>
+                        )}
                       </TableCell>
-                      <TableCell className="text-[11.5px] font-mono text-muted-foreground">
-                        {order.mlItemId}
-                      </TableCell>
-                      <TableCell className="text-center num text-[12.5px]">
-                        {order.quantity}
-                      </TableCell>
-                      <TableCell className="text-right num text-[12.5px] font-semibold">
-                        {formatCurrency(Number(order.totalAmount))}
-                      </TableCell>
-                      <TableCell className="text-[11.5px] text-muted-foreground truncate max-w-[100px]">
-                        {order.buyerNickname || "-"}
+                      <TableCell className="max-w-[300px]">
+                        <span className="block truncate text-[12.5px]" title={listing?.title || order.mlItemId}>
+                          {listing?.title || order.mlItemId}
+                        </span>
                       </TableCell>
                       <TableCell>
-                        <span className={config.css}>{config.label}</span>
+                        {pack ? (
+                          <div>
+                            <span className="mono text-[11.5px]">{pack.sku}</span>
+                            {pack.items.length > 0 && (
+                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                                {pack.items.map((item, idx) => {
+                                  const dotClass = (item.productVariant.color && VARIANT_DOT[item.productVariant.color])
+                                    || (item.productVariant.variantLabel && LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
+                                  const label = item.productVariant.variantLabel || (item.productVariant.color || "");
+                                  return (
+                                    <span key={idx} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                      {dotClass && <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotClass}`} title={label} />}
+                                      {item.quantity > 1 && <span>×{item.quantity}</span>}
+                                      {!dotClass && <span>{label}</span>}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-mono text-muted-foreground">{order.mlItemId}</span>
+                        )}
                       </TableCell>
+                      <TableCell className="text-center num text-[12.5px]">{order.quantity}</TableCell>
+                      <TableCell className="text-right num text-[12.5px] font-semibold">{formatCurrency(Number(order.totalAmount))}</TableCell>
+                      <TableCell className="text-[11.5px] text-muted-foreground truncate max-w-[100px]">{order.buyerNickname || "-"}</TableCell>
+                      <TableCell><span className={config.css}>{config.label}</span></TableCell>
                     </TableRow>
                   );
                 })}
@@ -180,18 +233,13 @@ export default async function PedidosPage({
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
           {currentPage > 1 && (
-            <Link href={buildPageUrl(currentPage - 1)} className="filt-input hover:border-muted-foreground">
-              Anterior
-            </Link>
+            <Link href={buildPageUrl(currentPage - 1)} className="filt-input hover:border-muted-foreground">Anterior</Link>
           )}
           {currentPage < totalPages && (
-            <Link href={buildPageUrl(currentPage + 1)} className="filt-input hover:border-muted-foreground">
-              Siguiente
-            </Link>
+            <Link href={buildPageUrl(currentPage + 1)} className="filt-input hover:border-muted-foreground">Siguiente</Link>
           )}
         </div>
       )}
