@@ -21,12 +21,14 @@ interface PackItem {
 interface Sale {
   id: string;
   mpId: string;
+  mlOrderId: string;
   description: string | null;
   amount: number;
   label: string;
   dateCreated: string;
   packId: string | null;
   pack: { id: string; sku: string; name: string; imageUrl: string | null; items: PackItem[] } | null;
+  shippingType: "flex" | "normal" | "unknown";
 }
 
 interface Option { id: string; name: string; sku?: string }
@@ -75,11 +77,13 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
   const [salesSearch, setSalesSearch] = useState("");
   const [salesPackFilter, setSalesPackFilter] = useState("");
+  const [salesShippingFilter, setSalesShippingFilter] = useState("");
   const [salesDateFrom, setSalesDateFrom] = useState("");
   const [salesDateTo, setSalesDateTo] = useState("");
 
   const filteredSales = sales.filter((s) => {
     if (salesPackFilter && s.packId !== salesPackFilter) return false;
+    if (salesShippingFilter && s.shippingType !== salesShippingFilter) return false;
     if (salesDateFrom && s.dateCreated < salesDateFrom) return false;
     if (salesDateTo && s.dateCreated > salesDateTo + "T23:59:59") return false;
     if (salesSearch) {
@@ -253,7 +257,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <div className="relative col-span-2">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -268,6 +272,14 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
               <SelectContent>
                 <SelectItem value="ALL">Todos los packs</SelectItem>
                 {uniquePacks.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={salesShippingFilter} onValueChange={(v) => setSalesShippingFilter(v === "ALL" ? "" : (v || ""))}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Envio" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos</SelectItem>
+                <SelectItem value="flex">Flex</SelectItem>
+                <SelectItem value="normal">Normal (ME2)</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex gap-1">
@@ -314,6 +326,12 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
                         </span>
                         {sale.pack?.sku && (
                           <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{sale.pack.sku}</span>
+                        )}
+                        {sale.shippingType === "flex" && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">FLEX</span>
+                        )}
+                        {sale.shippingType === "normal" && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">ME2</span>
                         )}
                         <span className="text-[11px] text-muted-foreground">
                           {new Date(sale.dateCreated).toLocaleString("es-MX", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { NuevoGastoForm } from "./nuevo-gasto-form";
 
 export default async function NuevoGastoPage() {
-  const [suppliers, products, packs, groups, sales] = await Promise.all([
+  const [suppliers, products, packs, groups, sales, shippingTxs] = await Promise.all([
     prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.product.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.pack.findMany({ select: { id: true, sku: true, name: true }, orderBy: { name: "asc" } }),
@@ -29,18 +29,40 @@ export default async function NuevoGastoPage() {
         },
       },
     }),
+    prisma.mPTransaction.findMany({
+      where: { label: { in: ["flex_cost", "shipping"] } },
+      orderBy: { dateCreated: "desc" },
+      take: 500,
+      select: { mlOrderId: true, label: true },
+    }),
   ]);
 
-  const serializedSales = sales.map((tx) => ({
-    id: tx.id,
-    mpId: tx.mpId.toString(),
-    description: tx.description,
-    amount: Number(tx.amount),
-    label: tx.label,
-    dateCreated: tx.dateCreated.toISOString(),
-    packId: tx.packId,
-    pack: tx.pack,
-  }));
+  const flexOrderIds = new Set(
+    shippingTxs.filter((t) => t.label === "flex_cost" && t.mlOrderId).map((t) => t.mlOrderId!.toString())
+  );
+  const normalOrderIds = new Set(
+    shippingTxs.filter((t) => t.label === "shipping" && t.mlOrderId).map((t) => t.mlOrderId!.toString())
+  );
+
+  const serializedSales = sales.map((tx) => {
+    const orderId = tx.mlOrderId?.toString() || "";
+    let shippingType: "flex" | "normal" | "unknown" = "unknown";
+    if (flexOrderIds.has(orderId)) shippingType = "flex";
+    else if (normalOrderIds.has(orderId)) shippingType = "normal";
+
+    return {
+      id: tx.id,
+      mpId: tx.mpId.toString(),
+      mlOrderId: orderId,
+      description: tx.description,
+      amount: Number(tx.amount),
+      label: tx.label,
+      dateCreated: tx.dateCreated.toISOString(),
+      packId: tx.packId,
+      pack: tx.pack,
+      shippingType,
+    };
+  });
 
   return (
     <div className="space-y-5">
