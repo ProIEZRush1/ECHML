@@ -23,7 +23,7 @@ export async function POST() {
       shippingStatus: { notIn: ["DELIVERED", "RETURNED", "CANCELLED"] },
       shipmentId: { not: null },
     },
-    select: { id: true, mlOrderId: true, shipmentId: true, shippingStatus: true },
+    select: { id: true, mlOrderId: true, shipmentId: true, shippingStatus: true, prepStatus: true },
     orderBy: { dateCreated: "desc" },
     take: 200,
   });
@@ -37,10 +37,11 @@ export async function POST() {
       );
       const newStatus = mapShipmentStatus(shipment.status, shipment.substatus);
       if (newStatus !== order.shippingStatus) {
-        await prisma.mLOrder.update({
-          where: { id: order.id },
-          data: { shippingStatus: newStatus },
-        });
+        const data: { shippingStatus: ShippingStatus; prepStatus?: "SHIPPED" } = { shippingStatus: newStatus };
+        if ((newStatus === "SHIPPED" || newStatus === "DELIVERED") && order.prepStatus !== "SHIPPED") {
+          data.prepStatus = "SHIPPED";
+        }
+        await prisma.mLOrder.update({ where: { id: order.id }, data });
         updated++;
       }
     } catch {

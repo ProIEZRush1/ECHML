@@ -39,6 +39,13 @@ enum ShippingStatus {
   CANCELLED
 }
 
+enum PrepStatus {
+  NEW
+  PREPARING
+  READY
+  SHIPPED
+}
+
 enum UserRole {
   ADMIN
   PARTNER
@@ -268,6 +275,7 @@ model MLOrder {
   totalAmount     Decimal         @db.Decimal(10, 2)
   status          String
   shippingStatus  ShippingStatus  @default(PENDING)
+  prepStatus      PrepStatus      @default(NEW)
   shipmentId      BigInt?
   buyerNickname   String?
   dateCreated     DateTime
@@ -280,6 +288,7 @@ model MLOrder {
   @@index([mlItemId])
   @@index([status])
   @@index([shippingStatus])
+  @@index([prepStatus])
   @@index([dateCreated])
 }
 
