@@ -3,6 +3,7 @@ import { verifyAnyAuth } from "@/lib/api-auth";
 import { syncOrdersFromML } from "@/lib/mp/client";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const session = await verifyAnyAuth(request);

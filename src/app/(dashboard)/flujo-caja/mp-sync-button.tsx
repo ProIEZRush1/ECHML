@@ -14,6 +14,11 @@ export function MPSyncButton() {
 
     try {
       const res = await fetch("/api/mp/sync", { method: "POST" });
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        setResult("Error: timeout del servidor. Intenta de nuevo.");
+        return;
+      }
       const data = await res.json();
 
       if (!res.ok) {
@@ -22,7 +27,6 @@ export function MPSyncButton() {
       }
 
       setResult(data.message);
-      // Reload page to show updated data
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       setResult(`Error de conexion: ${err instanceof Error ? err.message : "desconocido"}`);

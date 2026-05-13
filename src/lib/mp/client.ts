@@ -1,6 +1,5 @@
 import { mlFetch, getMLCredentials } from "@/lib/ml/client";
 import { prisma } from "@/lib/prisma";
-import type { ShippingStatus } from "@prisma/client";
 
 interface MLOrderPayment {
   id: number;
@@ -32,17 +31,6 @@ interface MLOrderResult {
   payments: MLOrderPayment[];
   shipping: { id: number };
   tags: string[];
-}
-
-function mapShipmentStatus(status?: string): ShippingStatus {
-  switch (status) {
-    case "ready_to_ship": return "READY_TO_SHIP";
-    case "shipped": return "SHIPPED";
-    case "delivered": return "DELIVERED";
-    case "not_delivered": return "NOT_DELIVERED";
-    case "cancelled": return "CANCELLED";
-    default: return "PENDING";
-  }
 }
 
 interface MLOrdersSearchResponse {
@@ -196,29 +184,12 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
         });
       }
 
-      // Update MLOrder with shipping status + logistic type + auto prep
+      // Store shipmentId on MLOrder (status sync happens separately via /api/orders/sync-status)
       if (order.shipping?.id) {
-        try {
-          const shipment = await mlFetch<{ status?: string; substatus?: string; logistic_type?: string }>(`/shipments/${order.shipping.id}`);
-          let shippingStatus = mapShipmentStatus(shipment.status);
-          if (shipment.status === "not_delivered" && shipment.substatus === "returned") {
-            shippingStatus = "RETURNED";
-          }
-          const updateData: Record<string, unknown> = {
-            shippingStatus,
-            shipmentId: BigInt(order.shipping.id),
-            logisticType: shipment.logistic_type || null,
-          };
-          if (shippingStatus === "SHIPPED" || shippingStatus === "DELIVERED") {
-            updateData.prepStatus = "SHIPPED";
-          }
-          await prisma.mLOrder.updateMany({
-            where: { mlOrderId: BigInt(order.id) },
-            data: updateData,
-          });
-        } catch {
-          // shipment info not available yet
-        }
+        await prisma.mLOrder.updateMany({
+          where: { mlOrderId: BigInt(order.id) },
+          data: { shipmentId: BigInt(order.shipping.id) },
+        });
       }
 
       synced++;
