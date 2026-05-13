@@ -139,9 +139,9 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_1.5fr]">
-      {/* Left: Form */}
-      <div className="space-y-5">
+    <div className="grid gap-6 xl:grid-cols-2">
+      {/* Form */}
+      <div className="space-y-5 min-w-0">
         <div className="rounded-[9px] border border-border bg-card p-5 space-y-4">
           <h3 className="text-[13px] font-semibold">Datos del Gasto</h3>
 
@@ -239,8 +239,8 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
         </Button>
       </div>
 
-      {/* Right: Sales Picker */}
-      <div className="space-y-3">
+      {/* Sales Picker */}
+      <div className="space-y-3 min-w-0">
         <div className="rounded-[9px] border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-[13px] font-semibold">
@@ -257,8 +257,8 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
           </div>
 
           {/* Filters */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <div className="relative col-span-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative sm:col-span-2 lg:col-span-1">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Buscar producto, SKU, ML ID..."
