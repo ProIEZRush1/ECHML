@@ -29,7 +29,7 @@ const ENUM_DOT: Record<string, string> = {
 export default async function PrepararPage() {
   const orders = await prisma.mLOrder.findMany({
     where: {
-      shippingStatus: { in: ["PENDING", "READY_TO_SHIP"] },
+      shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "SHIPPED"] },
       prepStatus: { in: ["NEW", "PREPARING", "READY"] },
       logisticType: { not: "fulfillment" },
     },

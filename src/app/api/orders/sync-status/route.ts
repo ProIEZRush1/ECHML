@@ -67,7 +67,7 @@ export async function POST() {
         changed = true;
       }
 
-      if ((newStatus === "SHIPPED" || newStatus === "DELIVERED") && order.prepStatus !== "SHIPPED") {
+      if (newStatus === "DELIVERED" && order.prepStatus !== "SHIPPED") {
         data.prepStatus = "SHIPPED";
         changed = true;
       }
@@ -86,5 +86,14 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ checked: orders.length, updated, shipmentsFetched });
+  // Fix: reset prepStatus for orders marked SHIPPED that aren't actually DELIVERED
+  const fixResult = await prisma.mLOrder.updateMany({
+    where: {
+      prepStatus: "SHIPPED",
+      shippingStatus: { notIn: ["DELIVERED", "RETURNED", "CANCELLED"] },
+    },
+    data: { prepStatus: "NEW" },
+  });
+
+  return NextResponse.json({ checked: orders.length, updated, shipmentsFetched, prepFixed: fixResult.count });
 }
