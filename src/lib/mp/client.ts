@@ -196,17 +196,25 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
         });
       }
 
-      // Update MLOrder with shipping status
+      // Update MLOrder with shipping status + logistic type + auto prep
       if (order.shipping?.id) {
         try {
-          const shipment = await mlFetch<{ status?: string; substatus?: string }>(`/shipments/${order.shipping.id}`);
+          const shipment = await mlFetch<{ status?: string; substatus?: string; logistic_type?: string }>(`/shipments/${order.shipping.id}`);
           let shippingStatus = mapShipmentStatus(shipment.status);
           if (shipment.status === "not_delivered" && shipment.substatus === "returned") {
             shippingStatus = "RETURNED";
           }
+          const updateData: Record<string, unknown> = {
+            shippingStatus,
+            shipmentId: BigInt(order.shipping.id),
+            logisticType: shipment.logistic_type || null,
+          };
+          if (shippingStatus === "SHIPPED" || shippingStatus === "DELIVERED") {
+            updateData.prepStatus = "SHIPPED";
+          }
           await prisma.mLOrder.updateMany({
             where: { mlOrderId: BigInt(order.id) },
-            data: { shippingStatus, shipmentId: BigInt(order.shipping.id) },
+            data: updateData,
           });
         } catch {
           // shipment info not available yet

@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PackageCheck } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
 import Image from "next/image";
 import type { PrepStatus } from "@prisma/client";
 import { PrepActions } from "./prep-actions";
+import { SyncStatusButton } from "../pedidos/sync-status-button";
 
 const PREP_CONFIG: Record<PrepStatus, { label: string; css: string }> = {
   NEW: { label: "Nuevo", css: "tx-pill expense" },
@@ -28,8 +29,9 @@ const ENUM_DOT: Record<string, string> = {
 export default async function PrepararPage() {
   const orders = await prisma.mLOrder.findMany({
     where: {
-      shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "SHIPPED"] },
+      shippingStatus: { in: ["PENDING", "READY_TO_SHIP"] },
       prepStatus: { in: ["NEW", "PREPARING", "READY"] },
+      logisticType: { not: "fulfillment" },
     },
     orderBy: { dateCreated: "asc" },
     take: 200,
@@ -97,10 +99,13 @@ export default async function PrepararPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Preparar Envios"
-        description="Ordenes pendientes de empaque y envio"
-      />
+      <div className="flex items-center justify-between">
+        <PageHeader
+          title="Preparar Envios"
+          description="Ordenes pendientes de empaque y envio (excluye Mercado Envios Full)"
+        />
+        <SyncStatusButton />
+      </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -178,7 +183,7 @@ export default async function PrepararPage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Fecha</span>
-                          <span>{formatDate(order.dateCreated)}</span>
+                          <span>{formatDateTime(order.dateCreated)}</span>
                         </div>
                         {order.buyerNickname && (
                           <div className="flex justify-between">

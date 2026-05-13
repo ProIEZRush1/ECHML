@@ -277,6 +277,7 @@ model MLOrder {
   shippingStatus  ShippingStatus  @default(PENDING)
   prepStatus      PrepStatus      @default(NEW)
   shipmentId      BigInt?
+  logisticType    String?
   buyerNickname   String?
   dateCreated     DateTime
   dateClosed      DateTime?
