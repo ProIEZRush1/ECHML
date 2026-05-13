@@ -12,6 +12,7 @@ import {
   History,
   BarChart3,
   ShoppingCart,
+  Truck,
   Settings,
   Key,
   FolderOpen,
@@ -58,6 +59,7 @@ const inventarioSubItems = [
 
 const salesNavItems = [
   { title: "Ventas", href: "/ventas", icon: ShoppingCart },
+  { title: "Pedidos", href: "/pedidos", icon: Truck },
   { title: "Publicaciones ML", href: "/publicaciones", icon: Store },
 ];
 

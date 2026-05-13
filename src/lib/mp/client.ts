@@ -1,5 +1,6 @@
 import { mlFetch, getMLCredentials } from "@/lib/ml/client";
 import { prisma } from "@/lib/prisma";
+import type { ShippingStatus } from "@prisma/client";
 
 interface MLOrderPayment {
   id: number;
@@ -31,6 +32,17 @@ interface MLOrderResult {
   payments: MLOrderPayment[];
   shipping: { id: number };
   tags: string[];
+}
+
+function mapShipmentStatus(status?: string): ShippingStatus {
+  switch (status) {
+    case "ready_to_ship": return "READY_TO_SHIP";
+    case "shipped": return "SHIPPED";
+    case "delivered": return "DELIVERED";
+    case "not_delivered": return "NOT_DELIVERED";
+    case "cancelled": return "CANCELLED";
+    default: return "PENDING";
+  }
 }
 
 interface MLOrdersSearchResponse {
@@ -182,6 +194,23 @@ export async function syncOrdersFromML(): Promise<SyncResult> {
             syncedAt: new Date(),
           },
         });
+      }
+
+      // Update MLOrder with shipping status
+      if (order.shipping?.id) {
+        try {
+          const shipment = await mlFetch<{ status?: string; substatus?: string }>(`/shipments/${order.shipping.id}`);
+          let shippingStatus = mapShipmentStatus(shipment.status);
+          if (shipment.status === "not_delivered" && shipment.substatus === "returned") {
+            shippingStatus = "RETURNED";
+          }
+          await prisma.mLOrder.updateMany({
+            where: { mlOrderId: BigInt(order.id) },
+            data: { shippingStatus, shipmentId: BigInt(order.shipping.id) },
+          });
+        } catch {
+          // shipment info not available yet
+        }
       }
 
       synced++;

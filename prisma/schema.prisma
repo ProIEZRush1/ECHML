@@ -29,6 +29,16 @@ enum MLListingStatus {
   UNDER_REVIEW
 }
 
+enum ShippingStatus {
+  PENDING
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  NOT_DELIVERED
+  RETURNED
+  CANCELLED
+}
+
 enum UserRole {
   ADMIN
   PARTNER
@@ -250,23 +260,26 @@ model WebhookLog {
 }
 
 model MLOrder {
-  id            String    @id @default(cuid())
-  mlOrderId     BigInt    @unique
-  mlItemId      String
-  quantity      Int
-  unitPrice     Decimal   @db.Decimal(10, 2)
-  totalAmount   Decimal   @db.Decimal(10, 2)
-  status        String
-  buyerNickname String?
-  dateCreated   DateTime
-  dateClosed    DateTime?
-  processedAt   DateTime?
-  rawPayload    Json?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id              String          @id @default(cuid())
+  mlOrderId       BigInt          @unique
+  mlItemId        String
+  quantity        Int
+  unitPrice       Decimal         @db.Decimal(10, 2)
+  totalAmount     Decimal         @db.Decimal(10, 2)
+  status          String
+  shippingStatus  ShippingStatus  @default(PENDING)
+  shipmentId      BigInt?
+  buyerNickname   String?
+  dateCreated     DateTime
+  dateClosed      DateTime?
+  processedAt     DateTime?
+  rawPayload      Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([mlItemId])
   @@index([status])
+  @@index([shippingStatus])
   @@index([dateCreated])
 }
 

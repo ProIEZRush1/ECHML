@@ -278,6 +278,13 @@ export default async function FlujoCajaPage({
     }
   }
 
+  // Find returned/cancelled order IDs to exclude from KPIs
+  const returnedOrders = await prisma.mLOrder.findMany({
+    where: { shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] } },
+    select: { mlOrderId: true },
+  });
+  const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
+
   // Aggregate KPIs with same filters (no pagination)
   const allFilteredTransactions = await prisma.mPTransaction.findMany({
     where,
@@ -287,6 +294,7 @@ export default async function FlujoCajaPage({
       type: true,
       packId: true,
       quantity: true,
+      mlOrderId: true,
     },
   });
 
@@ -309,7 +317,12 @@ export default async function FlujoCajaPage({
   let totalUnits = 0;
   const salesPerPack = new Map<string, number>();
 
+  let totalReturns = 0;
   for (const tx of allFilteredTransactions) {
+    if (tx.mlOrderId && returnedOrderIds.has(tx.mlOrderId)) {
+      if (tx.label === "sale") totalReturns += Number(tx.amount);
+      continue;
+    }
     const amount = Number(tx.amount);
     if (tx.label === "sale") {
       totalIncome += amount;
