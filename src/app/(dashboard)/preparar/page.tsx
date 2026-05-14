@@ -99,7 +99,7 @@ export default async function PrepararPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <PageHeader
           title="Preparar Envios"
           description="Ordenes pendientes de empaque y envio (excluye Mercado Envios Full)"

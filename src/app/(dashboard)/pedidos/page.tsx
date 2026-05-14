@@ -110,7 +110,7 @@ export default async function PedidosPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <PageHeader title="Pedidos" description="Estado de envio y devoluciones" />
         <SyncStatusButton />
       </div>
@@ -136,7 +136,7 @@ export default async function PedidosPage({
       </div>
 
       {/* Status filter tabs */}
-      <div className="filt-bar">
+      <div className="filt-bar overflow-x-auto">
         <span className="lbl">Estado</span>
         {FILTER_TABS.map((tab) => (
           <Link

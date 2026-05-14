@@ -497,7 +497,7 @@ export default async function FlujoCajaPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <PageHeader
           title="Flujo de Caja"
           description="Balance y movimientos financieros"
@@ -775,7 +775,7 @@ export default async function FlujoCajaPage({
       {/* Transaction Table */}
       <div className="rounded-[9px] border border-border bg-card overflow-hidden">
         {/* Table header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2 text-[13px] font-semibold">
             <Activity className="h-4 w-4" />
             Movimientos

@@ -148,7 +148,7 @@ export default async function PublicacionesPage({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <PageHeader
           title="Publicaciones MercadoLibre"
           description="Gestion de publicaciones vinculadas a packs"

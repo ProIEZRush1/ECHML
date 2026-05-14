@@ -141,7 +141,7 @@ export default async function VentasPage({
 
       {/* Pack filter pills */}
       {allPacks.length > 0 && (
-        <div className="filt-bar">
+        <div className="filt-bar overflow-x-auto">
           <span className="lbl">Pack</span>
           <Link
             href="/ventas"
