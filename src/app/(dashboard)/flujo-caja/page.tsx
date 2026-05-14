@@ -116,8 +116,9 @@ export default async function FlujoCajaPage({
 
   let productFilteredPackIds: string[] | null = null;
   let filteredProductName: string | null = null;
+  let filteredGroupIds: string[] = [];
   if (productIdList.length > 0) {
-    const [packItems, product] = await Promise.all([
+    const [packItems, product, groupItems] = await Promise.all([
       prisma.packItem.findMany({
         where: { productVariant: { productId: { in: productIdList } } },
         select: { packId: true },
@@ -126,8 +127,13 @@ export default async function FlujoCajaPage({
         where: { id: { in: productIdList } },
         select: { name: true, brand: true },
       }),
+      prisma.productGroupItem.findMany({
+        where: { productId: { in: productIdList } },
+        select: { productGroupId: true },
+      }),
     ]);
     productFilteredPackIds = [...new Set(packItems.map((pi) => pi.packId))];
+    filteredGroupIds = [...new Set(groupItems.map((g) => g.productGroupId))];
     filteredProductName = product
       ? `${product.name}${product.brand ? ` (${product.brand})` : ""}`
       : null;
@@ -231,6 +237,7 @@ export default async function FlujoCajaPage({
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
         },
+        ...(filteredGroupIds.length > 0 ? { productGroupId: { in: filteredGroupIds } } : {}),
       },
       _sum: { amount: true },
     }),
@@ -650,8 +657,8 @@ export default async function FlujoCajaPage({
 
         <UtilidadNetaCard serverNet={totalNet} />
 
-        {/* Dinero a Retirar — only when not filtering by pack/product */}
-        {!hasPackFilter && !hasProductFilter && (
+        {/* Dinero a Retirar — shows when no pack filter, or when product has group withdrawals */}
+        {(!hasPackFilter || filteredGroupIds.length > 0) && (
           <div className="rounded-[9px] border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>

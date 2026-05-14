@@ -294,21 +294,24 @@ model MLOrder {
 }
 
 model Withdrawal {
-  id        String   @id @default(cuid())
-  amount    Decimal  @db.Decimal(10, 2)
-  date      DateTime
-  concept   String
-  method    String   @default("bank")
-  reference String?
-  notes     String?
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  amount          Decimal  @db.Decimal(10, 2)
+  date            DateTime
+  concept         String
+  method          String   @default("bank")
+  reference       String?
+  notes           String?
+  userId          String
+  productGroupId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  user        User                  @relation(fields: [userId], references: [id])
-  allocations WithdrawalAllocation[]
+  user         User                  @relation(fields: [userId], references: [id])
+  productGroup ProductGroup?         @relation(fields: [productGroupId], references: [id])
+  allocations  WithdrawalAllocation[]
 
   @@index([date])
+  @@index([productGroupId])
 }
 
 model WithdrawalAllocation {
@@ -383,8 +386,9 @@ model ProductGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items    ProductGroupItem[]
-  expenses Expense[]
+  items       ProductGroupItem[]
+  expenses    Expense[]
+  withdrawals Withdrawal[]
 }
 
 model ProductGroupItem {
