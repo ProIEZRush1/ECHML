@@ -172,7 +172,7 @@ export default async function FlujoCajaPage({
   }
 
   // Fetch filtered data
-  const [mpTransactions, totalCount, allPacks, packsWithCosts, filteredExpenses] = await Promise.all([
+  const [mpTransactions, totalCount, allPacks, packsWithCosts, filteredExpenses, withdrawals] = await Promise.all([
     prisma.mPTransaction.findMany({
       where,
       orderBy: { dateCreated: "desc" },
@@ -224,6 +224,15 @@ export default async function FlujoCajaPage({
         },
       },
       select: { id: true, amount: true, date: true, concept: true, category: true, transactionIds: true, packId: true, productId: true },
+    }),
+    prisma.withdrawal.aggregate({
+      where: {
+        date: {
+          gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
+          ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
+        },
+      },
+      _sum: { amount: true },
     }),
   ]);
 
@@ -356,6 +365,8 @@ export default async function FlujoCajaPage({
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
+  const totalWithdrawn = Number(withdrawals._sum.amount ?? 0);
+  const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
 
   // Calculate balance per pack -- apply same pack filter as KPI cards
   const packWhere: {
@@ -608,6 +619,20 @@ export default async function FlujoCajaPage({
         )}
 
         <UtilidadNetaCard serverNet={totalNet} />
+
+        {/* Dinero a Retirar */}
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
+            <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />
+          </div>
+          <p className={`text-xl font-bold num truncate ${availableToWithdraw >= 0 ? "margin-good" : "margin-bad"}`}>
+            {formatCurrency(availableToWithdraw)}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Sin costo producto · Retirado: {formatCurrency(totalWithdrawn)}
+          </p>
+        </div>
       </div>
 
       {/* Ads Cost */}
