@@ -168,6 +168,7 @@ export default async function PedidosPage({
                   <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
                   <TableHead className="w-[50px] text-center text-[11px] uppercase tracking-wider">Cant</TableHead>
                   <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
+                  <TableHead className="w-[60px] text-[11px] uppercase tracking-wider">Envio</TableHead>
                   <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Comprador</TableHead>
                   <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Estado</TableHead>
                 </TableRow>
@@ -225,6 +226,17 @@ export default async function PedidosPage({
                       </TableCell>
                       <TableCell className="text-center num text-[12.5px]">{order.quantity}</TableCell>
                       <TableCell className="text-right num text-[12.5px] font-semibold">{formatCurrency(Number(order.totalAmount))}</TableCell>
+                      <TableCell>
+                        {order.logisticType === "fulfillment" ? (
+                          <span className="tx-pill sale text-[10px]">FULL</span>
+                        ) : order.logisticType === "self_service" ? (
+                          <span className="tx-pill flex text-[10px]">FLEX</span>
+                        ) : order.logisticType === "xd_drop_off" ? (
+                          <span className="tx-pill shipping text-[10px]">ME2</span>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">{order.logisticType || "-"}</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-[11.5px] text-muted-foreground truncate max-w-[100px]">{order.buyerNickname || "-"}</TableCell>
                       <TableCell><span className={config.css}>{config.label}</span></TableCell>
                     </TableRow>

@@ -358,6 +358,17 @@ export default async function FlujoCajaPage({
     totalProductCost += costPerUnit * count;
   }
 
+  // Calculate product cost for returned orders using MPTransaction packId
+  let returnedProductCost = 0;
+  for (const ro of returnedOrders) {
+    if (ro.shippingStatus === "CANCELLED") continue;
+    const roTx = allFilteredTransactions.find((t) => t.mlOrderId === ro.mlOrderId && t.label === "sale");
+    if (roTx?.packId) {
+      const costPerUnit = packCostMap.get(roTx.packId) || 0;
+      returnedProductCost += costPerUnit * ro.quantity;
+    }
+  }
+
   // Tax calculation (Mexico RESICO regime)
   const totalBase = totalIncome / 1.16;
   const totalRetencionIVA = totalBase * 0.08;
@@ -617,6 +628,22 @@ export default async function FlujoCajaPage({
             <p className="text-[11px] text-muted-foreground mt-1">
               {flexCount} envio{flexCount !== 1 ? "s" : ""} · Costo {formatCurrency(totalFlexCost)}
               {totalFlexBonificacion > 0 && ` · Bonif +${formatCurrency(totalFlexBonificacion)}`}
+            </p>
+          </div>
+        )}
+
+        {/* Devoluciones */}
+        {returnedCount > 0 && (
+          <div className="rounded-[9px] border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Devoluciones</p>
+              <span className="sw" style={{ background: "oklch(0.55 0.22 25)" }} />
+            </div>
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalReturns + returnedProductCost)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              {returnedCount} devolucion{returnedCount !== 1 ? "es" : ""} · Ventas perdidas {formatCurrency(totalReturns)}
+              {returnedProductCost > 0 && ` · Costo producto ${formatCurrency(returnedProductCost)}`}
+              {returnedFromFull > 0 && ` · ${returnedFromFull} desde FULL`}
             </p>
           </div>
         )}

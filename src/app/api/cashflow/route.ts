@@ -81,6 +81,37 @@ export async function GET(request: NextRequest) {
 
     const hasMPData = mpTransactions.length > 0;
 
+    // Calculate devoluciones impact
+    const returnedOrders = await prisma.mLOrder.findMany({
+      where: { shippingStatus: { in: ["RETURNED", "NOT_DELIVERED"] } },
+      select: {
+        mlOrderId: true,
+        mlItemId: true,
+        totalAmount: true,
+        quantity: true,
+        logisticType: true,
+        shippingStatus: true,
+      },
+    });
+
+    let devolucionesCount = returnedOrders.length;
+    let devolucionesAmount = 0;
+    let devolucionesProductCost = 0;
+
+    for (const ro of returnedOrders) {
+      devolucionesAmount += decimalToNumber(ro.totalAmount);
+      const listing = listings.find((l) => l.mlItemId === ro.mlItemId);
+      if (listing?.pack) {
+        const packItems = await prisma.packItem.findMany({
+          where: { packId: listing.pack.id },
+          include: { productVariant: { include: { product: true } } },
+        });
+        for (const pi of packItems) {
+          devolucionesProductCost += decimalToNumber(pi.productVariant.product.unitCost) * pi.quantity * ro.quantity;
+        }
+      }
+    }
+
     // Build mlItemId -> Pack mapping
     const itemToPackMap = new Map<string, { id: string; sku: string; name: string }>();
     for (const listing of listings) {
@@ -250,6 +281,9 @@ export async function GET(request: NextRequest) {
         mpBalance: Math.round(mpBalance * 100) / 100,
         unallocatedWithdrawals: Math.round(unallocatedWithdrawals * 100) / 100,
         hasMPData,
+        devolucionesCount,
+        devolucionesAmount: Math.round(devolucionesAmount * 100) / 100,
+        devolucionesProductCost: Math.round(devolucionesProductCost * 100) / 100,
       },
       byPack,
       recentTransactions: last20,
