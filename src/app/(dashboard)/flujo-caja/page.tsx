@@ -524,7 +524,7 @@ export default async function FlujoCajaPage({
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {/* Ingresos */}
         <div className="rounded-[9px] border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-2">

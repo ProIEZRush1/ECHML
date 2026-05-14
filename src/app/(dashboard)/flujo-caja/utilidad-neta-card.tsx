@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Wallet, Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 interface UtilidadNetaCardProps {
   serverNet: number;
+}
+
+function fmt(n: number) {
+  return `$${n.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export function UtilidadNetaCard({ serverNet }: UtilidadNetaCardProps) {
@@ -33,36 +35,33 @@ export function UtilidadNetaCard({ serverNet }: UtilidadNetaCardProps) {
       .catch(() => setAdsCost(0));
   }, [dateFrom, dateTo, productIds, packIds]);
 
-  const totalNet = adsCost !== null ? serverNet - adsCost : serverNet;
   const loading = adsCost === null;
+  const totalNet = loading ? null : serverNet - adsCost;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          Utilidad Neta
-        </CardTitle>
-        <div className="rounded-md p-2 bg-blue-100 dark:bg-blue-900/30">
-          {loading ? (
-            <Loader2 className="h-4 w-4 text-blue-600 dark:text-blue-400 animate-spin" />
-          ) : (
-            <Wallet className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          )}
+    <div className="rounded-[9px] border border-border bg-card p-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Utilidad Neta</p>
+        <span className="sw" style={{ background: "oklch(0.55 0.14 250)" }} />
+      </div>
+      {loading ? (
+        <div className="flex items-center gap-2 h-7">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">Calculando...</span>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className={`text-xl font-bold truncate ${totalNet >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400"}`}>
-          {formatCurrency(totalNet)}
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Todo: comisiones, envios, impuestos, costo, gastos, ads, flex
+      ) : (
+        <p className={`text-xl font-bold num truncate ${totalNet! >= 0 ? "margin-good" : "margin-bad"}`}>
+          {fmt(totalNet!)}
         </p>
-        {adsCost !== null && adsCost > 0 && (
-          <p className="text-xs text-pink-600 dark:text-pink-400 mt-0.5">
-            Incluye {formatCurrency(adsCost)} en publicidad
-          </p>
-        )}
-      </CardContent>
-    </Card>
+      )}
+      <p className="text-[11px] text-muted-foreground mt-1">
+        Todo: comisiones, envios, impuestos, costo, gastos, ads, flex
+      </p>
+      {adsCost !== null && adsCost > 0 && (
+        <p className="text-[11px] text-pink-600 dark:text-pink-400 mt-0.5">
+          Incluye {fmt(adsCost)} en publicidad
+        </p>
+      )}
+    </div>
   );
 }
