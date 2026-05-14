@@ -21,6 +21,7 @@ import { FlexCostEditor } from "./flex-cost-editor";
 import { CashflowFilters } from "./cashflow-filters";
 import { AdsCostCard } from "./ads-cost-card";
 import { UtilidadNetaCard } from "./utilidad-neta-card";
+import { DineroRetirarCard } from "./dinero-retirar-card";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -669,20 +670,9 @@ export default async function FlujoCajaPage({
 
         <UtilidadNetaCard serverNet={totalNet} />
 
-        {/* Dinero a Retirar — shows when no pack filter, or when product has group withdrawals */}
+        {/* Dinero a Retirar — subtracts ads cost client-side */}
         {(!hasPackFilter || filteredGroupIds.length > 0) && (
-          <div className="rounded-[9px] border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
-              <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />
-            </div>
-            <p className={`text-xl font-bold num truncate ${availableToWithdraw >= 0 ? "margin-good" : "margin-bad"}`}>
-              {formatCurrency(availableToWithdraw)}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Sin costo producto · Retirado: {formatCurrency(totalWithdrawn)}
-            </p>
-          </div>
+          <DineroRetirarCard serverAmount={availableToWithdraw} totalWithdrawn={totalWithdrawn} />
         )}
       </div>
 
