@@ -228,13 +228,13 @@ export default async function PedidosPage({
                       <TableCell className="text-right num text-[12.5px] font-semibold">{formatCurrency(Number(order.totalAmount))}</TableCell>
                       <TableCell>
                         {order.logisticType === "fulfillment" ? (
-                          <span className="tx-pill sale text-[10px]">FULL</span>
+                          <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400">FULL</span>
                         ) : order.logisticType === "self_service" ? (
-                          <span className="tx-pill flex text-[10px]">FLEX</span>
+                          <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">FLEX</span>
                         ) : order.logisticType === "xd_drop_off" ? (
-                          <span className="tx-pill shipping text-[10px]">ME2</span>
+                          <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">ME2</span>
                         ) : (
-                          <span className="text-[10px] text-muted-foreground">{order.logisticType || "-"}</span>
+                          <span className="text-[10px] text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-[11.5px] text-muted-foreground truncate max-w-[100px]">{order.buyerNickname || "-"}</TableCell>

@@ -301,8 +301,6 @@ export default async function FlujoCajaPage({
   });
   const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
 
-  const returnedCount = returnedOrders.filter((o) => o.shippingStatus !== "CANCELLED").length;
-  const returnedFromFull = returnedOrders.filter((o) => o.logisticType === "fulfillment").length;
 
   // Aggregate KPIs with same filters (no pagination)
   const allFilteredTransactions = await prisma.mPTransaction.findMany({
@@ -337,9 +335,23 @@ export default async function FlujoCajaPage({
   const salesPerPack = new Map<string, number>();
 
   let totalReturns = 0;
+  let filteredReturnCount = 0;
+  let filteredReturnFromFull = 0;
+  const countedReturnOrderIds = new Set<bigint>();
   for (const tx of allFilteredTransactions) {
     if (tx.mlOrderId && returnedOrderIds.has(tx.mlOrderId)) {
-      if (tx.label === "sale") totalReturns += Number(tx.amount);
+      if (tx.label === "sale") {
+        totalReturns += Number(tx.amount);
+        // Count unique returned orders (not cancelled) that appear in filtered transactions
+        if (!countedReturnOrderIds.has(tx.mlOrderId)) {
+          countedReturnOrderIds.add(tx.mlOrderId);
+          const ro = returnedOrders.find((o) => o.mlOrderId === tx.mlOrderId);
+          if (ro && ro.shippingStatus !== "CANCELLED") {
+            filteredReturnCount++;
+            if (ro.logisticType === "fulfillment") filteredReturnFromFull++;
+          }
+        }
+      }
       continue;
     }
     const amount = Number(tx.amount);
@@ -640,7 +652,7 @@ export default async function FlujoCajaPage({
         )}
 
         {/* Devoluciones */}
-        {returnedCount > 0 && (
+        {filteredReturnCount > 0 && (
           <div className="rounded-[9px] border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Devoluciones</p>
@@ -648,9 +660,9 @@ export default async function FlujoCajaPage({
             </div>
             <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalReturns + returnedProductCost)}</p>
             <p className="text-[11px] text-muted-foreground mt-1">
-              {returnedCount} devolucion{returnedCount !== 1 ? "es" : ""} · Ventas perdidas {formatCurrency(totalReturns)}
+              {filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""} · Ventas perdidas {formatCurrency(totalReturns)}
               {returnedProductCost > 0 && ` · Costo producto ${formatCurrency(returnedProductCost)}`}
-              {returnedFromFull > 0 && ` · ${returnedFromFull} desde FULL`}
+              {filteredReturnFromFull > 0 && ` · ${filteredReturnFromFull} desde FULL`}
             </p>
           </div>
         )}
