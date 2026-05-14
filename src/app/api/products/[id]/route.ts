@@ -155,6 +155,7 @@ export async function DELETE(
   const isVariantDelete = request.nextUrl.searchParams.get("variant") === "true";
   if (isVariantDelete) {
     await prisma.packItem.deleteMany({ where: { productVariantId: id } });
+    await prisma.stockLog.deleteMany({ where: { productVariantId: id } });
     await prisma.stockEntryItem.deleteMany({ where: { productVariantId: id } });
     await prisma.productVariant.delete({ where: { id } });
     return NextResponse.json({ deleted: id, type: "variant" });
