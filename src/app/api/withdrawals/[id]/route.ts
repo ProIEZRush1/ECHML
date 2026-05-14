@@ -19,6 +19,7 @@ const updateWithdrawalSchema = z.object({
   method: z.string().optional(),
   reference: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  productGroupId: z.string().nullable().optional(),
   allocations: z.array(allocationSchema).optional(),
 });
 
@@ -138,6 +139,7 @@ export async function PUT(
       if (fields.method !== undefined) updateData.method = fields.method;
       if (fields.reference !== undefined) updateData.reference = fields.reference;
       if (fields.notes !== undefined) updateData.notes = fields.notes;
+      if (fields.productGroupId !== undefined) updateData.productGroupId = fields.productGroupId || null;
 
       return tx.withdrawal.update({
         where: { id },
@@ -150,6 +152,7 @@ export async function PUT(
             },
           },
           user: { select: { id: true, name: true } },
+          productGroup: { select: { id: true, name: true } },
         },
       });
     });
