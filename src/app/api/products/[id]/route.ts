@@ -152,6 +152,14 @@ export async function DELETE(
 
   const { id } = await params;
 
+  const isVariantDelete = request.nextUrl.searchParams.get("variant") === "true";
+  if (isVariantDelete) {
+    await prisma.packItem.deleteMany({ where: { productVariantId: id } });
+    await prisma.stockEntryItem.deleteMany({ where: { productVariantId: id } });
+    await prisma.productVariant.delete({ where: { id } });
+    return NextResponse.json({ deleted: id, type: "variant" });
+  }
+
   const product = await prisma.product.findUnique({
     where: { id },
     include: {
