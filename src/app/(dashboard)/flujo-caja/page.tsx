@@ -290,9 +290,12 @@ export default async function FlujoCajaPage({
   // Find returned/cancelled order IDs to exclude from KPIs
   const returnedOrders = await prisma.mLOrder.findMany({
     where: { shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] } },
-    select: { mlOrderId: true },
+    select: { mlOrderId: true, mlItemId: true, quantity: true, logisticType: true, shippingStatus: true },
   });
   const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
+
+  const returnedCount = returnedOrders.filter((o) => o.shippingStatus !== "CANCELLED").length;
+  const returnedFromFull = returnedOrders.filter((o) => o.logisticType === "fulfillment").length;
 
   // Aggregate KPIs with same filters (no pagination)
   const allFilteredTransactions = await prisma.mPTransaction.findMany({
@@ -620,19 +623,21 @@ export default async function FlujoCajaPage({
 
         <UtilidadNetaCard serverNet={totalNet} />
 
-        {/* Dinero a Retirar */}
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
-            <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />
+        {/* Dinero a Retirar — only when not filtering by pack/product */}
+        {!hasPackFilter && !hasProductFilter && (
+          <div className="rounded-[9px] border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
+              <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />
+            </div>
+            <p className={`text-xl font-bold num truncate ${availableToWithdraw >= 0 ? "margin-good" : "margin-bad"}`}>
+              {formatCurrency(availableToWithdraw)}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Sin costo producto · Retirado: {formatCurrency(totalWithdrawn)}
+            </p>
           </div>
-          <p className={`text-xl font-bold num truncate ${availableToWithdraw >= 0 ? "margin-good" : "margin-bad"}`}>
-            {formatCurrency(availableToWithdraw)}
-          </p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Sin costo producto · Retirado: {formatCurrency(totalWithdrawn)}
-          </p>
-        </div>
+        )}
       </div>
 
       {/* Ads Cost */}
