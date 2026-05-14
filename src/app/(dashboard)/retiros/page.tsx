@@ -15,6 +15,7 @@ import { ArrowDownToLine } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { WithdrawalCreateButton } from "@/components/withdrawals/withdrawal-create-button";
 import { WithdrawalDeleteButton } from "@/components/withdrawals/withdrawal-delete-button";
+import { WithdrawalGroupSelect } from "./withdrawal-group-select";
 
 const METHOD_CSS: Record<string, string> = {
   bank: "tx-pill withdraw",
@@ -29,16 +30,23 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 export default async function RetirosPage() {
-  const withdrawals = await prisma.withdrawal.findMany({
-    include: {
-      allocations: {
-        include: {
-          pack: { select: { sku: true, name: true } },
+  const [withdrawals, groups] = await Promise.all([
+    prisma.withdrawal.findMany({
+      include: {
+        allocations: {
+          include: {
+            pack: { select: { sku: true, name: true } },
+          },
         },
+        productGroup: { select: { id: true, name: true, color: true } },
       },
-    },
-    orderBy: { date: "desc" },
-  });
+      orderBy: { date: "desc" },
+    }),
+    prisma.productGroup.findMany({
+      select: { id: true, name: true, color: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -93,22 +101,41 @@ export default async function RetirosPage() {
                         {METHOD_LABELS[withdrawal.method] || withdrawal.method}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      {allocationSummary.length > 0 ? (
+                    <TableCell className="max-w-[250px]">
+                      {withdrawal.productGroup ? (
+                        <span
+                          className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: `${withdrawal.productGroup.color}20`, color: withdrawal.productGroup.color }}
+                        >
+                          <span className="h-2 w-2 rounded-full" style={{ background: withdrawal.productGroup.color }} />
+                          {withdrawal.productGroup.name}
+                        </span>
+                      ) : allocationSummary.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {allocationSummary.map((s, i) => (
                             <span key={i} className="filt-input text-[10.5px]">{s}</span>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-[11.5px] text-muted-foreground">Sin asignar</span>
+                        <WithdrawalGroupSelect
+                          withdrawalId={withdrawal.id}
+                          currentGroupId={null}
+                          groups={groups}
+                        />
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <WithdrawalDeleteButton
-                        withdrawalId={withdrawal.id}
-                        withdrawalConcept={withdrawal.concept}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <WithdrawalGroupSelect
+                          withdrawalId={withdrawal.id}
+                          currentGroupId={withdrawal.productGroup?.id || null}
+                          groups={groups}
+                        />
+                        <WithdrawalDeleteButton
+                          withdrawalId={withdrawal.id}
+                          withdrawalConcept={withdrawal.concept}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
