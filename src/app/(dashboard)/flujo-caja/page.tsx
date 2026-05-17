@@ -223,13 +223,13 @@ export default async function FlujoCajaPage({
     }),
     prisma.expense.findMany({
       where: {
-        type: "gasto",
+        type: { in: ["gasto", "compra"] },
         date: {
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
         },
       },
-      select: { id: true, amount: true, date: true, concept: true, category: true, transactionIds: true, packId: true, productId: true },
+      select: { id: true, amount: true, date: true, concept: true, category: true, type: true, transactionIds: true, packId: true, productId: true },
     }),
     prisma.withdrawal.aggregate({
       where: {
@@ -394,7 +394,9 @@ export default async function FlujoCajaPage({
   const totalRetencionISR = totalBase * 0.025;
   const totalImpuestos = totalRetencionIVA + totalRetencionISR;
 
-  const totalGastos = relevantExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalGastosOperativos = relevantExpenses.filter((e) => (e as { type?: string }).type !== "compra").reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalCompras = relevantExpenses.filter((e) => (e as { type?: string }).type === "compra").reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalGastos = totalGastosOperativos + totalCompras;
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
@@ -624,15 +626,27 @@ export default async function FlujoCajaPage({
           </div>
         )}
 
-        {/* Gastos */}
-        {totalGastos > 0 && (
+        {/* Gastos Operativos */}
+        {totalGastosOperativos > 0 && (
           <div className="rounded-[9px] border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Gastos</p>
               <span className="sw" style={{ background: "oklch(0.50 0.04 60)" }} />
             </div>
-            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalGastos)}</p>
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalGastosOperativos)}</p>
             <p className="text-[11px] text-muted-foreground mt-1">Gastos operativos del periodo</p>
+          </div>
+        )}
+
+        {/* Compra Producto */}
+        {totalCompras > 0 && (
+          <div className="rounded-[9px] border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Compra Producto</p>
+              <span className="sw" style={{ background: "oklch(0.55 0.18 30)" }} />
+            </div>
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalCompras)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Compra de inventario / mercancia</p>
           </div>
         )}
 
