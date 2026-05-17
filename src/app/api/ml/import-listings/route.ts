@@ -128,14 +128,15 @@ function classifyListing(item: MLItemData): ProductGroupInfo {
     };
   }
 
-  // Playeras (Bluemango brand) — all playera/oversize listings are same product
+  // Playeras (Bluemango brand) — manually managed product (prod-playera-bm)
+  // Skip auto-product/variant creation; pack items are configured manually
   if (t.includes("playera") || t.includes("playeras")) {
     return {
       groupKey: "bluemango-playera",
       productName: "Playera Bluemango",
       variantLabel,
       brand: "Bluemango",
-      skip: false,
+      skip: true,
     };
   }
 
@@ -278,6 +279,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         where: { productId: prod.id },
       });
       await prisma.product.delete({ where: { id: prod.id } });
+    }
+
+    // Clean up junk variants on manually-managed products (e.g., "Blanco" without size on Playera Bluemango)
+    const manualPlayera = await prisma.product.findUnique({
+      where: { id: "prod-playera-bm" },
+      include: { variants: true },
+    });
+    if (manualPlayera) {
+      const junkVariants = manualPlayera.variants.filter(
+        (v) => !v.id.startsWith("pv-play-")
+      );
+      for (const junk of junkVariants) {
+        await prisma.packItem.deleteMany({ where: { productVariantId: junk.id } });
+        await prisma.stockLog.deleteMany({ where: { productVariantId: junk.id } });
+        await prisma.stockEntryItem.deleteMany({ where: { productVariantId: junk.id } });
+        await prisma.productVariant.delete({ where: { id: junk.id } });
+      }
     }
 
     // Cache for product lookups by groupKey to avoid repeated queries
@@ -433,12 +451,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           variantId = variant.id;
           cachedProduct.variants.set(variantKey, variantId);
           variantsCreated++;
-        } else {
-          // Accumulate stock from additional listings for the same variant
-          await prisma.productVariant.update({
-            where: { id: variantId },
-            data: { stock: { increment: item.available_quantity || 0 } },
-          });
         }
 
         const existingPackItem = await prisma.packItem.findUnique({
