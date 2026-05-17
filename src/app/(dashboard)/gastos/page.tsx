@@ -15,6 +15,7 @@ import { Receipt } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExpenseCreateButton } from "@/components/expenses/expense-create-button";
 import { ExpenseDeleteButton } from "@/components/expenses/expense-delete-button";
+import { ExpenseEditButton } from "@/components/expenses/expense-edit-button";
 
 const CATEGORY_CSS: Record<string, { label: string; cls: string }> = {
   proveedor: { label: "Proveedor", cls: "tx-pill fee" },
@@ -94,10 +95,22 @@ export default async function GastosPage() {
                       {expense.product?.name || expense.pack?.name || expense.productGroup?.name || expense.supplier?.name || "-"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <ExpenseDeleteButton
-                        expenseId={expense.id}
-                        expenseConcept={expense.concept}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        <ExpenseEditButton
+                          expense={{
+                            id: expense.id,
+                            type: expense.type,
+                            amount: Number(expense.amount),
+                            date: expense.date.toISOString(),
+                            category: expense.category,
+                            concept: expense.concept,
+                          }}
+                        />
+                        <ExpenseDeleteButton
+                          expenseId={expense.id}
+                          expenseConcept={expense.concept}
+                        />
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
