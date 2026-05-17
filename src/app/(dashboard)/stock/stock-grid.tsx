@@ -1,8 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Package, Layers, Box, AlertTriangle, Search, X } from "lucide-react";
+import { Package, Layers, Box, AlertTriangle, Search, X, Plus, Minus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { StockProduct } from "./page";
 
 interface StockGroup {
@@ -48,6 +55,7 @@ export function StockGrid({
   totalUnits,
   lowStockAlerts,
 }: StockGridProps) {
+  const router = useRouter();
   const [activeBrand, setActiveBrand] = useState<string>("all");
   const [activeGroupIds, setActiveGroupIds] = useState<Set<string>>(new Set());
   const [selectedPackIds, setSelectedPackIds] = useState<string[]>([]);
@@ -55,6 +63,45 @@ export function StockGrid({
   const [packSearch, setPackSearch] = useState("");
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "stock" | "brand">("name");
+
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustVariant, setAdjustVariant] = useState<{ id: string; label: string; stock: number; productName: string } | null>(null);
+  const [adjustDelta, setAdjustDelta] = useState(0);
+  const [adjustReason, setAdjustReason] = useState("");
+  const [adjustSaving, setAdjustSaving] = useState(false);
+
+  function openAdjust(variant: { id: string; label: string; stock: number }, productName: string) {
+    setAdjustVariant({ ...variant, productName });
+    setAdjustDelta(0);
+    setAdjustReason("");
+    setAdjustOpen(true);
+  }
+
+  async function handleAdjust() {
+    if (!adjustVariant || adjustDelta === 0) return;
+    setAdjustSaving(true);
+    try {
+      const newStock = adjustVariant.stock + adjustDelta;
+      if (newStock < 0) { toast.error("Stock no puede ser negativo"); return; }
+      const res = await fetch("/api/stock/adjust", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productVariantId: adjustVariant.id,
+          newStock,
+          reason: adjustReason || `Ajuste manual ${adjustDelta > 0 ? "+" : ""}${adjustDelta}`,
+        }),
+      });
+      if (!res.ok) throw new Error("Error");
+      toast.success(`Stock ajustado: ${adjustVariant.label} → ${newStock}`);
+      setAdjustOpen(false);
+      router.refresh();
+    } catch {
+      toast.error("Error al ajustar stock");
+    } finally {
+      setAdjustSaving(false);
+    }
+  }
 
   function toggleGroup(groupId: string) {
     const next = new Set(activeGroupIds);
@@ -351,13 +398,18 @@ export function StockGrid({
                         return (
                           <div
                             key={variant.id}
-                            className={`stock-cell flex-1 rounded-[5px] ${cellClass}`}
+                            className={`stock-cell flex-1 rounded-[5px] ${cellClass} group/cell cursor-pointer relative`}
+                            onClick={() => openAdjust(variant, product.name)}
                           >
                             <span className="q">{variant.stock}</span>
                             <span className="l flex items-center gap-1">
                               <span className="sw" style={{ backgroundColor: variant.hex, width: 7, height: 7, margin: 0 }} />
                               {variant.label}
                             </span>
+                            <div className="absolute inset-0 rounded-[5px] bg-foreground/5 opacity-0 group-hover/cell:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                              <Minus className="h-3 w-3 text-muted-foreground" />
+                              <Plus className="h-3 w-3 text-muted-foreground" />
+                            </div>
                           </div>
                         );
                       })}
@@ -369,6 +421,62 @@ export function StockGrid({
           </table>
         </div>
       )}
+      {/* Stock Adjustment Dialog */}
+      <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>
+        <DialogContent className="sm:max-w-[380px]">
+          <DialogHeader>
+            <DialogTitle>Ajustar Stock</DialogTitle>
+          </DialogHeader>
+          {adjustVariant && (
+            <div className="space-y-4 py-2">
+              <div className="text-sm">
+                <span className="font-medium">{adjustVariant.productName}</span>
+                <span className="text-muted-foreground"> — {adjustVariant.label}</span>
+              </div>
+
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={() => setAdjustDelta((d) => d - 1)}
+                  className="h-10 w-10 rounded-full border border-border hover:bg-muted flex items-center justify-center transition-colors"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <div className="text-center min-w-[100px]">
+                  <div className={`text-3xl font-bold mono ${adjustDelta > 0 ? "text-emerald-600" : adjustDelta < 0 ? "text-rose-600" : ""}`}>
+                    {adjustDelta > 0 ? "+" : ""}{adjustDelta}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-1">
+                    {adjustVariant.stock} → {adjustVariant.stock + adjustDelta}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAdjustDelta((d) => d + 1)}
+                  className="h-10 w-10 rounded-full border border-border hover:bg-muted flex items-center justify-center transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div>
+                <Label htmlFor="adjust-reason">Razon (opcional)</Label>
+                <Input
+                  id="adjust-reason"
+                  placeholder="Ej: Devolucion, error conteo..."
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAdjustOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAdjust} disabled={adjustSaving || adjustDelta === 0}>
+              {adjustSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Ajustar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
