@@ -20,8 +20,7 @@ import { MPSyncButton } from "./mp-sync-button";
 import { FlexCostEditor } from "./flex-cost-editor";
 import { CashflowFilters } from "./cashflow-filters";
 import { AdsCostCard } from "./ads-cost-card";
-import { UtilidadNetaCard } from "./utilidad-neta-card";
-import { DineroRetirarCard } from "./dinero-retirar-card";
+import { FinancialCardsWrapper } from "./financial-cards-wrapper";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -668,12 +667,12 @@ export default async function FlujoCajaPage({
           </div>
         )}
 
-        <UtilidadNetaCard serverNet={totalNet} />
-
-        {/* Dinero a Retirar — subtracts ads cost client-side */}
-        {(!hasPackFilter || filteredGroupIds.length > 0) && (
-          <DineroRetirarCard serverAmount={availableToWithdraw} totalWithdrawn={totalWithdrawn} />
-        )}
+        <FinancialCardsWrapper
+          serverNet={totalNet}
+          serverAvailable={availableToWithdraw}
+          totalWithdrawn={totalWithdrawn}
+          showWithdraw={!hasPackFilter || filteredGroupIds.length > 0}
+        />
       </div>
 
       {/* Ads Cost */}
