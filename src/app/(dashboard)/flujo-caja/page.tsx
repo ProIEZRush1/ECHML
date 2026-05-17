@@ -671,6 +671,7 @@ export default async function FlujoCajaPage({
           serverNet={totalNet}
           serverAvailable={availableToWithdraw}
           totalWithdrawn={totalWithdrawn}
+          totalGastos={totalGastos}
           showWithdraw={!hasPackFilter || filteredGroupIds.length > 0}
         />
       </div>

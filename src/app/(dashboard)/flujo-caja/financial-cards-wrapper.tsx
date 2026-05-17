@@ -12,10 +12,11 @@ interface Props {
   serverNet: number;
   serverAvailable: number;
   totalWithdrawn: number;
+  totalGastos: number;
   showWithdraw: boolean;
 }
 
-export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdrawn, showWithdraw }: Props) {
+export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdrawn, totalGastos, showWithdraw }: Props) {
   const searchParams = useSearchParams();
   const [adsCost, setAdsCost] = useState<number | null>(null);
 
@@ -108,7 +109,10 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
             </p>
           )}
           <p className="text-[11px] text-muted-foreground mt-1">
-            Sin costo producto · Ads: -{fmt(adsCost ?? 0)} · Retirado: {fmt(totalWithdrawn)}
+            Sin costo producto
+            {adsCost !== null && adsCost > 0 && <> · Ads -{fmt(adsCost)}</>}
+            {totalGastos > 0 && <> · Gastos -{fmt(totalGastos)}</>}
+            {totalWithdrawn > 0 && <> · Retirado {fmt(totalWithdrawn)}</>}
           </p>
         </div>
       )}
