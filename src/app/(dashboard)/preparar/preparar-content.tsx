@@ -74,6 +74,13 @@ const SORT_OPTIONS = [
   { label: "Mas recientes", value: "newest" },
 ];
 
+function itemLabel(item: PackItem): string {
+  const prodName = item.productVariant.product.name;
+  const variant = item.productVariant.variantLabel;
+  if (!variant || variant === "Default" || variant === prodName) return prodName;
+  return `${prodName} (${variant})`;
+}
+
 export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeGroup, setActiveGroup] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("");
@@ -88,7 +95,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       const items = o.listing?.pack?.items;
       if (!items) continue;
       for (const item of items) {
-        const label = item.productVariant.variantLabel || item.productVariant.product.name;
+        const label = itemLabel(item);
         set.add(label);
       }
     }
@@ -120,7 +127,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       result = result.filter((o) => {
         const items = o.listing?.pack?.items;
         if (!items) return false;
-        return items.some((item) => activeVariants.includes(item.productVariant.variantLabel || item.productVariant.product.name));
+        return items.some((item) => activeVariants.includes(itemLabel(item)));
       });
     }
     if (sortOrder === "newest") {
@@ -141,7 +148,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       const items = order.listing?.pack?.items;
       if (!items) continue;
       for (const item of items) {
-        const label = item.productVariant.variantLabel || item.productVariant.product.name;
+        const label = itemLabel(item);
         const existing = map.get(label);
         const needed = item.quantity * order.quantity;
         if (existing) {
@@ -351,7 +358,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                           <div className="border-t border-border pt-1.5 space-y-0.5">
                             {pack.items.map((item, idx) => {
                               const totalNeeded = item.quantity * order.quantity;
-                              const label = item.productVariant.variantLabel || item.productVariant.product.name;
+                              const label = itemLabel(item);
                               const lowStock = item.productVariant.stock < totalNeeded;
                               return (
                                 <div key={idx} className="flex items-center justify-between text-[11px]">
