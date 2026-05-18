@@ -41,8 +41,8 @@ export function PacksFilters() {
   const typeLabels: Record<string, string> = {
     tms: "Timi's (TM-)",
     ml: "ML Import (ML-)",
-    "with-items": "Con items",
-    "no-items": "Sin items",
+    "with-stock": "Con stock",
+    "no-stock": "Sin stock",
   };
 
   return (
@@ -78,8 +78,8 @@ export function PacksFilters() {
               <option value="">Todos</option>
               <option value="tms">Timi&apos;s (TM-)</option>
               <option value="ml">ML Import (ML-)</option>
-              <option value="with-items">Con items de inventario</option>
-              <option value="no-items">Sin items (solo financiero)</option>
+              <option value="with-stock">Con stock</option>
+              <option value="no-stock">Sin stock</option>
             </select>
           </div>
 

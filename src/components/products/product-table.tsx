@@ -5,10 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { StockIndicator } from "@/components/shared/stock-indicator";
 import { ProductFormDialog } from "@/components/products/product-form-dialog";
 import { ProductDeleteButton } from "@/components/products/product-delete-button";
-import { formatCurrency, getVariantDisplay, COLOR_MAP } from "@/lib/utils";
+import { getVariantDisplay, COLOR_MAP } from "@/lib/utils";
 import { Search, ArrowUpDown, Pencil, Package } from "lucide-react";
 import type { ProductWithVariants } from "@/types";
 import type { Color } from "@prisma/client";
@@ -45,7 +44,6 @@ export function ProductTable({ products }: ProductTableProps) {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(term) ||
-          p.supplierCode.toLowerCase().includes(term) ||
           (p.brand && p.brand.toLowerCase().includes(term))
       );
     }
@@ -96,7 +94,7 @@ export function ProductTable({ products }: ProductTableProps) {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Nombre, codigo o marca..."
+            placeholder="Nombre o marca..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8 h-8 text-[12.5px]"
@@ -109,12 +107,9 @@ export function ProductTable({ products }: ProductTableProps) {
 
       {/* Table card */}
       <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
-        <table className="w-full text-[12.5px] min-w-[600px]">
+        <table className="w-full text-[12.5px] min-w-[500px]">
           <thead>
             <tr className="border-b border-border bg-muted/30">
-              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
-                Codigo
-              </th>
               <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
                 <button
                   onClick={() => toggleSort("name")}
@@ -126,9 +121,6 @@ export function ProductTable({ products }: ProductTableProps) {
               </th>
               <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
                 Marca
-              </th>
-              <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
-                Costo
               </th>
               {allStandard ? (
                 STANDARD_COLORS.map((color) => (
@@ -161,7 +153,7 @@ export function ProductTable({ products }: ProductTableProps) {
           <tbody>
             {filteredProducts.length === 0 ? (
               <tr>
-                <td colSpan={allStandard ? 9 : 8} className="text-center py-8 text-muted-foreground text-[12.5px]">
+                <td colSpan={allStandard ? 7 : 4} className="text-center py-8 text-muted-foreground text-[12.5px]">
                   No se encontraron productos
                 </td>
               </tr>
@@ -174,9 +166,6 @@ export function ProductTable({ products }: ProductTableProps) {
 
                 return (
                   <tr key={product.id} className="border-b border-border last:border-0 hover:bg-muted/40">
-                    <td className="px-3 py-2.5 mono text-[11.5px] text-muted-foreground">
-                      {product.supplierCode}
-                    </td>
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-2.5">
                         {product.imageUrl ? (
@@ -210,7 +199,6 @@ export function ProductTable({ products }: ProductTableProps) {
                     <td className="px-3 py-2.5 text-muted-foreground">
                       {product.brand || "—"}
                     </td>
-                    <td className="px-3 py-2.5">{formatCurrency(product.unitCost)}</td>
                     {allStandard ? (
                       STANDARD_COLORS.map((color) => {
                         const variant = product.variants.find((v) => v.color === color);

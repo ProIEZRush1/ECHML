@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
-import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { PackCreateButton } from "@/components/packs/pack-create-button";
 import { PacksFilters } from "./packs-filters";
@@ -25,7 +24,7 @@ export default async function PacksPage({
     name?: { contains: string; mode: "insensitive" };
     sku?: { contains: string; mode: "insensitive" };
     OR?: Array<Record<string, unknown>>;
-    items?: { some: {} } | { none: {} };
+    stock?: { gt: number } | { equals: number };
   } = {};
 
   if (params.q) {
@@ -39,25 +38,15 @@ export default async function PacksPage({
     where.sku = { contains: "TM-", mode: "insensitive" };
   } else if (params.type === "ml") {
     where.sku = { contains: "ML-", mode: "insensitive" };
-  } else if (params.type === "with-items") {
-    where.items = { some: {} };
-  } else if (params.type === "no-items") {
-    where.items = { none: {} };
+  } else if (params.type === "with-stock") {
+    where.stock = { gt: 0 };
+  } else if (params.type === "no-stock") {
+    where.stock = { equals: 0 };
   }
 
   const [packs, totalCount] = await Promise.all([
     prisma.pack.findMany({
       where,
-      include: {
-        items: {
-          include: {
-            productVariant: {
-              include: { product: { select: { name: true, supplierCode: true } } },
-            },
-          },
-        },
-        _count: { select: { mlListings: true } },
-      },
       orderBy: { name: "asc" },
       skip: (currentPage - 1) * pageSize,
       take: pageSize,
@@ -68,12 +57,10 @@ export default async function PacksPage({
   const totalPages = Math.ceil(totalCount / pageSize);
 
   // Stats
-  const [totalPacks, tmsPacks, mlPacks, withItems, noItems] = await Promise.all([
+  const [totalPacks, withStock, noStock] = await Promise.all([
     prisma.pack.count(),
-    prisma.pack.count({ where: { sku: { startsWith: "TM-" } } }),
-    prisma.pack.count({ where: { sku: { startsWith: "ML-" } } }),
-    prisma.pack.count({ where: { items: { some: {} } } }),
-    prisma.pack.count({ where: { items: { none: {} } } }),
+    prisma.pack.count({ where: { stock: { gt: 0 } } }),
+    prisma.pack.count({ where: { stock: { equals: 0 } } }),
   ]);
 
   const hasFilters = !!(params.q || params.type);
@@ -89,10 +76,8 @@ export default async function PacksPage({
 
   const kpiCards = [
     { label: "TOTAL", value: totalPacks, color: "" },
-    { label: "TIMI'S", value: tmsPacks, color: "text-blue-600" },
-    { label: "ML IMPORT", value: mlPacks, color: "text-purple-600" },
-    { label: "CON ITEMS", value: withItems, color: "text-success" },
-    { label: "SIN ITEMS", value: noItems, color: "text-[oklch(0.48_0.13_70)]" },
+    { label: "CON STOCK", value: withStock, color: "text-success" },
+    { label: "SIN STOCK", value: noStock, color: "text-destructive" },
   ];
 
   return (
@@ -106,7 +91,7 @@ export default async function PacksPage({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-3 gap-3">
         {kpiCards.map((card) => (
           <div
             key={card.label}
@@ -143,20 +128,14 @@ export default async function PacksPage({
                 <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] w-[120px]">
                   SKU
                 </th>
-                <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] min-w-[200px]">
+                <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
                   Nombre
-                </th>
-                <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] w-[100px]">
-                  Precio
                 </th>
                 <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] w-[80px]">
                   Stock
                 </th>
-                <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] w-[60px]">
-                  Items
-                </th>
-                <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] w-[60px]">
-                  Pub.
+                <th className="px-3 py-2.5 text-right text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] w-[100px]">
+                  Precio
                 </th>
               </tr>
             </thead>
@@ -181,11 +160,6 @@ export default async function PacksPage({
                     </Link>
                   </td>
                   <td className="px-3 py-2.5 text-right">
-                    {Number(pack.salePrice) > 0
-                      ? formatCurrency(Number(pack.salePrice))
-                      : "-"}
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
                     <span
                       className={`mono text-[12px] font-semibold ${
                         pack.stock === 0
@@ -199,28 +173,15 @@ export default async function PacksPage({
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right">
-                    {pack.items.length > 0 ? (
-                      <Badge variant="secondary" className="text-[10.5px]">
-                        {pack.items.length}
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 text-right">
-                    {pack._count.mlListings > 0 ? (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10.5px] font-medium bg-[oklch(0.58_0.10_155/0.12)] text-success">
-                        {pack._count.mlListings}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">0</span>
-                    )}
+                    {Number(pack.salePrice) > 0
+                      ? formatCurrency(Number(pack.salePrice))
+                      : "-"}
                   </td>
                 </tr>
               ))}
               {packs.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-muted-foreground text-[12.5px]">
+                  <td colSpan={4} className="py-8 text-center text-muted-foreground text-[12.5px]">
                     {hasFilters
                       ? "No se encontraron packs con esos filtros"
                       : "No hay packs registrados"}
