@@ -29,9 +29,23 @@ export default async function PrepararPage() {
       pack: {
         select: {
           id: true,
+          sku: true,
           name: true,
           imageUrl: true,
           stock: true,
+          items: {
+            select: {
+              quantity: true,
+              productVariant: {
+                select: {
+                  variantLabel: true,
+                  color: true,
+                  stock: true,
+                  product: { select: { name: true } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -132,6 +146,8 @@ export default async function PrepararPage() {
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-[12px] truncate">{pack?.name || order.mlItemId}</p>
                           <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
+                            {pack?.sku && <span className="mono">{pack.sku}</span>}
+                            <span className="text-border">·</span>
                             <span className="font-semibold text-foreground">×{order.quantity}</span>
                             {order.buyerNickname && (
                               <>
@@ -145,6 +161,27 @@ export default async function PrepararPage() {
                           <span className="shrink-0 text-[9px] font-semibold text-red-500 uppercase">Sin stock</span>
                         )}
                       </div>
+
+                      {/* Pack contents */}
+                      {pack?.items && pack.items.length > 0 && (
+                        <div className="border-t border-border pt-1.5 space-y-0.5">
+                          {pack.items.map((item, idx) => {
+                            const totalNeeded = item.quantity * order.quantity;
+                            const label = item.productVariant.variantLabel || item.productVariant.product.name;
+                            const lowStock = item.productVariant.stock < totalNeeded;
+                            return (
+                              <div key={idx} className="flex items-center justify-between text-[11px]">
+                                <span className={lowStock ? "text-red-500" : "text-muted-foreground"}>
+                                  {totalNeeded}× {label}
+                                </span>
+                                <span className={`mono text-[10px] ${lowStock ? "text-red-500 font-semibold" : "text-muted-foreground"}`}>
+                                  ({item.productVariant.stock} disp.)
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
                       {/* Actions */}
                       <PrepActions orderId={order.id} currentStatus={order.prepStatus} />
