@@ -162,15 +162,13 @@ export default async function PedidosPage({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-[120px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
+                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
                   <TableHead className="w-[44px] text-[11px] uppercase tracking-wider"></TableHead>
-                  <TableHead className="max-w-[300px] text-[11px] uppercase tracking-wider">Producto</TableHead>
-                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider">Producto</TableHead>
                   <TableHead className="w-[50px] text-center text-[11px] uppercase tracking-wider">Cant</TableHead>
-                  <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
-                  <TableHead className="w-[60px] text-[11px] uppercase tracking-wider">Envio</TableHead>
-                  <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Comprador</TableHead>
-                  <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Estado</TableHead>
+                  <TableHead className="w-[90px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
+                  <TableHead className="w-[50px] text-[11px] uppercase tracking-wider">Envio</TableHead>
+                  <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -194,34 +192,21 @@ export default async function PedidosPage({
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="max-w-[300px]">
-                        <span className="block truncate text-[12.5px]" title={listing?.title || order.mlItemId}>
+                      <TableCell>
+                        <span className="block truncate text-[12.5px] max-w-[280px]" title={listing?.title || order.mlItemId}>
                           {listing?.title || order.mlItemId}
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {pack ? (
-                          <div>
-                            <span className="mono text-[11.5px]">{pack.sku}</span>
-                            {pack.items.length > 0 && (
-                              <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-                                {pack.items.map((item, idx) => {
-                                  const dotClass = (item.productVariant.color && VARIANT_DOT[item.productVariant.color])
-                                    || (item.productVariant.variantLabel && LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
-                                  const label = item.productVariant.variantLabel || (item.productVariant.color || "");
-                                  return (
-                                    <span key={idx} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                                      {dotClass && <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotClass}`} title={label} />}
-                                      {item.quantity > 1 && <span>×{item.quantity}</span>}
-                                      {!dotClass && <span>{label}</span>}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
+                        {pack && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="mono text-[10.5px] text-muted-foreground">{pack.sku}</span>
+                            {pack.items.length > 0 && pack.items.map((item, idx) => {
+                              const dotClass = (item.productVariant.color && VARIANT_DOT[item.productVariant.color])
+                                || (item.productVariant.variantLabel && LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
+                              return dotClass ? (
+                                <span key={idx} className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotClass}`} title={item.productVariant.variantLabel || ""} />
+                              ) : null;
+                            })}
                           </div>
-                        ) : (
-                          <span className="text-[11px] font-mono text-muted-foreground">{order.mlItemId}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center num text-[12.5px]">{order.quantity}</TableCell>
@@ -237,7 +222,6 @@ export default async function PedidosPage({
                           <span className="text-[10px] text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-[11.5px] text-muted-foreground truncate max-w-[100px]">{order.buyerNickname || "-"}</TableCell>
                       <TableCell><span className={config.css}>{config.label}</span></TableCell>
                     </TableRow>
                   );
