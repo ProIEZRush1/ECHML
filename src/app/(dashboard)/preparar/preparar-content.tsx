@@ -77,7 +77,7 @@ const SORT_OPTIONS = [
 export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeGroup, setActiveGroup] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("");
-  const [activeVariant, setActiveVariant] = useState<string>("");
+  const [activeVariants, setActiveVariants] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<string>("oldest");
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
@@ -116,18 +116,18 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     if (activeStatus) {
       result = result.filter((o) => o.prepStatus === activeStatus);
     }
-    if (activeVariant) {
+    if (activeVariants.length > 0) {
       result = result.filter((o) => {
         const items = o.listing?.pack?.items;
         if (!items) return false;
-        return items.some((item) => (item.productVariant.variantLabel || item.productVariant.product.name) === activeVariant);
+        return items.some((item) => activeVariants.includes(item.productVariant.variantLabel || item.productVariant.product.name));
       });
     }
     if (sortOrder === "newest") {
       result = [...result].reverse();
     }
     return result;
-  }, [orders, groups, activeGroup, activeStatus, activeVariant, sortOrder]);
+  }, [orders, groups, activeGroup, activeStatus, activeVariants, sortOrder]);
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
     { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
@@ -221,11 +221,17 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
           <>
             <span className="lbl">Variante</span>
             <div className="pillgroup">
-              <button className={activeVariant === "" ? "on" : ""} onClick={() => setActiveVariant("")}>
+              <button className={activeVariants.length === 0 ? "on" : ""} onClick={() => setActiveVariants([])}>
                 Todas
               </button>
               {allVariants.map((v) => (
-                <button key={v} className={activeVariant === v ? "on" : ""} onClick={() => setActiveVariant(v)}>
+                <button
+                  key={v}
+                  className={activeVariants.includes(v) ? "on" : ""}
+                  onClick={() => setActiveVariants((prev) =>
+                    prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
+                  )}
+                >
                   {v}
                 </button>
               ))}
