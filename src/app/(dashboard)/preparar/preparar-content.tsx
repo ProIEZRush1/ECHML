@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Image from "next/image";
 import { PackageCheck, Printer, Filter } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -64,6 +64,13 @@ interface Props {
 export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeGroup, setActiveGroup] = useState<string>("");
   const printRef = useRef<HTMLDivElement>(null);
+  const hasSynced = useRef(false);
+
+  useEffect(() => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+    fetch("/api/orders/sync-status", { method: "POST" }).catch(() => {});
+  }, []);
 
   const filtered = useMemo(() => {
     if (!activeGroup) return orders;

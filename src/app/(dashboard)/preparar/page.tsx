@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
-import { SyncStatusButton } from "../pedidos/sync-status-button";
 import { PrepararContent } from "./preparar-content";
 
 export default async function PrepararPage() {
@@ -94,7 +93,6 @@ export default async function PrepararPage() {
           title="Preparar Envios"
           description="Ordenes pendientes de empaque y envio"
         />
-        <SyncStatusButton />
       </div>
 
       <PrepararContent
