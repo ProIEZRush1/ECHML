@@ -108,8 +108,8 @@ export function ProductTable({ products }: ProductTableProps) {
       </div>
 
       {/* Table card */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
-        <table className="w-full text-[12.5px]">
+      <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
+        <table className="w-full text-[12.5px] min-w-[600px]">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">

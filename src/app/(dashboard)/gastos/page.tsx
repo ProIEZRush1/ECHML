@@ -53,8 +53,8 @@ export default async function GastosPage() {
           description="Los gastos operativos apareceran aqui cuando los registres."
         />
       ) : (
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
-          <Table>
+        <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>
@@ -62,7 +62,7 @@ export default async function GastosPage() {
                 <TableHead className="text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Categoria</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Concepto</TableHead>
-                <TableHead className="text-[11px] uppercase tracking-wider">Asignado a</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider hidden sm:table-cell">Asignado a</TableHead>
                 <TableHead className="text-right text-[11px] uppercase tracking-wider">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -91,7 +91,7 @@ export default async function GastosPage() {
                     <TableCell className="font-medium text-[12.5px]">
                       {expense.concept}
                     </TableCell>
-                    <TableCell className="text-[12.5px] text-muted-foreground">
+                    <TableCell className="text-[12.5px] text-muted-foreground hidden sm:table-cell">
                       {expense.product?.name || expense.pack?.name || expense.productGroup?.name || expense.supplier?.name || "-"}
                     </TableCell>
                     <TableCell className="text-right">

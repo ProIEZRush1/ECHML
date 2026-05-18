@@ -64,8 +64,8 @@ export default async function RetirosPage() {
           description="Los retiros de Mercado Pago apareceran aqui cuando los registres."
         />
       ) : (
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
-          <Table>
+        <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>

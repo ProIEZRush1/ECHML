@@ -348,8 +348,10 @@ export function StockGrid({
           <p className="text-muted-foreground text-sm">No se encontraron productos.</p>
         </div>
       ) : (
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
-          <table className="w-full text-sm">
+        <>
+        {/* Desktop table */}
+        <div className="rounded-[9px] border border-border bg-card overflow-x-auto hidden sm:block">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b bg-muted/40">
                 <th className="text-left px-4 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
@@ -361,7 +363,7 @@ export function StockGrid({
                 <th className="text-center px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
                   Total
                 </th>
-                <th className="text-center px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] min-w-[280px]" colSpan={1}>
+                <th className="text-center px-3 py-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em] min-w-[280px]">
                   Variantes
                 </th>
               </tr>
@@ -420,6 +422,52 @@ export function StockGrid({
             </tbody>
           </table>
         </div>
+
+        {/* Mobile card layout */}
+        <div className="sm:hidden space-y-2">
+          {filtered.map((product) => (
+            <div key={product.id} className="rounded-[9px] border border-border bg-card p-3">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="font-medium text-[13px] leading-tight">{product.name}</div>
+                  {product.brand && (
+                    <span className="tx-pill expense mt-1 inline-block">{product.brand}</span>
+                  )}
+                </div>
+                <span className={`mono text-lg font-bold ${
+                  product.status === "out" ? "text-[oklch(0.58_0.16_22)]"
+                    : product.status === "low" ? "text-[oklch(0.48_0.13_70)]"
+                    : ""
+                }`}>
+                  {product.totalStock}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {product.variants.map((variant) => {
+                  const cellClass = variant.stock === 0
+                    ? "zero"
+                    : variant.stock <= 3
+                    ? "low"
+                    : "";
+                  return (
+                    <div
+                      key={variant.id}
+                      className={`stock-cell rounded-[5px] ${cellClass} cursor-pointer`}
+                      onClick={() => openAdjust(variant, product.name)}
+                    >
+                      <span className="q">{variant.stock}</span>
+                      <span className="l flex items-center gap-1">
+                        <span className="sw" style={{ backgroundColor: variant.hex, width: 7, height: 7, margin: 0 }} />
+                        {variant.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
       {/* Stock Adjustment Dialog */}
       <Dialog open={adjustOpen} onOpenChange={setAdjustOpen}>

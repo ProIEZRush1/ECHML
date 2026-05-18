@@ -345,6 +345,13 @@
 }
 .entry-row:last-of-type { border-bottom: 0; }
 
+/* Mobile responsive tables */
+@media (max-width: 640px) {
+  .entry-row { grid-template-columns: 1fr 1fr 70px 90px 32px; gap: 6px; padding: 8px; font-size: 13px; }
+  table { font-size: 13px; }
+  table th, table td { padding: 6px 8px !important; }
+}
+
 /* Page transition */
 .page-fade { animation: fade .25s ease; }
 @keyframes fade { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
