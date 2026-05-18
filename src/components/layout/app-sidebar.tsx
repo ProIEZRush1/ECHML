@@ -5,22 +5,22 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Package,
-  Boxes,
+  ShoppingCart,
+  TrendingUp,
   Store,
+  Settings,
+  ChevronDown,
+  Boxes,
   Warehouse,
   PackagePlus,
   History,
-  BarChart3,
-  ShoppingCart,
   Truck,
   PackageCheck,
-  Settings,
-  Key,
-  FolderOpen,
-  ChevronDown,
-  TrendingUp,
+  BarChart3,
   ArrowDownToLine,
   Receipt,
+  FolderOpen,
+  Key,
   Sparkles,
 } from "lucide-react";
 import {
@@ -29,7 +29,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -46,52 +45,48 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 
-const mainNavItems = [
-  { title: "Panel", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Productos", href: "/productos", icon: Package },
-  { title: "Packs", href: "/packs", icon: Boxes },
-];
-
-const inventarioSubItems = [
-  { title: "Vista General", href: "/stock", icon: BarChart3 },
-  { title: "Entrada de Stock", href: "/stock/entrada", icon: PackagePlus },
-  { title: "Historial", href: "/stock/historial", icon: History },
-];
-
-const salesNavItems = [
-  { title: "Ventas", href: "/ventas", icon: ShoppingCart },
-  { title: "Pedidos", href: "/pedidos", icon: Truck },
-  { title: "Preparar", href: "/preparar", icon: PackageCheck },
-  { title: "Publicaciones ML", href: "/publicaciones", icon: Store },
-];
-
-const finanzasNavItems = [
-  { title: "Flujo de Caja", href: "/flujo-caja", icon: TrendingUp },
-  { title: "Rentabilidad", href: "/rentabilidad", icon: BarChart3 },
-  { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
-  { title: "Gastos", href: "/gastos", icon: Receipt },
-];
-
-const configNavItems = [
+const navItems = [
+  { title: "Inicio", href: "/dashboard", icon: LayoutDashboard },
   {
-    title: "Grupos",
-    href: "/configuracion/grupos",
-    icon: FolderOpen,
+    title: "Inventario",
+    icon: Package,
+    children: [
+      { title: "Productos", href: "/productos", icon: Package },
+      { title: "Packs", href: "/packs", icon: Boxes },
+      { title: "Stock", href: "/stock", icon: Warehouse },
+      { title: "Entrada", href: "/stock/entrada", icon: PackagePlus },
+      { title: "Historial", href: "/stock/historial", icon: History },
+    ],
   },
   {
-    title: "Configuracion ML",
-    href: "/configuracion/mercadolibre",
+    title: "Ventas",
+    icon: ShoppingCart,
+    children: [
+      { title: "Ventas", href: "/ventas", icon: ShoppingCart },
+      { title: "Pedidos", href: "/pedidos", icon: Truck },
+      { title: "Preparar", href: "/preparar", icon: PackageCheck },
+      { title: "Publicaciones", href: "/publicaciones", icon: Store },
+    ],
+  },
+  {
+    title: "Finanzas",
+    icon: TrendingUp,
+    children: [
+      { title: "Flujo de Caja", href: "/flujo-caja", icon: TrendingUp },
+      { title: "Rentabilidad", href: "/rentabilidad", icon: BarChart3 },
+      { title: "Gastos", href: "/gastos", icon: Receipt },
+      { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
+    ],
+  },
+  {
+    title: "Ajustes",
     icon: Settings,
-  },
-  {
-    title: "API Keys",
-    href: "/configuracion/api-keys",
-    icon: Key,
-  },
-  {
-    title: "OpenAI",
-    href: "/configuracion/openai",
-    icon: Sparkles,
+    children: [
+      { title: "Grupos", href: "/configuracion/grupos", icon: FolderOpen },
+      { title: "MercadoLibre", href: "/configuracion/mercadolibre", icon: Store },
+      { title: "API Keys", href: "/configuracion/api-keys", icon: Key },
+      { title: "OpenAI", href: "/configuracion/openai", icon: Sparkles },
+    ],
   },
 ];
 
@@ -103,9 +98,8 @@ export function AppSidebar() {
     return pathname.startsWith(href);
   };
 
-  const isInventarioActive = inventarioSubItems.some((item) =>
-    pathname.startsWith(item.href)
-  );
+  const isSectionActive = (children: Array<{ href: string }>) =>
+    children.some((c) => pathname.startsWith(c.href));
 
   return (
     <Sidebar collapsible="icon">
@@ -129,117 +123,52 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                    render={<Link href={item.href} />}
+              {navItems.map((item) =>
+                "children" in item && item.children ? (
+                  <Collapsible
+                    key={item.title}
+                    defaultOpen={isSectionActive(item.children)}
+                    className="group/collapsible"
                   >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-
-              <Collapsible
-                defaultOpen={isInventarioActive}
-                className="group/collapsible"
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton tooltip="Inventario">
-                      <Warehouse />
-                      <span>Inventario</span>
-                      <ChevronDown className="ml-auto transition-transform group-data-[open]/collapsible:rotate-180" />
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton tooltip={item.title}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          {item.children.map((child) => (
+                            <SidebarMenuSubItem key={child.href}>
+                              <SidebarMenuSubButton
+                                isActive={isActive(child.href)}
+                                render={<Link href={child.href} />}
+                              >
+                                <span>{child.title}</span>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          ))}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                ) : (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={isActive((item as { href: string }).href)}
+                      tooltip={item.title}
+                      render={<Link href={(item as { href: string }).href} />}
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {inventarioSubItems.map((item) => (
-                        <SidebarMenuSubItem key={item.href}>
-                          <SidebarMenuSubButton
-                            isActive={isActive(item.href)}
-                            render={<Link href={item.href} />}
-                          >
-                            <item.icon />
-                            <span>{item.title}</span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Comercio</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {salesNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Finanzas</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {finanzasNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Sistema</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {configNavItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    isActive={isActive(item.href)}
-                    tooltip={item.title}
-                    render={<Link href={item.href} />}
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                  </SidebarMenuItem>
+                )
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

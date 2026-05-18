@@ -157,9 +157,9 @@
 
 /* Filter bar */
 .filt-bar {
-  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
-  background: var(--card); border: 1px solid var(--border); border-radius: 9px;
-  margin-bottom: 14px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 16px; flex-wrap: wrap;
 }
 .filt-bar > .lbl { font-size: 11px; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500; margin-right: 4px; }
 .filt-input {

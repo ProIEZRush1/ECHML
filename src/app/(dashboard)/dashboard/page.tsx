@@ -79,7 +79,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Panel de Control" description="Resumen general del inventario" />
+      <PageHeader title="Inicio" description="Resumen general" />
 
       <KpiCards stats={stats} />
 
