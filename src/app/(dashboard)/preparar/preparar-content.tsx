@@ -77,9 +77,23 @@ const SORT_OPTIONS = [
 export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeGroup, setActiveGroup] = useState<string>("");
   const [activeStatus, setActiveStatus] = useState<string>("");
+  const [activeVariant, setActiveVariant] = useState<string>("");
   const [sortOrder, setSortOrder] = useState<string>("oldest");
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
+
+  const allVariants = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of orders) {
+      const items = o.listing?.pack?.items;
+      if (!items) continue;
+      for (const item of items) {
+        const label = item.productVariant.variantLabel || item.productVariant.product.name;
+        set.add(label);
+      }
+    }
+    return [...set].sort();
+  }, [orders]);
 
   useEffect(() => {
     if (hasSynced.current) return;
@@ -102,11 +116,18 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     if (activeStatus) {
       result = result.filter((o) => o.prepStatus === activeStatus);
     }
+    if (activeVariant) {
+      result = result.filter((o) => {
+        const items = o.listing?.pack?.items;
+        if (!items) return false;
+        return items.some((item) => (item.productVariant.variantLabel || item.productVariant.product.name) === activeVariant);
+      });
+    }
     if (sortOrder === "newest") {
       result = [...result].reverse();
     }
     return result;
-  }, [orders, groups, activeGroup, activeStatus, sortOrder]);
+  }, [orders, groups, activeGroup, activeStatus, activeVariant, sortOrder]);
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
     { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
@@ -196,6 +217,21 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
             </button>
           ))}
         </div>
+        {allVariants.length > 1 && (
+          <>
+            <span className="lbl">Variante</span>
+            <div className="pillgroup">
+              <button className={activeVariant === "" ? "on" : ""} onClick={() => setActiveVariant("")}>
+                Todas
+              </button>
+              {allVariants.map((v) => (
+                <button key={v} className={activeVariant === v ? "on" : ""} onClick={() => setActiveVariant(v)}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <span className="lbl">Orden</span>
         <div className="pillgroup">
           {SORT_OPTIONS.map((opt) => (
