@@ -559,136 +559,63 @@ export default async function FlujoCajaPage({
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {/* Ingresos */}
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
-            <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
-          </div>
-          <p className="text-xl font-bold num margin-good truncate">{formatCurrency(totalIncome)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
-        </div>
+      {(() => {
+        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturns + returnedProductCost;
+        const deductionItems: { label: string; value: number }[] = [
+          { label: "Comisiones", value: totalFees },
+          { label: "Envios", value: totalShipping },
+          { label: "Impuestos", value: totalImpuestos },
+          { label: "Costo producto", value: totalProductCost },
+          { label: "Gastos", value: totalGastosOperativos },
+          { label: "Compras", value: totalCompras },
+          { label: "Flex", value: totalFlexNet },
+          { label: "Devoluciones", value: totalReturns + returnedProductCost },
+        ].filter((d) => d.value > 0);
 
-        {/* Comisiones */}
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Comisiones</p>
-            <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
-          </div>
-          <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalFees)}</p>
-          {totalIncome > 0 && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {packFeePcts.length >= 2
-                ? `${Math.min(...packFeePcts).toFixed(1)}% - ${Math.max(...packFeePcts).toFixed(1)}% segun producto`
-                : `${((totalFees / totalIncome) * 100).toFixed(1)}% de ingresos`}
-            </p>
-          )}
-        </div>
-
-        {/* Envios */}
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Envios</p>
-            <span className="sw" style={{ background: "oklch(0.72 0.14 78)" }} />
-          </div>
-          <p className="text-xl font-bold num margin-warn truncate">-{formatCurrency(totalShipping)}</p>
-          {totalIncome > 0 && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {packShippingPcts.length >= 2
-                ? `${Math.min(...packShippingPcts).toFixed(1)}% - ${Math.max(...packShippingPcts).toFixed(1)}% segun producto`
-                : `${((totalShipping / totalIncome) * 100).toFixed(1)}% de ingresos`}
-            </p>
-          )}
-        </div>
-
-        {/* Impuestos */}
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Impuestos</p>
-            <span className="sw" style={{ background: "oklch(0.60 0.10 290)" }} />
-          </div>
-          <p className="text-xl font-bold num truncate" style={{ color: "oklch(0.60 0.10 290)" }}>-{formatCurrency(totalImpuestos)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            IVA {formatCurrency(totalRetencionIVA)} + ISR {formatCurrency(totalRetencionISR)}
-          </p>
-        </div>
-
-        {/* Costo Producto */}
-        {totalProductCost > 0 && (
-          <div className="rounded-[9px] border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costo Producto</p>
-              <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
+        return (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Ingresos */}
+            <div className="rounded-[9px] border border-border bg-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
+                <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
+              </div>
+              <p className="text-xl font-bold num margin-good truncate">{formatCurrency(totalIncome)}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
             </div>
-            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalProductCost)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Costo de mercancia vendida</p>
-          </div>
-        )}
 
-        {/* Gastos Operativos */}
-        {totalGastosOperativos > 0 && (
-          <div className="rounded-[9px] border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Gastos</p>
-              <span className="sw" style={{ background: "oklch(0.50 0.04 60)" }} />
+            {/* Costos y Deducciones (merged) */}
+            <div className="rounded-[9px] border border-border bg-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
+                <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
+              </div>
+              <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalDeducciones)}</p>
+              <div className="mt-1.5 space-y-0.5">
+                {deductionItems.map((d) => (
+                  <div key={d.label} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>{d.label}</span>
+                    <span className="num">-{formatCurrency(d.value)}</span>
+                  </div>
+                ))}
+              </div>
+              {totalIncome > 0 && (
+                <p className="text-[10.5px] text-muted-foreground mt-1.5 pt-1.5 border-t border-border">
+                  {((totalDeducciones / totalIncome) * 100).toFixed(1)}% de ingresos
+                </p>
+              )}
             </div>
-            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalGastosOperativos)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Gastos operativos del periodo</p>
-          </div>
-        )}
 
-        {/* Compra Producto */}
-        {totalCompras > 0 && (
-          <div className="rounded-[9px] border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Compra Producto</p>
-              <span className="sw" style={{ background: "oklch(0.55 0.18 30)" }} />
-            </div>
-            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalCompras)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Compra de inventario / mercancia</p>
+            <FinancialCardsWrapper
+              serverNet={totalNet}
+              serverAvailable={availableToWithdraw}
+              totalWithdrawn={totalWithdrawn}
+              totalGastos={totalGastos}
+              showWithdraw={!hasPackFilter || filteredGroupIds.length > 0}
+            />
           </div>
-        )}
-
-        {/* Flex */}
-        {totalFlexCost > 0 && (
-          <div className="rounded-[9px] border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Flex</p>
-              <span className="sw" style={{ background: "oklch(0.48 0.13 70)" }} />
-            </div>
-            <p className="text-xl font-bold num margin-warn truncate">-{formatCurrency(totalFlexNet)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {flexCount} envio{flexCount !== 1 ? "s" : ""} · Costo {formatCurrency(totalFlexCost)}
-              {totalFlexBonificacion > 0 && ` · Bonif +${formatCurrency(totalFlexBonificacion)}`}
-            </p>
-          </div>
-        )}
-
-        {/* Devoluciones */}
-        {filteredReturnCount > 0 && (
-          <div className="rounded-[9px] border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Devoluciones</p>
-              <span className="sw" style={{ background: "oklch(0.55 0.22 25)" }} />
-            </div>
-            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalReturns + returnedProductCost)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""} · Ventas perdidas {formatCurrency(totalReturns)}
-              {returnedProductCost > 0 && ` · Costo producto ${formatCurrency(returnedProductCost)}`}
-              {filteredReturnFromFull > 0 && ` · ${filteredReturnFromFull} desde FULL`}
-            </p>
-          </div>
-        )}
-
-        <FinancialCardsWrapper
-          serverNet={totalNet}
-          serverAvailable={availableToWithdraw}
-          totalWithdrawn={totalWithdrawn}
-          totalGastos={totalGastos}
-          showWithdraw={!hasPackFilter || filteredGroupIds.length > 0}
-        />
-      </div>
+        );
+      })()}
 
       {/* Ads Cost */}
       <AdsCostCard />

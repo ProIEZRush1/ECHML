@@ -15,21 +15,6 @@ import type { MLListingStatus } from "@/types";
 import { SyncButton } from "./sync-button";
 import { PublicacionesFilters } from "./publicaciones-filters";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
-
-const COLOR_DOT: Record<string, string> = {
-  AZUL: "bg-blue-500",
-  VERDE: "bg-green-500",
-  ROSA: "bg-pink-400",
-  MORADO: "bg-purple-500",
-};
-
-const COLOR_LABEL: Record<string, string> = {
-  AZUL: "Azul",
-  VERDE: "Verde",
-  ROSA: "Rosa",
-  MORADO: "Morado",
-};
 
 const STATUS_CSS: Record<MLListingStatus, string> = {
   ACTIVE: "list-status active",
@@ -92,13 +77,6 @@ export default async function PublicacionesPage({
           sku: true,
           name: true,
           stock: true,
-          items: {
-            select: {
-              productVariant: {
-                select: { color: true, product: { select: { name: true } } },
-              },
-            },
-          },
         },
       },
       },
@@ -199,14 +177,11 @@ export default async function PublicacionesPage({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="w-[140px] text-[11px] uppercase tracking-wider">ML ID</TableHead>
-                <TableHead className="w-[100px] text-[11px] uppercase tracking-wider">Pack</TableHead>
-                <TableHead className="w-[120px] text-[11px] uppercase tracking-wider">Colores</TableHead>
-                <TableHead className="min-w-[200px] text-[11px] uppercase tracking-wider">Titulo</TableHead>
+                <TableHead className="w-[130px] text-[11px] uppercase tracking-wider">ML ID</TableHead>
+                <TableHead className="min-w-[220px] text-[11px] uppercase tracking-wider">Titulo</TableHead>
                 <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Estado</TableHead>
-                <TableHead className="w-[80px] text-right text-[11px] uppercase tracking-wider">Precio</TableHead>
-                <TableHead className="w-[60px] text-right text-[11px] uppercase tracking-wider">Stock ML</TableHead>
-                <TableHead className="w-[60px] text-right text-[11px] uppercase tracking-wider">Stock Calc</TableHead>
+                <TableHead className="w-[90px] text-right text-[11px] uppercase tracking-wider">Precio</TableHead>
+                <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Stock</TableHead>
                 <TableHead className="w-[120px] text-[11px] uppercase tracking-wider">Sinc.</TableHead>
               </TableRow>
             </TableHeader>
@@ -223,47 +198,23 @@ export default async function PublicacionesPage({
                       {listing.mlItemId}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Link
-                          href={`/packs/${listing.pack.id}`}
-                          className="text-[11.5px] font-medium hover:underline"
-                          title={listing.pack.name}
-                        >
-                          {listing.pack.sku}
-                        </Link>
-                        <Link
-                          href={`/packs/${listing.pack.id}`}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
+                      <div>
+                        <span className="line-clamp-1 text-[12.5px]" title={listing.title || ""}>
+                          {listing.title || "Sin titulo"}
+                        </span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Link
+                            href={`/packs/${listing.pack.id}`}
+                            className="text-[11px] text-muted-foreground hover:underline"
+                            title={listing.pack.name}
+                          >
+                            {listing.pack.sku}
+                          </Link>
+                          <span className="text-[11px] text-muted-foreground/60">
+                            {listing.pack.name}
+                          </span>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {listing.pack.items.map((item, idx) => {
-                          const color = item.productVariant.color;
-                          if (!color) return null;
-                          return (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
-                              title={`${item.productVariant.product.name} - ${COLOR_LABEL[color]}`}
-                            >
-                              <span className={`inline-block h-2.5 w-2.5 rounded-full ${COLOR_DOT[color] || "bg-gray-400"}`} />
-                              <span className="hidden sm:inline">{COLOR_LABEL[color]}</span>
-                            </span>
-                          );
-                        })}
-                        {listing.pack.items.every((item) => !item.productVariant.color) && (
-                          <span className="text-[10px] text-muted-foreground">-</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="line-clamp-1 text-[12.5px]" title={listing.title || ""}>
-                        {listing.title || "Sin titulo"}
-                      </span>
                     </TableCell>
                     <TableCell>
                       <span className={STATUS_CSS[listing.status]}>
@@ -276,18 +227,22 @@ export default async function PublicacionesPage({
                         : "-"}
                     </TableCell>
                     <TableCell className="text-right num">
-                      <span
-                        className={
-                          outOfSync
-                            ? "margin-warn font-semibold text-[12.5px]"
-                            : "text-[12.5px]"
-                        }
-                      >
-                        {listing.currentStock}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right text-[12.5px] num font-semibold">
-                      {listing.pack.stock}
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span
+                          className={
+                            outOfSync
+                              ? "margin-warn font-semibold text-[12.5px]"
+                              : "text-[12.5px]"
+                          }
+                        >
+                          {listing.currentStock}
+                        </span>
+                        {outOfSync && (
+                          <span className="text-[10px] text-muted-foreground" title="Stock calculado del pack">
+                            / {listing.pack.stock}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-[11.5px] text-muted-foreground">
                       {listing.lastSyncedAt
@@ -300,7 +255,7 @@ export default async function PublicacionesPage({
               {listings.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={6}
                     className="py-8 text-center text-muted-foreground"
                   >
                     {hasFilters

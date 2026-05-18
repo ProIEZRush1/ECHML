@@ -116,19 +116,22 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Pack</th>
                 <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Precio</th>
-                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Costo Prod.</th>
-                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Costos Adic.</th>
-                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Comision ML</th>
-                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Envio</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Costo Total</th>
                 <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Utilidad</th>
                 <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Margen</th>
-                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Ventas</th>
-                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Util. Total</th>
+                <th className="text-right p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Ventas / Util. Total</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((d) => {
                 const marginClass = d.margin > 20 ? "margin-good" : d.margin > 0 ? "margin-warn" : "margin-bad";
+                const totalCost = d.productCost + d.additionalCosts + d.avgCommission + d.avgShipping;
+                const costBreakdown = [
+                  d.productCost > 0 ? `Producto: $${d.productCost.toFixed(2)}` : null,
+                  d.additionalCosts > 0 ? `Adicionales: $${d.additionalCosts.toFixed(2)}` : null,
+                  d.avgCommission > 0 ? `Comision: $${d.avgCommission.toFixed(2)}` : null,
+                  d.avgShipping > 0 ? `Envio: $${d.avgShipping.toFixed(2)}` : null,
+                ].filter(Boolean).join("\n");
                 return (
                   <tr key={d.id} className="border-b hover:bg-muted/30">
                     <td className="p-3">
@@ -136,14 +139,11 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
                       <div className="mono text-[11px] text-muted-foreground">{d.sku}</div>
                     </td>
                     <td className="text-right p-3 num text-[12.5px]">{fmt(d.salePrice)}</td>
-                    <td className="text-right p-3 num text-[12.5px]">{d.productCost > 0 ? fmt(d.productCost) : <span className="text-muted-foreground">-</span>}</td>
                     <td className="text-right p-3 num text-[12.5px]">
-                      {d.additionalCosts > 0 ? (
-                        <span title={d.costDetails.map((c) => `${c.category}: $${c.amount}`).join(", ")}>{fmt(d.additionalCosts)}</span>
-                      ) : <span className="text-muted-foreground">-</span>}
+                      <span title={costBreakdown} className="cursor-help border-b border-dashed border-muted-foreground/40">
+                        {fmt(totalCost)}
+                      </span>
                     </td>
-                    <td className="text-right p-3 num text-[12.5px] margin-bad">{fmt(d.avgCommission)}</td>
-                    <td className="text-right p-3 num text-[12.5px] margin-bad">{fmt(d.avgShipping)}</td>
                     <td className="text-right p-3 num">
                       <span className={`font-semibold text-[12.5px] ${d.profit > 0 ? "margin-good" : "margin-bad"}`}>
                         {fmt(d.profit)}
@@ -154,11 +154,11 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
                         {d.margin.toFixed(1)}%
                       </span>
                     </td>
-                    <td className="text-right p-3 num text-[12.5px]">{d.salesCount}</td>
-                    <td className="text-right p-3 num font-semibold">
-                      <span className={`text-[12.5px] ${d.totalProfit > 0 ? "margin-good" : "margin-bad"}`}>
+                    <td className="text-right p-3">
+                      <div className="num text-[12.5px]">{d.salesCount} ventas</div>
+                      <div className={`num font-semibold text-[12.5px] ${d.totalProfit > 0 ? "margin-good" : "margin-bad"}`}>
                         {fmt(d.totalProfit)}
-                      </span>
+                      </div>
                     </td>
                   </tr>
                 );

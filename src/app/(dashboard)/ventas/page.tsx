@@ -181,17 +181,14 @@ export default async function VentasPage({
       ) : (
         <div className="rounded-[9px] border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[540px]">
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Fecha</TableHead>
                   <TableHead className="w-[44px] text-[11px] uppercase tracking-wider"></TableHead>
-                  <TableHead className="max-w-[300px] text-[11px] uppercase tracking-wider">Producto</TableHead>
-                  <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Pack</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wider">Producto</TableHead>
                   <TableHead className="w-[50px] text-center text-[11px] uppercase tracking-wider">Cant</TableHead>
                   <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
-                  <TableHead className="w-[100px] text-right text-[11px] uppercase tracking-wider">Neto</TableHead>
-                  <TableHead className="w-[80px] text-[11px] uppercase tracking-wider">Estado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -245,37 +242,29 @@ export default async function VentasPage({
                             {sale.description || "Venta ML"}
                           </span>
                         )}
-                      </TableCell>
-                      <TableCell>
-                        {sale.pack ? (
-                          <div>
+                        {sale.pack && (
+                          <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             <Link
                               href={`/ventas?packId=${sale.pack.id}`}
-                              className="mono text-[11.5px] hover:underline"
+                              className="mono text-[10px] text-muted-foreground hover:underline"
                             >
                               {sale.pack.sku}
                             </Link>
-                            {sale.pack.items.length > 0 && (
-                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                {sale.pack.items.map((item, idx) => {
-                                  const dotClass = (item.productVariant.color && VARIANT_DOT[item.productVariant.color])
-                                    || (item.productVariant.variantLabel && LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
-                                  const label = item.productVariant.variantLabel || (item.productVariant.color || "");
-                                  return (
-                                    <span key={idx} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                                      {dotClass && (
-                                        <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotClass}`} title={label} />
-                                      )}
-                                      {item.quantity > 1 && <span>×{item.quantity}</span>}
-                                      {!dotClass && <span>{label}</span>}
-                                    </span>
-                                  );
-                                })}
-                              </div>
-                            )}
+                            {sale.pack.items.length > 0 && sale.pack.items.map((item, idx) => {
+                              const dotClass = (item.productVariant.color && VARIANT_DOT[item.productVariant.color])
+                                || (item.productVariant.variantLabel && LABEL_DOT[item.productVariant.variantLabel.split(" / ")[0]]);
+                              const label = item.productVariant.variantLabel || (item.productVariant.color || "");
+                              return (
+                                <span key={idx} className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                  {dotClass && (
+                                    <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${dotClass}`} title={label} />
+                                  )}
+                                  {item.quantity > 1 && <span>×{item.quantity}</span>}
+                                  {!dotClass && <span>{label}</span>}
+                                </span>
+                              );
+                            })}
                           </div>
-                        ) : (
-                          <span className="text-[11.5px] text-muted-foreground">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-center num text-[12.5px]">
@@ -283,12 +272,6 @@ export default async function VentasPage({
                       </TableCell>
                       <TableCell className="text-right num text-[12.5px] font-semibold margin-good">
                         {formatCurrency(Number(sale.amount))}
-                      </TableCell>
-                      <TableCell className="text-right num text-[12.5px] text-muted-foreground">
-                        {formatCurrency(Number(sale.balanceChange))}
-                      </TableCell>
-                      <TableCell>
-                        <span className="tx-pill sale">{sale.status}</span>
                       </TableCell>
                     </TableRow>
                   );
