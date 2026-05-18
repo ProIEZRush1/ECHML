@@ -82,6 +82,25 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     { title: "Listos para Enviar", status: "READY", orders: filtered.filter((o) => o.prepStatus === "READY"), color: "oklch(0.55 0.12 200)" },
   ];
 
+  const totalsByVariant = useMemo(() => {
+    const map = new Map<string, { label: string; total: number; stock: number }>();
+    for (const order of filtered) {
+      const items = order.listing?.pack?.items;
+      if (!items) continue;
+      for (const item of items) {
+        const label = item.productVariant.variantLabel || item.productVariant.product.name;
+        const existing = map.get(label);
+        const needed = item.quantity * order.quantity;
+        if (existing) {
+          existing.total += needed;
+        } else {
+          map.set(label, { label, total: needed, stock: item.productVariant.stock });
+        }
+      }
+    }
+    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [filtered]);
+
   function printLabels(ordersToPrint: Order[]) {
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return;
@@ -144,6 +163,23 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
           Imprimir Todas ({filtered.length})
         </button>
       </div>
+
+      {/* Totals by variant */}
+      {totalsByVariant.length > 0 && (
+        <div className="rounded-[9px] border border-border bg-card p-3">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
+            Total a preparar ({filtered.length} ordenes)
+          </p>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {totalsByVariant.map((v) => (
+              <span key={v.label} className={`text-[12px] mono ${v.total > v.stock ? "text-red-500 font-semibold" : ""}`}>
+                {v.total}× {v.label}
+                <span className="text-[10px] text-muted-foreground ml-1">({v.stock})</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <EmptyState
