@@ -224,17 +224,21 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
               <button className={activeVariants.length === 0 ? "on" : ""} onClick={() => setActiveVariants([])}>
                 Todas
               </button>
-              {allVariants.map((v) => (
-                <button
-                  key={v}
-                  className={activeVariants.includes(v) ? "on" : ""}
-                  onClick={() => setActiveVariants((prev) =>
-                    prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
-                  )}
-                >
-                  {v}
-                </button>
-              ))}
+              {allVariants.map((v) => {
+                const isOn = activeVariants.includes(v);
+                return (
+                  <button
+                    key={v}
+                    className={isOn ? "on" : ""}
+                    onClick={() => setActiveVariants((prev) =>
+                      prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]
+                    )}
+                  >
+                    {v}
+                    {isOn && activeVariants.length > 1 && <span className="ml-0.5 opacity-50">×</span>}
+                  </button>
+                );
+              })}
             </div>
           </>
         )}
