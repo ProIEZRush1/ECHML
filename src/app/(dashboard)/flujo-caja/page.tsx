@@ -778,7 +778,7 @@ export default async function FlujoCajaPage({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[700px]">
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>

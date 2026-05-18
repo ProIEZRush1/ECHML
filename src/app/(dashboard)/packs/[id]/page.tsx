@@ -151,12 +151,12 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
       )}
 
       {/* Composition table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
           <h3 className="text-[12.5px] font-semibold">Composicion</h3>
           <span className="text-[11px] text-muted-foreground">{pack.items.length} items</span>
         </div>
-        <table className="w-full text-[12.5px]">
+        <table className="w-full min-w-[600px] text-[12.5px]">
           <thead>
             <tr className="border-b border-border bg-muted/30">
               <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">
@@ -255,12 +255,12 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
 
       {/* Linked ML Listings */}
       {pack.mlListings.length > 0 && (
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
             <h3 className="text-[12.5px] font-semibold">Publicaciones Vinculadas</h3>
             <span className="text-[11px] text-muted-foreground">{pack.mlListings.length} publicaciones</span>
           </div>
-          <table className="w-full text-[12.5px]">
+          <table className="w-full min-w-[600px] text-[12.5px]">
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="px-3 py-2.5 text-left text-[11px] font-medium text-muted-foreground uppercase tracking-[0.05em]">

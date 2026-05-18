@@ -174,7 +174,7 @@ export default async function PublicacionesPage({
       {/* Table */}
       <div className="rounded-[9px] border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="min-w-[800px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="w-[130px] text-[11px] uppercase tracking-wider">ML ID</TableHead>

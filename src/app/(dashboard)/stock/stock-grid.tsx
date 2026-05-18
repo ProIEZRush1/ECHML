@@ -215,7 +215,7 @@ export function StockGrid({
       <div className="space-y-3">
         {/* Groups row */}
         {groups.length > 0 && (
-          <div className="filt-bar">
+          <div className="filt-bar overflow-x-auto">
             <span className="lbl">Grupos</span>
             {groups.map((g) => (
               <button
@@ -247,7 +247,7 @@ export function StockGrid({
         )}
 
         {/* Brand + search + sort row */}
-        <div className="filt-bar">
+        <div className="filt-bar overflow-x-auto">
           <span className="lbl">Marca</span>
           <div className="pillgroup">
             <button className={activeBrand === "all" ? "on" : ""} onClick={() => setActiveBrand("all")}>

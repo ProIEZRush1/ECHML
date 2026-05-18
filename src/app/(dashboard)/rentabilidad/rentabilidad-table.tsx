@@ -87,7 +87,7 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
       </div>
 
       {/* Filters */}
-      <div className="filt-bar">
+      <div className="filt-bar overflow-x-auto">
         <span className="lbl">Margen</span>
         <div className="pillgroup">
           <button onClick={() => setFilterMargin("all")} className={filterMargin === "all" ? "on" : ""}>Todos</button>
@@ -111,7 +111,7 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
       {/* Table */}
       <div className="rounded-[9px] border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-3 text-[11px] uppercase tracking-wider font-medium text-muted-foreground">Pack</th>
