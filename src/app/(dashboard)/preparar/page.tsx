@@ -67,6 +67,7 @@ export default async function PrepararPage() {
       id: o.id,
       mlItemId: o.mlItemId,
       mlOrderId: String(o.mlOrderId),
+      shipmentId: o.shipmentId ? String(o.shipmentId) : null,
       quantity: o.quantity,
       buyerNickname: o.buyerNickname,
       prepStatus: o.prepStatus,

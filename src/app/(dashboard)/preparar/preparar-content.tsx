@@ -34,6 +34,7 @@ interface Order {
   id: string;
   mlItemId: string;
   mlOrderId: string;
+  shipmentId: string | null;
   quantity: number;
   buyerNickname: string | null;
   prepStatus: PrepStatus;
@@ -61,8 +62,22 @@ interface Props {
   kpis: KpiData;
 }
 
+const STATUS_TABS: { label: string; value: string }[] = [
+  { label: "Todos", value: "" },
+  { label: "Nuevos", value: "NEW" },
+  { label: "Preparando", value: "PREPARING" },
+  { label: "Listos", value: "READY" },
+];
+
+const SORT_OPTIONS = [
+  { label: "Mas antiguos", value: "oldest" },
+  { label: "Mas recientes", value: "newest" },
+];
+
 export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeGroup, setActiveGroup] = useState<string>("");
+  const [activeStatus, setActiveStatus] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<string>("oldest");
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
 
@@ -73,15 +88,25 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   }, []);
 
   const filtered = useMemo(() => {
-    if (!activeGroup) return orders;
-    const group = groups.find((g) => g.id === activeGroup);
-    if (!group) return orders;
-    return orders.filter((o) => {
-      const items = o.listing?.pack?.items;
-      if (!items) return false;
-      return items.some((item) => group.productIds.includes(item.productVariant.product.id));
-    });
-  }, [orders, groups, activeGroup]);
+    let result = orders;
+    if (activeGroup) {
+      const group = groups.find((g) => g.id === activeGroup);
+      if (group) {
+        result = result.filter((o) => {
+          const items = o.listing?.pack?.items;
+          if (!items) return false;
+          return items.some((item) => group.productIds.includes(item.productVariant.product.id));
+        });
+      }
+    }
+    if (activeStatus) {
+      result = result.filter((o) => o.prepStatus === activeStatus);
+    }
+    if (sortOrder === "newest") {
+      result = [...result].reverse();
+    }
+    return result;
+  }, [orders, groups, activeGroup, activeStatus, sortOrder]);
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
     { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
@@ -108,21 +133,23 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
   }, [filtered]);
 
-  function printLabels(ordersToPrint: Order[]) {
-    const w = window.open("", "_blank", "width=400,height=600");
-    if (!w) return;
-    const labels = ordersToPrint.map((o) => {
-      const pack = o.listing?.pack;
-      const items = pack?.items?.map((i) => `${i.quantity * o.quantity}× ${i.productVariant.variantLabel || i.productVariant.product.name}`).join(", ") || "";
-      return `<div style="border:2px solid #000;padding:12px;margin:8px 0;page-break-inside:avoid;font-family:system-ui">
-        <div style="font-size:18px;font-weight:700">${pack?.name || o.mlItemId}</div>
-        <div style="font-size:13px;color:#555;margin:4px 0">${pack?.sku || ""} · ×${o.quantity}</div>
-        <div style="font-size:14px;margin-top:6px;border-top:1px solid #ddd;padding-top:6px">${items}</div>
-        <div style="font-size:11px;color:#888;margin-top:4px">${o.buyerNickname || ""} · #${String(o.mlOrderId).slice(-8)}</div>
-      </div>`;
-    }).join("");
-    w.document.write(`<html><head><title>Etiquetas</title></head><body style="margin:16px">${labels}<script>window.print()</script></body></html>`);
-    w.document.close();
+  async function printLabel(shipmentId: string) {
+    const res = await fetch(`/api/ml/shipping-label?shipmentId=${shipmentId}`);
+    if (!res.ok) { alert("No se pudo obtener la etiqueta"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  }
+
+  async function printLabels(ordersToPrint: Order[]) {
+    const withShipment = ordersToPrint.filter((o) => o.shipmentId);
+    if (withShipment.length === 0) { alert("Ninguna orden tiene envio asignado"); return; }
+    const ids = withShipment.map((o) => o.shipmentId).join(",");
+    const res = await fetch(`/api/ml/shipping-label?shipmentIds=${ids}`);
+    if (!res.ok) { alert("Error al obtener etiquetas"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   }
 
   return (
@@ -142,9 +169,17 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
         ))}
       </div>
 
-      {/* Filters + Print */}
-      <div className="filt-bar">
+      {/* Filters */}
+      <div className="filt-bar flex-wrap">
         <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="lbl">Estado</span>
+        <div className="pillgroup">
+          {STATUS_TABS.map((tab) => (
+            <button key={tab.value} className={activeStatus === tab.value ? "on" : ""} onClick={() => setActiveStatus(tab.value)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <span className="lbl">Grupo</span>
         <div className="pillgroup">
           <button className={activeGroup === "" ? "on" : ""} onClick={() => setActiveGroup("")}>
@@ -161,13 +196,21 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
             </button>
           ))}
         </div>
+        <span className="lbl">Orden</span>
+        <div className="pillgroup">
+          {SORT_OPTIONS.map((opt) => (
+            <button key={opt.value} className={sortOrder === opt.value ? "on" : ""} onClick={() => setSortOrder(opt.value)}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <button
           onClick={() => printLabels(filtered)}
           className="ml-auto filt-input hover:border-muted-foreground"
           disabled={filtered.length === 0}
         >
           <Printer className="h-3 w-3" />
-          Imprimir Todas ({filtered.length})
+          Etiquetas ML ({filtered.filter((o) => o.shipmentId).length})
         </button>
       </div>
 
@@ -208,7 +251,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                     className="ml-auto text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                   >
                     <Printer className="h-3 w-3" />
-                    Imprimir
+                    Etiquetas ({section.orders.filter((o) => o.shipmentId).length})
                   </button>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -246,13 +289,15 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                             {order.stockAlert && (
                               <span className="text-[9px] font-semibold text-red-500 uppercase">Sin stock</span>
                             )}
-                            <button
-                              onClick={() => printLabels([order])}
-                              className="h-6 w-6 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
-                              title="Imprimir etiqueta"
-                            >
-                              <Printer className="h-3 w-3" />
-                            </button>
+                            {order.shipmentId && (
+                              <button
+                                onClick={() => printLabel(order.shipmentId!)}
+                                className="h-6 w-6 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
+                                title="Etiqueta ML"
+                              >
+                                <Printer className="h-3 w-3" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
