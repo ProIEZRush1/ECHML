@@ -623,39 +623,47 @@ export default async function FlujoCajaPage({
         );
       })()}
 
-      {/* Devoluciones Detail */}
+      {/* Devoluciones Detail - Split into two cards */}
       {filteredReturnCount > 0 && (
-        <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costo Devoluciones</p>
-              <p className="text-[11px] text-muted-foreground">{filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""}{filteredReturnFromFull > 0 ? ` · ${filteredReturnFromFull} desde Full` : ""}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Ventas Devueltas */}
+          <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ventas Devueltas</p>
+              <span className="sw" style={{ background: "oklch(0.55 0.18 25)" }} />
             </div>
-            <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalReturns + returnedProductCost + returnFees + returnShipping)}</p>
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalReturns + returnedProductCost)}</p>
+            <div className="mt-1.5 space-y-0.5 text-[11px]">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Reembolso al comprador</span>
+                <span className="num">-{formatCurrency(totalReturns)}</span>
+              </div>
+              {returnedProductCost > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Costo producto perdido</span>
+                  <span className="num">-{formatCurrency(returnedProductCost)}</span>
+                </div>
+              )}
+              {returnFees > 0 && (
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Comisiones no reembolsadas</span>
+                  <span className="num">-{formatCurrency(returnFees)}</span>
+                </div>
+              )}
+              <p className="text-muted-foreground pt-1">{filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""}{filteredReturnFromFull > 0 ? ` · ${filteredReturnFromFull} desde Full` : ""}</p>
+            </div>
           </div>
-          <div className="space-y-1 text-[11.5px]">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Venta perdida (reembolso)</span>
-              <span className="num margin-bad">-{formatCurrency(totalReturns)}</span>
+
+          {/* Envio Devoluciones */}
+          <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Envio Devoluciones</p>
+              <span className="sw" style={{ background: "oklch(0.55 0.18 25)" }} />
             </div>
-            {returnedProductCost > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Costo producto perdido</span>
-                <span className="num margin-bad">-{formatCurrency(returnedProductCost)}</span>
-              </div>
-            )}
-            {returnFees > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Comisiones no reembolsadas</span>
-                <span className="num margin-bad">-{formatCurrency(returnFees)}</span>
-              </div>
-            )}
-            {returnShipping > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Envio perdido</span>
-                <span className="num margin-bad">-{formatCurrency(returnShipping)}</span>
-              </div>
-            )}
+            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(returnShipping)}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Costo de envio en ordenes devueltas
+            </p>
           </div>
         </div>
       )}
