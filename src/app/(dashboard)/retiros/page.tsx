@@ -37,6 +37,7 @@ export default async function RetirosPage() {
         allocations: {
           include: {
             pack: { select: { sku: true, name: true } },
+            product: { select: { name: true, supplierCode: true } },
           },
         },
         productGroup: { select: { id: true, name: true, color: true } },
@@ -80,11 +81,13 @@ export default async function RetirosPage() {
             <TableBody>
               {withdrawals.map((withdrawal) => {
                 const allocationSummary = withdrawal.allocations
-                  .filter((a) => a.pack)
-                  .map(
-                    (a) =>
-                      `${a.pack!.sku}: ${formatCurrency(Number(a.amount))}`
-                  );
+                  .filter((a) => a.pack || a.product)
+                  .map((a) => {
+                    if (a.pack) return `${a.pack.sku}: ${formatCurrency(Number(a.amount))}`;
+                    if (a.product) return `${a.product.supplierCode || a.product.name}: ${formatCurrency(Number(a.amount))}`;
+                    return "";
+                  })
+                  .filter(Boolean);
 
                 return (
                   <TableRow key={withdrawal.id} className="hover:bg-muted/50">

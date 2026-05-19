@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -21,8 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 
@@ -30,14 +29,12 @@ interface PackOption {
   packId: string;
   packSku: string;
   packName: string;
-  income: number;
-  withdrawn: number;
-  balance: number;
 }
 
-interface Allocation {
-  packId: string;
-  amount: string;
+interface ProductOption {
+  id: string;
+  name: string;
+  supplierCode: string | null;
 }
 
 interface WithdrawalData {
@@ -48,8 +45,11 @@ interface WithdrawalData {
   method: string;
   reference: string | null;
   notes: string | null;
+  productGroupId: string | null;
+  hasFactura: boolean;
   allocations: Array<{
     packId: string | null;
+    productId: string | null;
     amount: string;
   }>;
 }
@@ -58,6 +58,98 @@ interface WithdrawalFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   withdrawal?: WithdrawalData | null;
+}
+
+function SearchableDropdown({
+  label,
+  placeholder,
+  searchPlaceholder,
+  items,
+  value,
+  onChange,
+  renderItem,
+  renderSelected,
+}: {
+  label: string;
+  placeholder: string;
+  searchPlaceholder: string;
+  items: Array<{ id: string }>;
+  value: string;
+  onChange: (id: string) => void;
+  renderItem: (item: any) => string;
+  renderSelected: (item: any) => string;
+}) {
+  const [search, setSearch] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = items.filter((item) =>
+    renderItem(item).toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selected = items.find((i) => i.id === value);
+
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <div ref={ref} className="relative">
+        <Input
+          placeholder={selected ? renderSelected(selected) : placeholder}
+          value={isOpen ? search : selected ? renderSelected(selected) : ""}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            if (!isOpen) setIsOpen(true);
+          }}
+          onFocus={() => {
+            setIsOpen(true);
+            setSearch("");
+          }}
+          className={selected && !isOpen ? "text-foreground" : ""}
+        />
+        {value && !isOpen && (
+          <button
+            type="button"
+            onClick={() => { onChange(""); setSearch(""); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+          >
+            x
+          </button>
+        )}
+        {isOpen && (
+          <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-md border bg-popover p-1 shadow-md">
+            {filtered.length === 0 ? (
+              <p className="px-2 py-1.5 text-sm text-muted-foreground">Sin resultados</p>
+            ) : (
+              filtered.slice(0, 50).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-muted truncate"
+                  onClick={() => {
+                    onChange(item.id);
+                    setIsOpen(false);
+                    setSearch("");
+                  }}
+                >
+                  {renderItem(item)}
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function WithdrawalFormDialog({
@@ -74,17 +166,19 @@ export function WithdrawalFormDialog({
   const [method, setMethod] = useState("bank");
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
-  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [productGroupId, setProductGroupId] = useState("");
   const [hasFactura, setHasFactura] = useState(false);
+  const [packId, setPackId] = useState("");
+  const [productId, setProductId] = useState("");
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
   const [packs, setPacks] = useState<PackOption[]>([]);
+  const [products, setProducts] = useState<ProductOption[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadingPacks, setLoadingPacks] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
 
   useEffect(() => {
     if (open) {
-      fetchPacks();
+      fetchOptions();
       if (withdrawal) {
         setAmount(withdrawal.amount);
         setDate(withdrawal.date.split("T")[0]);
@@ -92,14 +186,12 @@ export function WithdrawalFormDialog({
         setMethod(withdrawal.method);
         setReference(withdrawal.reference || "");
         setNotes(withdrawal.notes || "");
-        setAllocations(
-          withdrawal.allocations
-            .filter((a) => a.packId)
-            .map((a) => ({
-              packId: a.packId!,
-              amount: a.amount,
-            }))
-        );
+        setProductGroupId(withdrawal.productGroupId || "");
+        setHasFactura(withdrawal.hasFactura || false);
+        const packAlloc = withdrawal.allocations.find((a) => a.packId);
+        const prodAlloc = withdrawal.allocations.find((a) => a.productId);
+        setPackId(packAlloc?.packId || "");
+        setProductId(prodAlloc?.productId || "");
       } else {
         resetForm();
       }
@@ -115,15 +207,17 @@ export function WithdrawalFormDialog({
     setNotes("");
     setProductGroupId("");
     setHasFactura(false);
-    setAllocations([]);
+    setPackId("");
+    setProductId("");
   }
 
-  async function fetchPacks() {
-    setLoadingPacks(true);
+  async function fetchOptions() {
+    setLoadingOptions(true);
     try {
-      const [cashflowRes, groupsRes] = await Promise.all([
+      const [cashflowRes, groupsRes, productsRes] = await Promise.all([
         fetch("/api/cashflow"),
         fetch("/api/product-groups"),
+        fetch("/api/products"),
       ]);
       if (cashflowRes.ok) {
         const data = await cashflowRes.json();
@@ -132,31 +226,17 @@ export function WithdrawalFormDialog({
       if (groupsRes.ok) {
         setGroups(await groupsRes.json());
       }
+      if (productsRes.ok) {
+        const data = await productsRes.json();
+        setProducts(Array.isArray(data) ? data : data.products || []);
+      }
     } catch {
       toast.error("Error al cargar datos");
     } finally {
-      setLoadingPacks(false);
+      setLoadingOptions(false);
     }
   }
 
-  function addAllocation() {
-    setAllocations([...allocations, { packId: "", amount: "" }]);
-  }
-
-  function removeAllocation(index: number) {
-    setAllocations(allocations.filter((_, i) => i !== index));
-  }
-
-  function updateAllocation(index: number, field: keyof Allocation, value: string) {
-    const updated = [...allocations];
-    updated[index] = { ...updated[index], [field]: value };
-    setAllocations(updated);
-  }
-
-  const totalAllocated = allocations.reduce(
-    (sum, a) => sum + (parseFloat(a.amount) || 0),
-    0
-  );
   const totalAmount = parseFloat(amount) || 0;
 
   async function handleSubmit() {
@@ -173,15 +253,18 @@ export function WithdrawalFormDialog({
       return;
     }
 
-    if (totalAllocated > totalAmount) {
-      toast.error("Las asignaciones superan el monto total");
-      return;
-    }
-
     setLoading(true);
     try {
+      const allocations: Array<{ packId?: string; productId?: string; amount: number }> = [];
+      if (packId) {
+        allocations.push({ packId, amount: totalAmount });
+      }
+      if (productId) {
+        allocations.push({ productId, amount: totalAmount });
+      }
+
       const payload = {
-        amount: parseFloat(amount),
+        amount: totalAmount,
         date,
         concept: concept.trim(),
         method,
@@ -189,12 +272,7 @@ export function WithdrawalFormDialog({
         notes: notes.trim() || undefined,
         productGroupId: productGroupId || undefined,
         hasFactura,
-        allocations: allocations
-          .filter((a) => a.packId && parseFloat(a.amount) > 0)
-          .map((a) => ({
-            packId: a.packId,
-            amount: parseFloat(a.amount),
-          })),
+        allocations: allocations.length > 0 ? allocations : undefined,
       };
 
       const url = isEditing
@@ -338,73 +416,35 @@ export function WithdrawalFormDialog({
             </div>
           </div>
 
-          <Separator />
-
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Asignaciones por Pack (opcional)</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addAllocation}
-                disabled={loadingPacks}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                Agregar
-              </Button>
+          {loadingOptions ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Cargando opciones...
             </div>
-
-            {allocations.length > 0 && (
-              <div className="space-y-2">
-                {allocations.map((alloc, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Select
-                      value={alloc.packId}
-                      onValueChange={(v) => updateAllocation(index, "packId", v ?? "")}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar pack..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {packs.map((pack) => (
-                          <SelectItem key={pack.packId} value={pack.packId}>
-                            {pack.packSku}: {pack.packName} (Disp: {formatCurrency(pack.balance)})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="Monto"
-                      className="w-28"
-                      value={alloc.amount}
-                      onChange={(e) => updateAllocation(index, "amount", e.target.value)}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => removeAllocation(index)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                  </div>
-                ))}
-
-                <div className="flex items-center justify-between text-sm pt-1">
-                  <span className="text-muted-foreground">
-                    Asignado: {formatCurrency(totalAllocated)} / {formatCurrency(totalAmount)} total
-                  </span>
-                  {totalAllocated > totalAmount && (
-                    <span className="text-destructive font-medium">Excede el monto</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <SearchableDropdown
+                label="Pack"
+                placeholder="Buscar pack..."
+                searchPlaceholder="Escribir para buscar..."
+                items={packs.map((p) => ({ id: p.packId, ...p }))}
+                value={packId}
+                onChange={setPackId}
+                renderItem={(p: PackOption & { id: string }) => `${p.packSku}: ${p.packName}`}
+                renderSelected={(p: PackOption & { id: string }) => p.packSku}
+              />
+              <SearchableDropdown
+                label="Producto"
+                placeholder="Buscar producto..."
+                searchPlaceholder="Escribir para buscar..."
+                items={products}
+                value={productId}
+                onChange={setProductId}
+                renderItem={(p: ProductOption) => `${p.supplierCode || ""} ${p.name}`.trim()}
+                renderSelected={(p: ProductOption) => p.name}
+              />
+            </div>
+          )}
         </div>
 
         <DialogFooter>
