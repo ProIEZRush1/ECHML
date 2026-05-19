@@ -245,30 +245,23 @@ export default async function PedidosPage({
                       </div>
                       {(() => {
                         const info = returnShipInfoMap.get(order.mlOrderId);
+                        if (!info) return null;
                         return (
-                          <div className="flex justify-between text-muted-foreground">
-                            <span>Envio devolucion</span>
-                            {info?.covered ? (
-                              <span className="text-[10px] text-green-600 dark:text-green-400">Sin costo (ML cubre)</span>
-                            ) : info ? (
-                              <span className="text-[10px] margin-warn">Costo a cargo del vendedor</span>
-                            ) : (
-                              <span className="text-[10px]">Sin info</span>
-                            )}
-                          </div>
-                        );
-                      })()}
-                      {(() => {
-                        const info = returnShipInfoMap.get(order.mlOrderId);
-                        if (info?.problem) {
-                          return (
-                            <div className="flex justify-between text-muted-foreground mt-0.5">
-                              <span>Razon</span>
-                              <span className="text-[10px] truncate ml-4">{info.problem}</span>
+                          <>
+                            <div className="flex justify-between text-muted-foreground">
+                              <span>Estado ML</span>
+                              <span className={`text-[10px] truncate ml-4 ${info.covered ? "text-green-600 dark:text-green-400" : ""}`}>
+                                {info.title}
+                              </span>
                             </div>
-                          );
-                        }
-                        return null;
+                            {info.problem && (
+                              <div className="flex justify-between text-muted-foreground mt-0.5">
+                                <span>Razon</span>
+                                <span className="text-[10px] truncate ml-4">{info.problem}</span>
+                              </div>
+                            )}
+                          </>
+                        );
                       })()}
                     </div>
                   </div>
