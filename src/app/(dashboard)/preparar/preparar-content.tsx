@@ -275,9 +275,9 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {totalsByVariant.map((v) => (
-              <span key={v.label} className={`text-[12px] mono ${v.total > v.stock ? "text-red-500 font-semibold" : ""}`}>
+              <span key={v.label} className="text-[12px] mono">
                 {v.total}× {v.label}
-                <span className="text-[10px] text-muted-foreground ml-1">({v.stock})</span>
+                <span className="text-[10px] text-muted-foreground ml-1">({v.stock} en stock)</span>
               </span>
             ))}
           </div>
@@ -359,14 +359,13 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                             {pack.items.map((item, idx) => {
                               const totalNeeded = item.quantity * order.quantity;
                               const label = itemLabel(item);
-                              const lowStock = item.productVariant.stock < totalNeeded;
                               return (
                                 <div key={idx} className="flex items-center justify-between text-[11px]">
-                                  <span className={lowStock ? "text-red-500" : "text-muted-foreground"}>
+                                  <span className="text-muted-foreground">
                                     {totalNeeded}× {label}
                                   </span>
-                                  <span className={`mono text-[10px] ${lowStock ? "text-red-500 font-semibold" : "text-muted-foreground"}`}>
-                                    ({item.productVariant.stock} disp.)
+                                  <span className="mono text-[10px] text-muted-foreground">
+                                    ({item.productVariant.stock} en stock)
                                   </span>
                                 </div>
                               );

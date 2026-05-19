@@ -62,7 +62,7 @@ export default async function PrepararPage() {
 
   const enrichedOrders = orders.map((o) => {
     const listing = listingMap.get(o.mlItemId) || null;
-    const stockAlert = listing ? listing.pack.stock <= 0 : false;
+    const stockAlert = false;
     return {
       id: o.id,
       mlItemId: o.mlItemId,
