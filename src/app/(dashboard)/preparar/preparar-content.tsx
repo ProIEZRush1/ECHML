@@ -327,7 +327,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-[12px] truncate">{pack?.name || order.mlItemId}</p>
                             <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
-                              {pack?.sku && <span className="mono">{pack.sku}</span>}
+                              {pack?.sku && <span className="mono font-semibold text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground select-all">{pack.sku}</span>}
                               <span className="text-border">·</span>
                               <span className="font-semibold text-foreground">×{order.quantity}</span>
                               {order.buyerNickname && (
