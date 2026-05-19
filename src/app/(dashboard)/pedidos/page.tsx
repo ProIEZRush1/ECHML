@@ -93,6 +93,23 @@ export default async function PedidosPage({
   });
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
+  // Fetch shipping costs for returned orders
+  const returnedOrderIds = orders
+    .filter((o) => o.shippingStatus === "RETURNED" || o.shippingStatus === "NOT_DELIVERED")
+    .map((o) => o.mlOrderId);
+  const returnShippingTxs = returnedOrderIds.length > 0
+    ? await prisma.mPTransaction.findMany({
+        where: { mlOrderId: { in: returnedOrderIds }, label: { in: ["shipping", "flex_cost"] } },
+        select: { mlOrderId: true, amount: true, label: true },
+      })
+    : [];
+  const returnShipCostMap = new Map<bigint, number>();
+  for (const tx of returnShippingTxs) {
+    if (tx.mlOrderId) {
+      returnShipCostMap.set(tx.mlOrderId, (returnShipCostMap.get(tx.mlOrderId) || 0) + Math.abs(Number(tx.amount)));
+    }
+  }
+
   const totalPages = Math.ceil(totalCount / pageSize);
   const totalOrders = statusCounts.reduce((s, c) => s + c._count, 0);
   const deliveredCount = statusCounts.find((c) => c.shippingStatus === "DELIVERED")?._count ?? 0;
@@ -152,16 +169,22 @@ export default async function PedidosPage({
       {/* Devoluciones summary — per-return breakdown */}
       {statusFilter === "DEVOLUCIONES" && orders.length > 0 && (() => {
         const totalMonto = orders.reduce((s, o) => s + Number(o.totalAmount), 0);
+        const totalShipCost = orders.reduce((s, o) => s + (returnShipCostMap.get(o.mlOrderId) || 0), 0);
         const fullCount = orders.filter((o) => o.logisticType === "fulfillment").length;
         const flexCount = orders.filter((o) => o.logisticType !== "fulfillment").length;
         return (
           <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Resumen Devoluciones</p>
                 <p className="text-[11px] text-muted-foreground">{totalCount} total · {fullCount} Full · {flexCount} Flex/ME2 · ML reembolsa comisiones</p>
               </div>
-              <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalMonto)}</p>
+              <div className="text-right">
+                <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalMonto)}</p>
+                {totalShipCost > 0 && (
+                  <p className="text-[11px] text-muted-foreground">Envio: -{formatCurrency(totalShipCost)}</p>
+                )}
+              </div>
             </div>
             <div className="divide-y divide-border">
               {orders.map((order) => {
@@ -172,20 +195,32 @@ export default async function PedidosPage({
                   : order.logisticType === "self_service"
                   ? "text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
                   : "text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
+                const shipCost = returnShipCostMap.get(order.mlOrderId) || 0;
                 return (
-                  <div key={order.id} className="flex items-center gap-3 py-2 first:pt-0">
-                    {listing?.pack?.imageUrl && (
-                      <Image src={listing.pack.imageUrl} alt="" width={32} height={32} className="h-8 w-8 rounded object-cover shrink-0 border bg-muted" unoptimized />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[12px] truncate">{listing?.title || order.mlItemId}</p>
-                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                        <span>{formatDateTime(order.dateCreated)}</span>
-                        <span className={logisticCss}>{logistic}</span>
-                        {order.buyerNickname && <span className="truncate">{order.buyerNickname}</span>}
+                  <div key={order.id} className="py-2.5 first:pt-0 space-y-1">
+                    <div className="flex items-center gap-3">
+                      {listing?.pack?.imageUrl && (
+                        <Image src={listing.pack.imageUrl} alt="" width={32} height={32} className="h-8 w-8 rounded object-cover shrink-0 border bg-muted" unoptimized />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] truncate font-medium">{listing?.title || order.mlItemId}</p>
+                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                          <span>{formatDateTime(order.dateCreated)}</span>
+                          <span className={logisticCss}>{logistic}</span>
+                          {order.buyerNickname && <span className="truncate">{order.buyerNickname}</span>}
+                        </div>
                       </div>
                     </div>
-                    <p className="text-[13px] font-bold num margin-bad shrink-0">-{formatCurrency(Number(order.totalAmount))}</p>
+                    <div className="ml-11 grid grid-cols-2 gap-x-4 text-[11px]">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Reembolso</span>
+                        <span className="num margin-bad">-{formatCurrency(Number(order.totalAmount))}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Envio</span>
+                        <span className="num margin-bad">{shipCost > 0 ? `-${formatCurrency(shipCost)}` : "$0"}</span>
+                      </div>
+                    </div>
                   </div>
                 );
               })}
