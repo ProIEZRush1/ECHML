@@ -28,6 +28,7 @@ interface Product {
   variants: Array<{
     id: string;
     color: string;
+    variantLabel: string | null;
   }>;
 }
 
@@ -222,13 +223,13 @@ export default function StockEntryPage() {
                 value={row.productId}
                 onValueChange={(v) => updateRow(index, "productId", v ?? "")}
               >
-                <SelectTrigger className="h-9 text-xs">
-                  <SelectValue placeholder="Producto" />
+                <SelectTrigger className="h-9 text-[12px]">
+                  <SelectValue placeholder="Seleccionar producto..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px]">
                   {products.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.supplierCode})
+                    <SelectItem key={p.id} value={p.id} className="text-[12px]">
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -245,7 +246,7 @@ export default function StockEntryPage() {
                 <SelectContent>
                   {getVariantsForProduct(row.productId).map((v) => (
                     <SelectItem key={v.id} value={v.id}>
-                      {COLOR_LABELS[v.color] ?? v.color}
+                      {v.variantLabel || COLOR_LABELS[v.color] || v.color || "Default"}
                     </SelectItem>
                   ))}
                 </SelectContent>

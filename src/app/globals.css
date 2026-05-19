@@ -340,14 +340,16 @@
 
 /* Stock entry rows */
 .entry-row {
-  display: grid; grid-template-columns: 2fr 1.2fr 80px 110px 32px; gap: 10px;
+  display: grid; grid-template-columns: 3fr 1fr 80px 100px 32px; gap: 10px;
   align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--border);
 }
 .entry-row:last-of-type { border-bottom: 0; }
 
 /* Mobile responsive tables */
 @media (max-width: 640px) {
-  .entry-row { grid-template-columns: 1fr 1fr 70px 90px 32px; gap: 6px; padding: 8px; font-size: 13px; }
+  .entry-row { grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 12px; font-size: 13px; }
+  .entry-row > *:nth-child(1) { grid-column: 1 / -1; }
+  .entry-row > *:nth-child(5) { position: absolute; right: 12px; top: 10px; }
   table { font-size: 13px; }
   table th, table td { padding: 6px 8px !important; }
 }
