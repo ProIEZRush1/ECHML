@@ -304,6 +304,7 @@ model Withdrawal {
   notes           String?
   userId          String
   productGroupId  String?
+  hasFactura      Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

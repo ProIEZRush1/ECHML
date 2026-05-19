@@ -231,7 +231,7 @@ export default async function FlujoCajaPage({
       },
       select: { id: true, amount: true, date: true, concept: true, category: true, type: true, transactionIds: true, packId: true, productId: true },
     }),
-    prisma.withdrawal.aggregate({
+    prisma.withdrawal.findMany({
       where: {
         date: {
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
@@ -239,7 +239,7 @@ export default async function FlujoCajaPage({
         },
         ...(filteredGroupIds.length > 0 ? { productGroupId: { in: filteredGroupIds } } : {}),
       },
-      _sum: { amount: true },
+      select: { amount: true, hasFactura: true },
     }),
   ]);
 
@@ -403,8 +403,9 @@ export default async function FlujoCajaPage({
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
-  const totalWithdrawn = Number(withdrawals._sum.amount ?? 0);
-  const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
+  const totalWithdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
+  const totalFacturaCost = withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
+  const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn - totalFacturaCost;
 
   // Calculate balance per pack -- apply same pack filter as KPI cards
   const packWhere: {
@@ -563,7 +564,7 @@ export default async function FlujoCajaPage({
 
       {/* KPI Cards */}
       {(() => {
-        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturnShipCost;
+        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturnShipCost + totalFacturaCost;
         const deductionItems: { label: string; value: number }[] = [
           { label: "Comisiones", value: totalFees },
           { label: "Envios", value: totalShipping },
@@ -573,6 +574,7 @@ export default async function FlujoCajaPage({
           { label: "Compras", value: totalCompras },
           { label: "Flex", value: totalFlexNet },
           { label: "Envio devoluciones", value: totalReturnShipCost },
+          { label: "Factura (3%)", value: totalFacturaCost },
         ].filter((d) => d.value > 0);
 
         return (

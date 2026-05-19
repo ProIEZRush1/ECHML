@@ -16,6 +16,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { WithdrawalCreateButton } from "@/components/withdrawals/withdrawal-create-button";
 import { WithdrawalDeleteButton } from "@/components/withdrawals/withdrawal-delete-button";
 import { WithdrawalGroupSelect } from "./withdrawal-group-select";
+import { WithdrawalFacturaToggle } from "./withdrawal-factura-toggle";
 
 const METHOD_CSS: Record<string, string> = {
   bank: "tx-pill withdraw",
@@ -92,14 +93,22 @@ export default async function RetirosPage() {
                     </TableCell>
                     <TableCell className="text-right num font-semibold margin-bad">
                       -{formatCurrency(Number(withdrawal.amount))}
+                      {withdrawal.hasFactura && (
+                        <p className="text-[10px] text-muted-foreground">Factura: -{formatCurrency(Number(withdrawal.amount) * 0.03)}</p>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium text-[12.5px]">
                       {withdrawal.concept}
                     </TableCell>
                     <TableCell>
-                      <span className={METHOD_CSS[withdrawal.method] || "tx-pill withdraw"}>
-                        {METHOD_LABELS[withdrawal.method] || withdrawal.method}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={METHOD_CSS[withdrawal.method] || "tx-pill withdraw"}>
+                          {METHOD_LABELS[withdrawal.method] || withdrawal.method}
+                        </span>
+                        {withdrawal.hasFactura && (
+                          <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400">FACTURA</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[250px]">
                       {withdrawal.productGroup ? (
@@ -125,7 +134,11 @@ export default async function RetirosPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <WithdrawalFacturaToggle
+                          withdrawalId={withdrawal.id}
+                          hasFactura={withdrawal.hasFactura}
+                        />
                         <WithdrawalGroupSelect
                           withdrawalId={withdrawal.id}
                           currentGroupId={withdrawal.productGroup?.id || null}
