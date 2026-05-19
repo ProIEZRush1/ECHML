@@ -6,7 +6,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Truck } from "lucide-react";
+import { Truck, ExternalLink } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
 import Image from "next/image";
@@ -210,6 +210,15 @@ export default async function PedidosPage({
                           {order.buyerNickname && <span className="truncate">{order.buyerNickname}</span>}
                         </div>
                       </div>
+                      <a
+                        href={`https://www.mercadolibre.com.mx/ventas/${order.mlOrderId}/detalle`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0 h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+                        title="Ver en MercadoLibre"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
                     </div>
                     <div className="ml-11 grid grid-cols-2 gap-x-4 text-[11px]">
                       <div className="flex justify-between text-muted-foreground">
@@ -249,6 +258,7 @@ export default async function PedidosPage({
                   <TableHead className="w-[90px] text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
                   <TableHead className="w-[50px] text-[11px] uppercase tracking-wider">Envio</TableHead>
                   <TableHead className="w-[90px] text-[11px] uppercase tracking-wider">Estado</TableHead>
+                  <TableHead className="w-[32px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -303,6 +313,17 @@ export default async function PedidosPage({
                         )}
                       </TableCell>
                       <TableCell><span className={config.css}>{config.label}</span></TableCell>
+                      <TableCell className="text-right">
+                        <a
+                          href={`https://www.mercadolibre.com.mx/ventas/${order.mlOrderId}/detalle`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                          title="Ver en ML"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
