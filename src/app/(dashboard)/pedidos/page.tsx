@@ -93,20 +93,20 @@ export default async function PedidosPage({
   });
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
-  // Fetch shipping costs for returned orders
-  const returnedOrderIds = orders
-    .filter((o) => o.shippingStatus === "RETURNED" || o.shippingStatus === "NOT_DELIVERED")
-    .map((o) => o.mlOrderId);
-  const returnShippingTxs = returnedOrderIds.length > 0
-    ? await prisma.mPTransaction.findMany({
-        where: { mlOrderId: { in: returnedOrderIds }, label: { in: ["shipping", "flex_cost"] } },
-        select: { mlOrderId: true, amount: true, label: true },
-      })
-    : [];
+  // Fetch actual return shipping costs from ML shipment base_cost
+  const returnedOrders = orders.filter((o) => o.shippingStatus === "RETURNED" || o.shippingStatus === "NOT_DELIVERED");
   const returnShipCostMap = new Map<bigint, number>();
-  for (const tx of returnShippingTxs) {
-    if (tx.mlOrderId) {
-      returnShipCostMap.set(tx.mlOrderId, (returnShipCostMap.get(tx.mlOrderId) || 0) + Math.abs(Number(tx.amount)));
+  if (returnedOrders.length > 0 && statusFilter === "DEVOLUCIONES") {
+    const { mlFetch } = await import("@/lib/ml/client");
+    for (const order of returnedOrders) {
+      if (order.shipmentId) {
+        try {
+          const shipment = await mlFetch<{ base_cost?: number }>(`/shipments/${order.shipmentId}`);
+          if (shipment.base_cost) {
+            returnShipCostMap.set(order.mlOrderId, shipment.base_cost);
+          }
+        } catch { /* skip */ }
+      }
     }
   }
 

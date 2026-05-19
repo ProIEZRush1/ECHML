@@ -335,8 +335,8 @@ export default async function FlujoCajaPage({
   const salesPerPack = new Map<string, number>();
 
   let totalReturns = 0;
-  let returnFees = 0;
-  let returnShipping = 0;
+  // ML refunds original shipping/fees on returns — don't count as costs
+  // The actual return shipping debit comes as a separate ML transaction later
   let filteredReturnCount = 0;
   let filteredReturnFromFull = 0;
   const countedReturnOrderIds = new Set<bigint>();
@@ -353,10 +353,6 @@ export default async function FlujoCajaPage({
             if (ro.logisticType === "fulfillment") filteredReturnFromFull++;
           }
         }
-      } else if (tx.label === "fee" || tx.label === "commission") {
-        returnFees += Math.abs(amt);
-      } else if (tx.label === "shipping" || tx.label === "flex_cost") {
-        returnShipping += Math.abs(amt);
       }
       continue;
     }
@@ -566,7 +562,7 @@ export default async function FlujoCajaPage({
 
       {/* KPI Cards */}
       {(() => {
-        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + returnShipping;
+        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet;
         const deductionItems: { label: string; value: number }[] = [
           { label: "Comisiones", value: totalFees },
           { label: "Envios", value: totalShipping },
@@ -575,7 +571,6 @@ export default async function FlujoCajaPage({
           { label: "Gastos", value: totalGastosOperativos },
           { label: "Compras", value: totalCompras },
           { label: "Flex", value: totalFlexNet },
-          { label: "Envio devoluciones", value: returnShipping },
         ].filter((d) => d.value > 0);
 
         return (
@@ -638,17 +633,6 @@ export default async function FlujoCajaPage({
             </p>
           </div>
 
-          {/* Envio Devoluciones */}
-          <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Envio Devoluciones</p>
-              <span className="sw" style={{ background: "oklch(0.55 0.18 25)" }} />
-            </div>
-            <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(returnShipping)}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Costo de envio en ordenes devueltas
-            </p>
-          </div>
         </div>
       )}
 
