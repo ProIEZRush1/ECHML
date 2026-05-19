@@ -23,6 +23,7 @@ export interface StockProduct {
 export default async function StockPage() {
   const [products, groups, packs] = await Promise.all([
     prisma.product.findMany({
+      where: { NOT: { supplierCode: { startsWith: "AUTO-" } } },
       include: {
         variants: {
           select: { id: true, color: true, variantLabel: true, stock: true },

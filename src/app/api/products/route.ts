@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
   }
 
   const products = await prisma.product.findMany({
+    where: { NOT: { supplierCode: { startsWith: "AUTO-" } } },
     include: {
       variants: {
         select: { id: true, color: true, variantLabel: true, stock: true },
