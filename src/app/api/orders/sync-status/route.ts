@@ -93,5 +93,29 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ checked: orders.length, updated, shipmentsFetched });
+  // Also check ML claims API for returns/mediations
+  let claimsFound = 0;
+  try {
+    const claimsData = await mlFetch<{ data: Array<{ resource_id: number; type: string; status: string }> }>(
+      `/post-purchase/v1/claims/search`,
+      { params: { status: "opened", role: "defendant", limit: "50" } }
+    );
+
+    for (const claim of claimsData.data || []) {
+      const mlOrderId = BigInt(claim.resource_id);
+      const order = await prisma.mLOrder.findUnique({ where: { mlOrderId } });
+      if (order && order.shippingStatus !== "RETURNED" && order.shippingStatus !== "NOT_DELIVERED") {
+        const newStatus = claim.type === "returns" ? "RETURNED" : "NOT_DELIVERED";
+        await prisma.mLOrder.update({
+          where: { id: order.id },
+          data: { shippingStatus: newStatus },
+        });
+        claimsFound++;
+      }
+    }
+  } catch {
+    // claims API not available
+  }
+
+  return NextResponse.json({ checked: orders.length, updated, shipmentsFetched, claimsFound });
 }
