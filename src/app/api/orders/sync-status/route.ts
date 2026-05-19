@@ -19,14 +19,20 @@ function mapShipmentStatus(status?: string, substatus?: string): ShippingStatus 
 }
 
 export async function POST() {
-  // Also include orders without shipmentId to try fetching it
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // Check non-delivered orders + recently delivered ones (to catch returns after delivery)
   const orders = await prisma.mLOrder.findMany({
     where: {
-      shippingStatus: { notIn: ["DELIVERED", "RETURNED", "CANCELLED"] },
+      OR: [
+        { shippingStatus: { notIn: ["DELIVERED", "RETURNED", "CANCELLED"] } },
+        { shippingStatus: "DELIVERED", dateCreated: { gte: thirtyDaysAgo } },
+      ],
     },
     select: { id: true, mlOrderId: true, shipmentId: true, shippingStatus: true, prepStatus: true },
     orderBy: { dateCreated: "desc" },
-    take: 300,
+    take: 400,
   });
 
   let updated = 0;
