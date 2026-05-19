@@ -149,6 +149,36 @@ export default async function PedidosPage({
         ))}
       </div>
 
+      {/* Devoluciones summary when filtered */}
+      {statusFilter === "DEVOLUCIONES" && orders.length > 0 && (
+        <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Devoluciones</p>
+              <p className="text-lg font-bold num margin-bad mt-0.5">{totalCount}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Monto Total Perdido</p>
+              <p className="text-lg font-bold num margin-bad mt-0.5">
+                -{formatCurrency(orders.reduce((s, o) => s + Number(o.totalAmount), 0))}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Envio Full</p>
+              <p className="text-lg font-bold num mt-0.5" style={{ color: "oklch(0.55 0.14 290)" }}>
+                {orders.filter((o) => o.logisticType === "fulfillment").length}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Envio Flex/ME2</p>
+              <p className="text-lg font-bold num margin-warn mt-0.5">
+                {orders.filter((o) => o.logisticType !== "fulfillment").length}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between text-[12px] text-muted-foreground">
         <span>{totalCount} pedidos{statusFilter ? " (filtrado)" : ""}</span>
         {totalPages > 1 && <span>Pagina {currentPage} de {totalPages}</span>}
