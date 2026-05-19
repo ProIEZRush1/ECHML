@@ -93,22 +93,10 @@ export default async function PedidosPage({
   });
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
-  // Fetch actual return shipping costs from ML shipment base_cost
-  const returnedOrders = orders.filter((o) => o.shippingStatus === "RETURNED" || o.shippingStatus === "NOT_DELIVERED");
+  // Return shipping: ML covers FULL returns entirely. For Flex/ME2, ML debits
+  // the seller separately — that shows up as a new transaction when processed.
+  // We don't estimate — only show actual debits from ML.
   const returnShipCostMap = new Map<bigint, number>();
-  if (returnedOrders.length > 0 && statusFilter === "DEVOLUCIONES") {
-    const { mlFetch } = await import("@/lib/ml/client");
-    for (const order of returnedOrders) {
-      if (order.shipmentId) {
-        try {
-          const shipment = await mlFetch<{ base_cost?: number }>(`/shipments/${order.shipmentId}`);
-          if (shipment.base_cost) {
-            returnShipCostMap.set(order.mlOrderId, shipment.base_cost);
-          }
-        } catch { /* skip */ }
-      }
-    }
-  }
 
   const totalPages = Math.ceil(totalCount / pageSize);
   const totalOrders = statusCounts.reduce((s, c) => s + c._count, 0);
@@ -181,9 +169,11 @@ export default async function PedidosPage({
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalMonto)}</p>
-                {totalShipCost > 0 && (
-                  <p className="text-[11px] text-muted-foreground">Envio: -{formatCurrency(totalShipCost)}</p>
-                )}
+                <p className="text-[11px] text-muted-foreground">
+                  {fullCount > 0 && `${fullCount} cubiertos por ML`}
+                  {fullCount > 0 && flexCount > 0 && " · "}
+                  {flexCount > 0 && `${flexCount} envio pendiente ML`}
+                </p>
               </div>
             </div>
             <div className="divide-y divide-border">
@@ -226,8 +216,14 @@ export default async function PedidosPage({
                         <span className="num margin-bad">-{formatCurrency(Number(order.totalAmount))}</span>
                       </div>
                       <div className="flex justify-between text-muted-foreground">
-                        <span>Envio</span>
-                        <span className="num margin-bad">{shipCost > 0 ? `-${formatCurrency(shipCost)}` : "$0"}</span>
+                        <span>Envio devolucion</span>
+                        {order.logisticType === "fulfillment" ? (
+                          <span className="text-[10px]">Cubierto por ML</span>
+                        ) : shipCost > 0 ? (
+                          <span className="num margin-bad">-{formatCurrency(shipCost)}</span>
+                        ) : (
+                          <span className="text-[10px]">Pendiente ML</span>
+                        )}
                       </div>
                     </div>
                   </div>
