@@ -10,7 +10,7 @@ export default async function NuevoGastoPage() {
     prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.product.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.pack.findMany({ select: { id: true, sku: true, name: true }, orderBy: { name: "asc" } }),
-    prisma.productGroup.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    prisma.productGroup.findMany({ select: { id: true, name: true, items: { select: { productId: true } } }, orderBy: { name: "asc" } }),
     prisma.mPTransaction.findMany({
       where: { label: "sale" },
       orderBy: { dateCreated: "desc" },
@@ -22,7 +22,7 @@ export default async function NuevoGastoPage() {
             items: {
               select: {
                 quantity: true,
-                productVariant: { select: { color: true, variantLabel: true } },
+                productVariant: { select: { color: true, variantLabel: true, product: { select: { id: true } } } },
               },
             },
           },
@@ -74,7 +74,7 @@ export default async function NuevoGastoPage() {
         suppliers={suppliers}
         products={products}
         packs={packs}
-        groups={groups}
+        groups={groups.map((g) => ({ id: g.id, name: g.name, productIds: g.items.map((i) => i.productId) }))}
         sales={serializedSales}
       />
     </div>

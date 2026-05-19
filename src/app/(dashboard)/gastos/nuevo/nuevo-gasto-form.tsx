@@ -15,7 +15,7 @@ import { toast } from "sonner";
 
 interface PackItem {
   quantity: number;
-  productVariant: { color: string | null; variantLabel: string | null };
+  productVariant: { color: string | null; variantLabel: string | null; product?: { id: string } };
 }
 
 interface Sale {
@@ -32,12 +32,13 @@ interface Sale {
 }
 
 interface Option { id: string; name: string; sku?: string }
+interface GroupOption { id: string; name: string; productIds: string[] }
 
 interface Props {
   suppliers: Option[];
   products: Option[];
   packs: Option[];
-  groups: Option[];
+  groups: GroupOption[];
   sales: Sale[];
 }
 
@@ -77,12 +78,20 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
   const [salesSearch, setSalesSearch] = useState("");
   const [salesPackFilter, setSalesPackFilter] = useState("");
+  const [salesGroupFilter, setSalesGroupFilter] = useState("");
   const [salesShippingFilter, setSalesShippingFilter] = useState("");
   const [salesDateFrom, setSalesDateFrom] = useState("");
   const [salesDateTo, setSalesDateTo] = useState("");
 
   const filteredSales = sales.filter((s) => {
     if (salesPackFilter && s.packId !== salesPackFilter) return false;
+    if (salesGroupFilter) {
+      const group = groups.find((g) => g.id === salesGroupFilter);
+      if (group) {
+        const hasProduct = s.pack?.items?.some((item) => group.productIds.includes(item.productVariant.product?.id || ""));
+        if (!hasProduct) return false;
+      }
+    }
     if (salesShippingFilter && s.shippingType !== salesShippingFilter) return false;
     if (salesDateFrom && s.dateCreated < salesDateFrom) return false;
     if (salesDateTo && s.dateCreated > salesDateTo + "T23:59:59") return false;
@@ -267,11 +276,18 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
                 className="pl-8 h-9 text-xs"
               />
             </div>
+            <Select value={salesGroupFilter} onValueChange={(v) => setSalesGroupFilter(v === "ALL" ? "" : (v || ""))}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Grupo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos los grupos</SelectItem>
+                {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={salesPackFilter} onValueChange={(v) => setSalesPackFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Todos los packs" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pack" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos los packs</SelectItem>
-                {uniquePacks.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku}</SelectItem>)}
+                {uniquePacks.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={salesShippingFilter} onValueChange={(v) => setSalesShippingFilter(v === "ALL" ? "" : (v || ""))}>
@@ -324,8 +340,8 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
                         <span className="text-[13px] font-bold text-green-600 dark:text-green-400">
                           ${sale.amount.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
                         </span>
-                        {sale.pack?.sku && (
-                          <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{sale.pack.sku}</span>
+                        {sale.pack && (
+                          <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded truncate max-w-[150px]">{sale.pack.name}</span>
                         )}
                         {sale.shippingType === "flex" && (
                           <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">FLEX</span>
