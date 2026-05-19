@@ -30,6 +30,8 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
     const params = new URLSearchParams();
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    if (packIds) params.set("packIds", packIds);
+    if (productIds) params.set("productIds", productIds);
 
     let retries = 0;
     const fetchAds = () => {
@@ -39,13 +41,7 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
           return r.json();
         })
         .then((data) => {
-          let cost = data?.totalAdsCost ?? 0;
-          if (productIds) {
-            const pIds = productIds.split(",").filter(Boolean);
-            const filtered = (data.byProduct || []).filter((p: { productId: string }) => pIds.includes(p.productId));
-            cost = filtered.reduce((s: number, p: { cost: number }) => s + p.cost, 0);
-          }
-          setAdsCost(Math.round(cost * 100) / 100);
+          setAdsCost(Math.round((data?.totalAdsCost ?? 0) * 100) / 100);
         })
         .catch(() => {
           if (retries < 2) {
