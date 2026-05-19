@@ -217,7 +217,7 @@ export function WithdrawalFormDialog({
       const [cashflowRes, groupsRes, productsRes] = await Promise.all([
         fetch("/api/cashflow"),
         fetch("/api/product-groups"),
-        fetch("/api/products"),
+        fetch("/api/products?all=true"),
       ]);
       if (cashflowRes.ok) {
         const data = await cashflowRes.json();
