@@ -237,9 +237,20 @@ export default async function FlujoCajaPage({
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
         },
-        ...(filteredGroupIds.length > 0 ? { productGroupId: { in: filteredGroupIds } } : {}),
+        ...(effectivePackIds.length > 0
+          ? {
+              OR: [
+                { allocations: { some: { packId: { in: effectivePackIds } } } },
+                ...(filteredGroupIds.length > 0
+                  ? [{ productGroupId: { in: filteredGroupIds } }]
+                  : []),
+              ],
+            }
+          : filteredGroupIds.length > 0
+            ? { productGroupId: { in: filteredGroupIds } }
+            : {}),
       },
-      select: { amount: true, hasFactura: true },
+      select: { amount: true, hasFactura: true, productGroupId: true, allocations: { select: { packId: true } } },
     }),
   ]);
 
@@ -616,7 +627,7 @@ export default async function FlujoCajaPage({
               serverAvailable={availableToWithdraw}
               totalWithdrawn={totalWithdrawn}
               totalGastos={totalGastos}
-              showWithdraw={!hasPackFilter || filteredGroupIds.length > 0}
+              showWithdraw={true}
             />
           </div>
         );
