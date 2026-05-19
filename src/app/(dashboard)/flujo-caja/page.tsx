@@ -335,14 +335,16 @@ export default async function FlujoCajaPage({
   const salesPerPack = new Map<string, number>();
 
   let totalReturns = 0;
+  let returnFees = 0;
+  let returnShipping = 0;
   let filteredReturnCount = 0;
   let filteredReturnFromFull = 0;
   const countedReturnOrderIds = new Set<bigint>();
   for (const tx of allFilteredTransactions) {
     if (tx.mlOrderId && returnedOrderIds.has(tx.mlOrderId)) {
+      const amt = Number(tx.amount);
       if (tx.label === "sale") {
-        totalReturns += Number(tx.amount);
-        // Count unique returned orders (not cancelled) that appear in filtered transactions
+        totalReturns += amt;
         if (!countedReturnOrderIds.has(tx.mlOrderId)) {
           countedReturnOrderIds.add(tx.mlOrderId);
           const ro = returnedOrders.find((o) => o.mlOrderId === tx.mlOrderId);
@@ -351,6 +353,10 @@ export default async function FlujoCajaPage({
             if (ro.logisticType === "fulfillment") filteredReturnFromFull++;
           }
         }
+      } else if (tx.label === "fee" || tx.label === "commission") {
+        returnFees += Math.abs(amt);
+      } else if (tx.label === "shipping" || tx.label === "flex_cost") {
+        returnShipping += Math.abs(amt);
       }
       continue;
     }
@@ -616,6 +622,43 @@ export default async function FlujoCajaPage({
           </div>
         );
       })()}
+
+      {/* Devoluciones Detail */}
+      {filteredReturnCount > 0 && (
+        <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costo Devoluciones</p>
+              <p className="text-[11px] text-muted-foreground">{filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""}{filteredReturnFromFull > 0 ? ` · ${filteredReturnFromFull} desde Full` : ""}</p>
+            </div>
+            <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalReturns + returnedProductCost + returnFees + returnShipping)}</p>
+          </div>
+          <div className="space-y-1 text-[11.5px]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Venta perdida (reembolso)</span>
+              <span className="num margin-bad">-{formatCurrency(totalReturns)}</span>
+            </div>
+            {returnedProductCost > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Costo producto perdido</span>
+                <span className="num margin-bad">-{formatCurrency(returnedProductCost)}</span>
+              </div>
+            )}
+            {returnFees > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Comisiones no reembolsadas</span>
+                <span className="num margin-bad">-{formatCurrency(returnFees)}</span>
+              </div>
+            )}
+            {returnShipping > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Envio perdido</span>
+                <span className="num margin-bad">-{formatCurrency(returnShipping)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Ads Cost */}
       <AdsCostCard />
