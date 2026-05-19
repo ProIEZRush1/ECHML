@@ -575,7 +575,7 @@ export default async function FlujoCajaPage({
 
       {/* KPI Cards */}
       {(() => {
-        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturnShipCost + totalFacturaCost;
+        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturnShipCost;
         const deductionItems: { label: string; value: number }[] = [
           { label: "Comisiones", value: totalFees },
           { label: "Envios", value: totalShipping },
@@ -585,7 +585,6 @@ export default async function FlujoCajaPage({
           { label: "Compras", value: totalCompras },
           { label: "Flex", value: totalFlexNet },
           { label: "Envio devoluciones", value: totalReturnShipCost },
-          { label: "Factura (3%)", value: totalFacturaCost },
         ].filter((d) => d.value > 0);
 
         return (
@@ -627,6 +626,7 @@ export default async function FlujoCajaPage({
               serverAvailable={availableToWithdraw}
               totalWithdrawn={totalWithdrawn}
               totalGastos={totalGastos}
+              totalFacturaCost={totalFacturaCost}
               showWithdraw={true}
             />
           </div>

@@ -13,10 +13,11 @@ interface Props {
   serverAvailable: number;
   totalWithdrawn: number;
   totalGastos: number;
+  totalFacturaCost: number;
   showWithdraw: boolean;
 }
 
-export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdrawn, totalGastos, showWithdraw }: Props) {
+export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdrawn, totalGastos, totalFacturaCost, showWithdraw }: Props) {
   const searchParams = useSearchParams();
   const [adsCost, setAdsCost] = useState<number | null>(null);
 
@@ -57,6 +58,7 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
 
   const loading = adsCost === null;
   const totalNet = loading ? null : serverNet - adsCost;
+  const netAfterFactura = totalNet !== null && totalFacturaCost > 0 ? totalNet - totalFacturaCost : null;
   const available = loading ? null : serverAvailable - adsCost;
 
   return (
@@ -84,6 +86,18 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
           <p className="text-[11px] text-pink-600 dark:text-pink-400 mt-0.5">
             Incluye {fmt(adsCost)} en publicidad
           </p>
+        )}
+        {netAfterFactura !== null && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground">Factura (3%)</span>
+              <span className="num margin-bad">-{fmt(totalFacturaCost)}</span>
+            </div>
+            <div className="flex items-center justify-between text-[12px] font-semibold mt-1">
+              <span className="text-muted-foreground">Despues de factura</span>
+              <span className={`num ${netAfterFactura >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(netAfterFactura)}</span>
+            </div>
+          </div>
         )}
       </div>
 
