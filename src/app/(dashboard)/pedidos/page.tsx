@@ -93,9 +93,28 @@ export default async function PedidosPage({
   });
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
-  // Return shipping: ML covers FULL returns entirely. For Flex/ME2, ML debits
-  // the seller separately — that shows up as a new transaction when processed.
-  // We don't estimate — only show actual debits from ML.
+  // Fetch claim details to determine if ML covers return shipping per-claim
+  const returnShipInfoMap = new Map<bigint, { covered: boolean; title: string; problem: string | null }>();
+  if (statusFilter === "DEVOLUCIONES" && orders.length > 0) {
+    try {
+      const { mlFetch } = await import("@/lib/ml/client");
+      const claimsData = await mlFetch<{ data: Array<{ id: number; resource_id: number }> }>(
+        `/post-purchase/v1/claims/search`,
+        { params: { status: "opened", role: "defendant", limit: "50" } }
+      );
+      for (const claim of claimsData.data || []) {
+        const order = orders.find((o) => String(o.mlOrderId) === String(claim.resource_id));
+        if (order) {
+          try {
+            const detail = await mlFetch<{ title?: string; problem?: string }>(`/post-purchase/v1/claims/${claim.id}/detail`);
+            const title = detail.title || "";
+            const covered = title.toLowerCase().includes("sin costo");
+            returnShipInfoMap.set(order.mlOrderId, { covered, title, problem: detail.problem || null });
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* claims API not available */ }
+  }
   const returnShipCostMap = new Map<bigint, number>();
 
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -169,11 +188,20 @@ export default async function PedidosPage({
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalMonto)}</p>
-                <p className="text-[11px] text-muted-foreground">
-                  {fullCount > 0 && `${fullCount} cubiertos por ML`}
-                  {fullCount > 0 && flexCount > 0 && " · "}
-                  {flexCount > 0 && `${flexCount} envio pendiente ML`}
-                </p>
+                {(() => {
+                  const coveredCount = orders.filter((o) => returnShipInfoMap.get(o.mlOrderId)?.covered).length;
+                  const sellerPays = orders.filter((o) => {
+                    const info = returnShipInfoMap.get(o.mlOrderId);
+                    return info && !info.covered;
+                  }).length;
+                  return (
+                    <p className="text-[11px] text-muted-foreground">
+                      {coveredCount > 0 && <span className="text-green-600 dark:text-green-400">{coveredCount} sin costo envio</span>}
+                      {coveredCount > 0 && sellerPays > 0 && " · "}
+                      {sellerPays > 0 && <span className="margin-warn">{sellerPays} con costo vendedor</span>}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
             <div className="divide-y divide-border">
@@ -215,16 +243,33 @@ export default async function PedidosPage({
                         <span>Reembolso</span>
                         <span className="num margin-bad">-{formatCurrency(Number(order.totalAmount))}</span>
                       </div>
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Envio devolucion</span>
-                        {order.logisticType === "fulfillment" ? (
-                          <span className="text-[10px]">Cubierto por ML</span>
-                        ) : shipCost > 0 ? (
-                          <span className="num margin-bad">-{formatCurrency(shipCost)}</span>
-                        ) : (
-                          <span className="text-[10px]">Pendiente ML</span>
-                        )}
-                      </div>
+                      {(() => {
+                        const info = returnShipInfoMap.get(order.mlOrderId);
+                        return (
+                          <div className="flex justify-between text-muted-foreground">
+                            <span>Envio devolucion</span>
+                            {info?.covered ? (
+                              <span className="text-[10px] text-green-600 dark:text-green-400">Sin costo (ML cubre)</span>
+                            ) : info ? (
+                              <span className="text-[10px] margin-warn">Costo a cargo del vendedor</span>
+                            ) : (
+                              <span className="text-[10px]">Sin info</span>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {(() => {
+                        const info = returnShipInfoMap.get(order.mlOrderId);
+                        if (info?.problem) {
+                          return (
+                            <div className="flex justify-between text-muted-foreground mt-0.5">
+                              <span>Razon</span>
+                              <span className="text-[10px] truncate ml-4">{info.problem}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                   </div>
                 );
