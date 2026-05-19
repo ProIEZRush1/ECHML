@@ -149,35 +149,50 @@ export default async function PedidosPage({
         ))}
       </div>
 
-      {/* Devoluciones summary when filtered */}
-      {statusFilter === "DEVOLUCIONES" && orders.length > 0 && (
-        <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Total Devoluciones</p>
-              <p className="text-lg font-bold num margin-bad mt-0.5">{totalCount}</p>
+      {/* Devoluciones summary — per-return breakdown */}
+      {statusFilter === "DEVOLUCIONES" && orders.length > 0 && (() => {
+        const totalMonto = orders.reduce((s, o) => s + Number(o.totalAmount), 0);
+        const fullCount = orders.filter((o) => o.logisticType === "fulfillment").length;
+        const flexCount = orders.filter((o) => o.logisticType !== "fulfillment").length;
+        return (
+          <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Resumen Devoluciones</p>
+                <p className="text-[11px] text-muted-foreground">{totalCount} total · {fullCount} Full · {flexCount} Flex/ME2 · ML reembolsa comisiones</p>
+              </div>
+              <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalMonto)}</p>
             </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Monto Total Perdido</p>
-              <p className="text-lg font-bold num margin-bad mt-0.5">
-                -{formatCurrency(orders.reduce((s, o) => s + Number(o.totalAmount), 0))}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Envio Full</p>
-              <p className="text-lg font-bold num mt-0.5" style={{ color: "oklch(0.55 0.14 290)" }}>
-                {orders.filter((o) => o.logisticType === "fulfillment").length}
-              </p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Envio Flex/ME2</p>
-              <p className="text-lg font-bold num margin-warn mt-0.5">
-                {orders.filter((o) => o.logisticType !== "fulfillment").length}
-              </p>
+            <div className="divide-y divide-border">
+              {orders.map((order) => {
+                const listing = listingMap.get(order.mlItemId);
+                const logistic = order.logisticType === "fulfillment" ? "FULL" : order.logisticType === "self_service" ? "FLEX" : "ME2";
+                const logisticCss = order.logisticType === "fulfillment"
+                  ? "text-[9px] font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400"
+                  : order.logisticType === "self_service"
+                  ? "text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                  : "text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400";
+                return (
+                  <div key={order.id} className="flex items-center gap-3 py-2 first:pt-0">
+                    {listing?.pack?.imageUrl && (
+                      <Image src={listing.pack.imageUrl} alt="" width={32} height={32} className="h-8 w-8 rounded object-cover shrink-0 border bg-muted" unoptimized />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] truncate">{listing?.title || order.mlItemId}</p>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
+                        <span>{formatDateTime(order.dateCreated)}</span>
+                        <span className={logisticCss}>{logistic}</span>
+                        {order.buyerNickname && <span className="truncate">{order.buyerNickname}</span>}
+                      </div>
+                    </div>
+                    <p className="text-[13px] font-bold num margin-bad shrink-0">-{formatCurrency(Number(order.totalAmount))}</p>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="flex items-center justify-between text-[12px] text-muted-foreground">
         <span>{totalCount} pedidos{statusFilter ? " (filtrado)" : ""}</span>
