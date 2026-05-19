@@ -75,6 +75,9 @@ export function WithdrawalFormDialog({
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [allocations, setAllocations] = useState<Allocation[]>([]);
+  const [productGroupId, setProductGroupId] = useState("");
+  const [hasFactura, setHasFactura] = useState(false);
+  const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
   const [packs, setPacks] = useState<PackOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingPacks, setLoadingPacks] = useState(false);
@@ -110,19 +113,27 @@ export function WithdrawalFormDialog({
     setMethod("bank");
     setReference("");
     setNotes("");
+    setProductGroupId("");
+    setHasFactura(false);
     setAllocations([]);
   }
 
   async function fetchPacks() {
     setLoadingPacks(true);
     try {
-      const res = await fetch("/api/cashflow");
-      if (res.ok) {
-        const data = await res.json();
+      const [cashflowRes, groupsRes] = await Promise.all([
+        fetch("/api/cashflow"),
+        fetch("/api/product-groups"),
+      ]);
+      if (cashflowRes.ok) {
+        const data = await cashflowRes.json();
         setPacks(data.byPack || []);
       }
+      if (groupsRes.ok) {
+        setGroups(await groupsRes.json());
+      }
     } catch {
-      toast.error("Error al cargar datos de packs");
+      toast.error("Error al cargar datos");
     } finally {
       setLoadingPacks(false);
     }
@@ -176,6 +187,8 @@ export function WithdrawalFormDialog({
         method,
         reference: reference.trim() || undefined,
         notes: notes.trim() || undefined,
+        productGroupId: productGroupId || undefined,
+        hasFactura,
         allocations: allocations
           .filter((a) => a.packId && parseFloat(a.amount) > 0)
           .map((a) => ({
@@ -296,11 +309,40 @@ export function WithdrawalFormDialog({
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Grupo</Label>
+              <Select value={productGroupId} onValueChange={(v) => setProductGroupId(v === "NONE" ? "" : (v ?? ""))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Asignar a grupo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NONE">Sin grupo</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Factura</Label>
+              <label className="flex items-center gap-2 h-9 px-3 rounded-md border border-input cursor-pointer hover:bg-muted/50">
+                <input
+                  type="checkbox"
+                  checked={hasFactura}
+                  onChange={(e) => setHasFactura(e.target.checked)}
+                  className="rounded border-input h-4 w-4"
+                />
+                <span className="text-sm">Factura (3%){hasFactura && totalAmount > 0 ? `: -${formatCurrency(totalAmount * 0.03)}` : ""}</span>
+              </label>
+            </div>
+          </div>
+
           <Separator />
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Asignaciones por Pack</Label>
+              <Label className="text-sm font-medium">Asignaciones por Pack (opcional)</Label>
               <Button
                 type="button"
                 variant="outline"

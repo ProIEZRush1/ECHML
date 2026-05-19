@@ -20,6 +20,7 @@ const createWithdrawalSchema = z.object({
   reference: z.string().optional(),
   notes: z.string().optional(),
   hasFactura: z.boolean().optional(),
+  productGroupId: z.string().optional(),
   allocations: z.array(allocationSchema).optional(),
 });
 
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
           reference,
           notes,
           hasFactura: result.data.hasFactura || false,
+          productGroupId: result.data.productGroupId || null,
           userId: session.id,
           allocations: allocations && allocations.length > 0
             ? {
