@@ -101,15 +101,32 @@ export async function POST() {
       { params: { status: "opened", role: "defendant", limit: "50" } }
     );
 
-    for (const claim of claimsData.data || []) {
+    for (const claim of (claimsData.data || []) as Array<{ id: number; resource_id: number; type: string; status: string }>) {
       const mlOrderId = BigInt(claim.resource_id);
       const order = await prisma.mLOrder.findUnique({ where: { mlOrderId } });
-      if (order && order.shippingStatus !== "RETURNED" && order.shippingStatus !== "NOT_DELIVERED") {
-        const newStatus = claim.type === "returns" ? "RETURNED" : "NOT_DELIVERED";
-        await prisma.mLOrder.update({
-          where: { id: order.id },
-          data: { shippingStatus: newStatus },
-        });
+      if (!order) continue;
+
+      const data: Record<string, unknown> = {};
+      if (order.shippingStatus !== "RETURNED" && order.shippingStatus !== "NOT_DELIVERED") {
+        data.shippingStatus = claim.type === "returns" ? "RETURNED" : "NOT_DELIVERED";
+      }
+
+      // Fetch return shipping cost from claim detail + shipment base_cost
+      if (order.returnShipCost === null) {
+        try {
+          const detail = await mlFetch<{ title?: string }>(`/post-purchase/v1/claims/${claim.id}/detail`);
+          const covered = (detail.title || "").toLowerCase().includes("sin costo");
+          if (covered) {
+            data.returnShipCost = 0;
+          } else if (order.shipmentId) {
+            const shipment = await mlFetch<{ base_cost?: number }>(`/shipments/${order.shipmentId}`);
+            data.returnShipCost = shipment.base_cost || 0;
+          }
+        } catch { /* skip */ }
+      }
+
+      if (Object.keys(data).length > 0) {
+        await prisma.mLOrder.update({ where: { id: order.id }, data });
         claimsFound++;
       }
     }

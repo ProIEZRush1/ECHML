@@ -278,6 +278,7 @@ model MLOrder {
   prepStatus      PrepStatus      @default(NEW)
   shipmentId      BigInt?
   logisticType    String?
+  returnShipCost  Decimal?        @db.Decimal(10, 2)
   buyerNickname   String?
   dateCreated     DateTime
   dateClosed      DateTime?

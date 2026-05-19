@@ -93,8 +93,8 @@ export default async function PedidosPage({
   });
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
-  // Fetch claim details to determine if ML covers return shipping per-claim
-  const returnShipInfoMap = new Map<bigint, { covered: boolean; title: string; problem: string | null }>();
+  // Fetch claim details + shipment base_cost for exact return shipping cost
+  const returnShipInfoMap = new Map<bigint, { covered: boolean; cost: number; title: string; problem: string | null }>();
   if (statusFilter === "DEVOLUCIONES" && orders.length > 0) {
     try {
       const { mlFetch } = await import("@/lib/ml/client");
@@ -109,7 +109,14 @@ export default async function PedidosPage({
             const detail = await mlFetch<{ title?: string; problem?: string }>(`/post-purchase/v1/claims/${claim.id}/detail`);
             const title = detail.title || "";
             const covered = title.toLowerCase().includes("sin costo");
-            returnShipInfoMap.set(order.mlOrderId, { covered, title, problem: detail.problem || null });
+            let cost = 0;
+            if (!covered && order.shipmentId) {
+              try {
+                const shipment = await mlFetch<{ base_cost?: number }>(`/shipments/${order.shipmentId}`);
+                cost = shipment.base_cost || 0;
+              } catch { /* skip */ }
+            }
+            returnShipInfoMap.set(order.mlOrderId, { covered, cost, title, problem: detail.problem || null });
           } catch { /* skip */ }
         }
       }
@@ -189,16 +196,13 @@ export default async function PedidosPage({
               <div className="text-right">
                 <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalMonto)}</p>
                 {(() => {
+                  const totalReturnShip = orders.reduce((s, o) => s + (returnShipInfoMap.get(o.mlOrderId)?.cost || 0), 0);
                   const coveredCount = orders.filter((o) => returnShipInfoMap.get(o.mlOrderId)?.covered).length;
-                  const sellerPays = orders.filter((o) => {
-                    const info = returnShipInfoMap.get(o.mlOrderId);
-                    return info && !info.covered;
-                  }).length;
                   return (
                     <p className="text-[11px] text-muted-foreground">
-                      {coveredCount > 0 && <span className="text-green-600 dark:text-green-400">{coveredCount} sin costo envio</span>}
-                      {coveredCount > 0 && sellerPays > 0 && " · "}
-                      {sellerPays > 0 && <span className="margin-warn">{sellerPays} con costo vendedor</span>}
+                      {totalReturnShip > 0 && <span className="margin-bad">Envio devoluciones: -{formatCurrency(totalReturnShip)}</span>}
+                      {totalReturnShip > 0 && coveredCount > 0 && " · "}
+                      {coveredCount > 0 && <span className="text-green-600 dark:text-green-400">{coveredCount} cubiertos por ML</span>}
                     </p>
                   );
                 })()}
@@ -245,16 +249,19 @@ export default async function PedidosPage({
                       </div>
                       {(() => {
                         const info = returnShipInfoMap.get(order.mlOrderId);
-                        if (!info) return null;
                         return (
                           <>
                             <div className="flex justify-between text-muted-foreground">
-                              <span>Estado ML</span>
-                              <span className={`text-[10px] truncate ml-4 ${info.covered ? "text-green-600 dark:text-green-400" : ""}`}>
-                                {info.title}
-                              </span>
+                              <span>Envio devolucion</span>
+                              {info?.covered ? (
+                                <span className="text-[10px] text-green-600 dark:text-green-400">$0 (ML cubre)</span>
+                              ) : info?.cost ? (
+                                <span className="num margin-bad">-{formatCurrency(info.cost)}</span>
+                              ) : (
+                                <span className="text-[10px]">Pendiente</span>
+                              )}
                             </div>
-                            {info.problem && (
+                            {info?.problem && (
                               <div className="flex justify-between text-muted-foreground mt-0.5">
                                 <span>Razon</span>
                                 <span className="text-[10px] truncate ml-4">{info.problem}</span>

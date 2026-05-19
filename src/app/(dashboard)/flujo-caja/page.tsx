@@ -297,7 +297,7 @@ export default async function FlujoCajaPage({
   // Find returned/cancelled order IDs to exclude from KPIs
   const returnedOrders = await prisma.mLOrder.findMany({
     where: { shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] } },
-    select: { mlOrderId: true, mlItemId: true, quantity: true, logisticType: true, shippingStatus: true },
+    select: { mlOrderId: true, mlItemId: true, quantity: true, logisticType: true, shippingStatus: true, returnShipCost: true },
   });
   const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
 
@@ -399,6 +399,7 @@ export default async function FlujoCajaPage({
   const totalGastosOperativos = relevantExpenses.filter((e) => (e as { type?: string }).type !== "compra").reduce((sum, e) => sum + Number(e.amount), 0);
   const totalCompras = relevantExpenses.filter((e) => (e as { type?: string }).type === "compra").reduce((sum, e) => sum + Number(e.amount), 0);
   const totalGastos = totalGastosOperativos + totalCompras;
+  const totalReturnShipCost = returnedOrders.reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
@@ -562,7 +563,7 @@ export default async function FlujoCajaPage({
 
       {/* KPI Cards */}
       {(() => {
-        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet;
+        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturnShipCost;
         const deductionItems: { label: string; value: number }[] = [
           { label: "Comisiones", value: totalFees },
           { label: "Envios", value: totalShipping },
@@ -571,6 +572,7 @@ export default async function FlujoCajaPage({
           { label: "Gastos", value: totalGastosOperativos },
           { label: "Compras", value: totalCompras },
           { label: "Flex", value: totalFlexNet },
+          { label: "Envio devoluciones", value: totalReturnShipCost },
         ].filter((d) => d.value > 0);
 
         return (
@@ -629,7 +631,9 @@ export default async function FlujoCajaPage({
             </div>
             <p className="text-xl font-bold num text-muted-foreground truncate">{formatCurrency(totalReturns)}</p>
             <p className="text-[11px] text-muted-foreground mt-1">
-              {filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""}{filteredReturnFromFull > 0 ? ` · ${filteredReturnFromFull} desde Full` : ""} · ML reembolsa comisiones · Producto se revende
+              {filteredReturnCount} devolucion{filteredReturnCount !== 1 ? "es" : ""}
+              {totalReturnShipCost > 0 && ` · Envio devoluciones -${formatCurrency(totalReturnShipCost)}`}
+              {filteredReturnFromFull > 0 ? ` · ${filteredReturnFromFull} desde Full` : ""}
             </p>
           </div>
 
