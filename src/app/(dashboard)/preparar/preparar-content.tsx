@@ -82,8 +82,8 @@ function itemLabel(item: PackItem): string {
 }
 
 export function PrepararContent({ orders, groups, kpis }: Props) {
-  const [activeGroup, setActiveGroup] = useState<string>("");
-  const [activeStatus, setActiveStatus] = useState<string>("");
+  const [activeGroups, setActiveGroups] = useState<string[]>([]);
+  const [activeStatuses, setActiveStatuses] = useState<string[]>([]);
   const [activeVariants, setActiveVariants] = useState<string[]>([]);
   const [sortOrder, setSortOrder] = useState<string>("oldest");
   const printRef = useRef<HTMLDivElement>(null);
@@ -110,18 +110,17 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
 
   const filtered = useMemo(() => {
     let result = orders;
-    if (activeGroup) {
-      const group = groups.find((g) => g.id === activeGroup);
-      if (group) {
-        result = result.filter((o) => {
-          const items = o.listing?.pack?.items;
-          if (!items) return false;
-          return items.some((item) => group.productIds.includes(item.productVariant.product.id));
-        });
-      }
+    if (activeGroups.length > 0) {
+      const selectedGroups = groups.filter((g) => activeGroups.includes(g.id));
+      const allProductIds = new Set(selectedGroups.flatMap((g) => g.productIds));
+      result = result.filter((o) => {
+        const items = o.listing?.pack?.items;
+        if (!items) return false;
+        return items.some((item) => allProductIds.has(item.productVariant.product.id));
+      });
     }
-    if (activeStatus) {
-      result = result.filter((o) => o.prepStatus === activeStatus);
+    if (activeStatuses.length > 0) {
+      result = result.filter((o) => activeStatuses.includes(o.prepStatus));
     }
     if (activeVariants.length > 0) {
       result = result.filter((o) => {
@@ -134,7 +133,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       result = [...result].reverse();
     }
     return result;
-  }, [orders, groups, activeGroup, activeStatus, activeVariants, sortOrder]);
+  }, [orders, groups, activeGroups, activeStatuses, activeVariants, sortOrder]);
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
     { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
@@ -202,27 +201,46 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
         <Filter className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="lbl">Estado</span>
         <div className="pillgroup">
-          {STATUS_TABS.map((tab) => (
-            <button key={tab.value} className={activeStatus === tab.value ? "on" : ""} onClick={() => setActiveStatus(tab.value)}>
-              {tab.label}
-            </button>
-          ))}
+          <button className={activeStatuses.length === 0 ? "on" : ""} onClick={() => setActiveStatuses([])}>
+            Todos
+          </button>
+          {STATUS_TABS.filter((t) => t.value).map((tab) => {
+            const isOn = activeStatuses.includes(tab.value);
+            return (
+              <button
+                key={tab.value}
+                className={isOn ? "on" : ""}
+                onClick={() => setActiveStatuses((prev) =>
+                  prev.includes(tab.value) ? prev.filter((x) => x !== tab.value) : [...prev, tab.value]
+                )}
+              >
+                {tab.label}
+                {isOn && activeStatuses.length > 1 && <span className="ml-0.5 opacity-50">×</span>}
+              </button>
+            );
+          })}
         </div>
         <span className="lbl">Grupo</span>
         <div className="pillgroup">
-          <button className={activeGroup === "" ? "on" : ""} onClick={() => setActiveGroup("")}>
+          <button className={activeGroups.length === 0 ? "on" : ""} onClick={() => setActiveGroups([])}>
             Todos
           </button>
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              className={activeGroup === g.id ? "on" : ""}
-              onClick={() => setActiveGroup(g.id)}
-            >
-              <span className="inline-block h-2 w-2 rounded-full mr-1" style={{ background: g.color }} />
-              {g.name}
-            </button>
-          ))}
+          {groups.map((g) => {
+            const isOn = activeGroups.includes(g.id);
+            return (
+              <button
+                key={g.id}
+                className={isOn ? "on" : ""}
+                onClick={() => setActiveGroups((prev) =>
+                  prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id]
+                )}
+              >
+                <span className="inline-block h-2 w-2 rounded-full mr-1" style={{ background: g.color }} />
+                {g.name}
+                {isOn && activeGroups.length > 1 && <span className="ml-0.5 opacity-50">×</span>}
+              </button>
+            );
+          })}
         </div>
         {allVariants.length > 1 && (
           <>
