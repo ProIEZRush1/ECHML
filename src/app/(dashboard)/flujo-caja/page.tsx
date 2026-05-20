@@ -416,7 +416,7 @@ export default async function FlujoCajaPage({
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
   const totalWithdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
   const totalFacturaCost = withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
-  const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn - totalFacturaCost;
+  const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
 
   // Calculate balance per pack -- apply same pack filter as KPI cards
   const packWhere: {
