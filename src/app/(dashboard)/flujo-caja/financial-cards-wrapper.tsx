@@ -61,7 +61,7 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
 
   const loading = adsCost === null;
   const totalNet = loading ? null : serverNet - adsCost;
-  const netAfterFactura = totalNet !== null ? totalNet * 0.97 : null;
+  const netAfterFactura = totalNet !== null && totalFacturaCost > 0 ? totalNet - totalFacturaCost : null;
   const available = loading ? null : serverAvailable - adsCost;
 
   async function handleDeposit() {
@@ -130,11 +130,11 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
             Incluye {fmt(adsCost)} en publicidad
           </p>
         )}
-        {netAfterFactura !== null && totalNet !== null && totalNet > 0 && (
+        {netAfterFactura !== null && (
           <div className="mt-2 pt-2 border-t border-border">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Factura (3%)</span>
-              <span className="num margin-bad">-{fmt(totalNet * 0.03)}</span>
+              <span className="text-muted-foreground">Factura (3% de retiros)</span>
+              <span className="num margin-bad">-{fmt(totalFacturaCost)}</span>
             </div>
             <div className="flex items-center justify-between text-[12px] font-semibold mt-1">
               <span className="text-muted-foreground">Despues de factura</span>
