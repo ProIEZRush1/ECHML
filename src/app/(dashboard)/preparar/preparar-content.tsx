@@ -116,13 +116,18 @@ function formatDeadlineShort(d: Date): string {
 
 function formatDeadlineFull(deadline: string): string {
   const d = new Date(deadline);
+  const now = new Date();
   const day = d.getDate();
   const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-  const hours = d.getHours();
-  const mins = d.getMinutes().toString().padStart(2, "0");
-  const ampm = hours >= 12 ? "p.m." : "a.m.";
-  const h = hours % 12 || 12;
-  return `${day} ${months[d.getMonth()]}, ${h}:${mins} ${ampm}`;
+  const isToday = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  if (isToday) {
+    const hours = d.getHours();
+    const mins = d.getMinutes().toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "p.m." : "a.m.";
+    const h = hours % 12 || 12;
+    return `Hoy, ${h}:${mins} ${ampm}`;
+  }
+  return `${day} ${months[d.getMonth()]}`;
 }
 
 function itemLabel(item: PackItem): string {
