@@ -30,6 +30,7 @@ export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
   const [concept, setConcept] = useState(expense.concept);
   const [date, setDate] = useState(expense.date.split("T")[0]);
   const [category, setCategory] = useState(expense.category);
+  const [type, setType] = useState(expense.type);
 
   async function handleSave() {
     setSaving(true);
@@ -42,6 +43,7 @@ export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
           concept,
           date,
           category,
+          type,
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");
@@ -83,6 +85,19 @@ export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
             <div>
               <Label htmlFor="edit-date">Fecha</Label>
               <Input id="edit-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="edit-type">Tipo</Label>
+              <select
+                id="edit-type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="gasto">Gasto (cuenta en Flujo de Caja)</option>
+                <option value="compra">Compra (no cuenta)</option>
+                <option value="registro">Registro (solo registro)</option>
+              </select>
             </div>
             <div>
               <Label htmlFor="edit-category">Categoria</Label>

@@ -223,7 +223,7 @@ export default async function FlujoCajaPage({
     }),
     prisma.expense.findMany({
       where: {
-        type: { in: ["gasto", "compra"] },
+        type: "gasto",
         date: {
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
@@ -407,9 +407,7 @@ export default async function FlujoCajaPage({
   const totalRetencionISR = totalBase * 0.025;
   const totalImpuestos = totalRetencionIVA + totalRetencionISR;
 
-  const totalGastosOperativos = relevantExpenses.filter((e) => (e as { type?: string }).type !== "compra").reduce((sum, e) => sum + Number(e.amount), 0);
-  const totalCompras = relevantExpenses.filter((e) => (e as { type?: string }).type === "compra").reduce((sum, e) => sum + Number(e.amount), 0);
-  const totalGastos = totalGastosOperativos + totalCompras;
+  const totalGastos = relevantExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const totalReturnShipCost = returnedOrders.reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
@@ -581,8 +579,7 @@ export default async function FlujoCajaPage({
           { label: "Envios", value: totalShipping },
           { label: "Impuestos", value: totalImpuestos },
           { label: "Costo producto", value: totalProductCost },
-          { label: "Gastos", value: totalGastosOperativos },
-          { label: "Compras", value: totalCompras },
+          { label: "Gastos", value: totalGastos },
           { label: "Flex", value: totalFlexNet },
           { label: "Envio devoluciones", value: totalReturnShipCost },
         ].filter((d) => d.value > 0);

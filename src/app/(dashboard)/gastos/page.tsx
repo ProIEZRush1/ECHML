@@ -76,8 +76,8 @@ export default async function GastosPage() {
                       {formatDate(expense.date)}
                     </TableCell>
                     <TableCell>
-                      <span className={expense.type === "compra" ? "tx-pill withdraw" : "tx-pill expense"}>
-                        {expense.type === "compra" ? "Compra" : "Gasto"}
+                      <span className={expense.type === "compra" ? "tx-pill withdraw" : expense.type === "registro" ? "tx-pill tax" : "tx-pill expense"}>
+                        {expense.type === "compra" ? "Compra" : expense.type === "registro" ? "Registro" : "Gasto"}
                       </span>
                     </TableCell>
                     <TableCell className="text-right num font-semibold margin-bad">

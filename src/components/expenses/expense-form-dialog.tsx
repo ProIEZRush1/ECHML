@@ -207,14 +207,17 @@ export function ExpenseFormDialog({ open, onOpenChange }: ExpenseFormDialogProps
             <Label>Tipo</Label>
             <div className="flex gap-2">
               <button type="button" onClick={() => setExpenseType("gasto")} className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${expenseType === "gasto" ? "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-900/30 dark:border-rose-700 dark:text-rose-300" : "bg-background border-input text-muted-foreground"}`}>
-                Gasto Operativo
+                Gasto
               </button>
               <button type="button" onClick={() => setExpenseType("compra")} className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${expenseType === "compra" ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-300" : "bg-background border-input text-muted-foreground"}`}>
-                Compra de Productos
+                Compra
+              </button>
+              <button type="button" onClick={() => setExpenseType("registro")} className={`flex-1 px-3 py-2 text-sm rounded-md border transition-colors ${expenseType === "registro" ? "bg-gray-50 border-gray-300 text-gray-700 dark:bg-gray-900/30 dark:border-gray-700 dark:text-gray-300" : "bg-background border-input text-muted-foreground"}`}>
+                Registro
               </button>
             </div>
             <p className="text-[11px] text-muted-foreground">
-              {expenseType === "gasto" ? "Aparece en Flujo de Caja como deduccion" : "No aparece en Flujo de Caja (solo registro de compra)"}
+              {expenseType === "gasto" ? "Aparece en Flujo de Caja como deduccion" : "Solo registro, no afecta Flujo de Caja"}
             </p>
           </div>
 
