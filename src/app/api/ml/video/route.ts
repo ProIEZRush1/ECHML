@@ -1,70 +1,72 @@
-export const dynamic = "force-dynamic";
-
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAnyAuth } from "@/lib/api-auth";
-import { prisma } from "@/lib/prisma";
+import { getMLCredentials, refreshAccessToken } from "@/lib/ml/client";
 
-async function ensureToken(): Promise<string> {
-  const cred = await prisma.mLCredential.findFirst();
-  if (!cred) throw new Error("No ML credentials");
-  if (cred.tokenExpiresAt > new Date()) return cred.accessToken;
+export const dynamic = "force-dynamic";
 
-  const res = await fetch("https://api.mercadolibre.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "refresh_token",
-      client_id: cred.appId,
-      client_secret: cred.clientSecret,
-      refresh_token: cred.refreshToken,
-    }),
-  });
-  if (!res.ok) throw new Error("Token refresh failed");
-  const data = await res.json();
+const ML_API_BASE = "https://api.mercadolibre.com";
 
-  await prisma.mLCredential.update({
-    where: { id: cred.id },
-    data: {
-      accessToken: data.access_token,
-      refreshToken: data.refresh_token,
-      tokenExpiresAt: new Date(Date.now() + data.expires_in * 1000),
-    },
-  });
+async function getValidToken(): Promise<string | null> {
+  const cred = await getMLCredentials();
+  if (!cred) return null;
 
-  return data.access_token;
+  if (cred.accessToken && cred.tokenExpiresAt > new Date(Date.now() + 60000)) {
+    return cred.accessToken;
+  }
+
+  if (cred.refreshToken) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      const updated = await getMLCredentials();
+      return updated?.accessToken || null;
+    }
+  }
+
+  return null;
 }
 
 export async function POST(request: NextRequest) {
-  const user = await verifyAnyAuth(request);
-  if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-  const itemId = formData.get("itemId") as string | null;
-
-  if (!file || !itemId) {
-    return NextResponse.json({ error: "file and itemId required" }, { status: 400 });
+  const session = await verifyAnyAuth(request);
+  if (!session) {
+    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   }
 
-  const token = await ensureToken();
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const itemId = formData.get("itemId") as string | null;
 
-  const mlForm = new FormData();
-  mlForm.append("file", file);
+    if (!file || !itemId) {
+      return NextResponse.json({ error: "file and itemId required" }, { status: 400 });
+    }
 
-  const uploadRes = await fetch(
-    `https://api.mercadolibre.com/items/${itemId}/video`,
-    {
+    const token = await getValidToken();
+    if (!token) {
+      return NextResponse.json({ error: "No hay token valido de MercadoLibre" }, { status: 400 });
+    }
+
+    const mlForm = new FormData();
+    mlForm.append("file", file, file.name);
+
+    const response = await fetch(`${ML_API_BASE}/items/${itemId}/video`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: mlForm,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return NextResponse.json(
+        { error: `ML video upload error ${response.status}: ${errorBody}` },
+        { status: response.status }
+      );
     }
-  );
 
-  if (!uploadRes.ok) {
-    const err = await uploadRes.text();
-    return NextResponse.json({ error: `ML video upload failed: ${err}` }, { status: uploadRes.status });
+    const data = await response.json();
+    return NextResponse.json(data);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Error desconocido";
+    console.error("ML Video upload error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  const result = await uploadRes.json();
-  return NextResponse.json(result);
 }
