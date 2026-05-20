@@ -60,19 +60,34 @@ export default async function PrepararPage() {
 
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
-  const enrichedOrders = orders.map((o) => {
-    const listing = listingMap.get(o.mlItemId) || null;
-    const stockAlert = false;
+  // Group orders by shipmentId to merge multi-item purchases into one card
+  const ordersByShipment = new Map<string, typeof orders>();
+  for (const o of orders) {
+    const key = o.shipmentId ? String(o.shipmentId) : o.id;
+    const existing = ordersByShipment.get(key) || [];
+    existing.push(o);
+    ordersByShipment.set(key, existing);
+  }
+
+  const enrichedOrders = [...ordersByShipment.values()].map((group) => {
+    const primary = group[0];
+    const allListings = group.map((o) => {
+      const listing = listingMap.get(o.mlItemId) || null;
+      return { listing, quantity: o.quantity, mlItemId: o.mlItemId };
+    });
+
     return {
-      id: o.id,
-      mlItemId: o.mlItemId,
-      mlOrderId: String(o.mlOrderId),
-      shipmentId: o.shipmentId ? String(o.shipmentId) : null,
-      quantity: o.quantity,
-      buyerNickname: o.buyerNickname,
-      prepStatus: o.prepStatus,
-      listing,
-      stockAlert,
+      id: primary.id,
+      mlItemId: primary.mlItemId,
+      mlOrderId: String(primary.mlOrderId),
+      shipmentId: primary.shipmentId ? String(primary.shipmentId) : null,
+      quantity: primary.quantity,
+      buyerNickname: primary.buyerNickname,
+      prepStatus: primary.prepStatus,
+      listing: allListings[0].listing,
+      stockAlert: false,
+      subOrders: allListings.length > 1 ? allListings : null,
+      orderIds: group.map((o) => o.id),
     };
   });
 
@@ -83,9 +98,9 @@ export default async function PrepararPage() {
     productIds: g.items.map((i) => i.productId),
   }));
 
-  const totalNew = orders.filter((o) => o.prepStatus === "NEW").length;
-  const totalPreparing = orders.filter((o) => o.prepStatus === "PREPARING").length;
-  const totalReady = orders.filter((o) => o.prepStatus === "READY").length;
+  const totalNew = enrichedOrders.filter((o) => o.prepStatus === "NEW").length;
+  const totalPreparing = enrichedOrders.filter((o) => o.prepStatus === "PREPARING").length;
+  const totalReady = enrichedOrders.filter((o) => o.prepStatus === "READY").length;
 
   return (
     <div className="space-y-5">

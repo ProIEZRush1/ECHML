@@ -12,16 +12,25 @@ export function PrepActions({ orderId, currentStatus }: PrepActionsProps) {
   const [status, setStatus] = useState(currentStatus);
   const [loading, setLoading] = useState(false);
 
+  const orderIds = orderId.split(",").filter(Boolean);
+
   async function updateStatus(newStatus: string) {
     setLoading(true);
     try {
-      const res = await fetch("/api/orders/prep-status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, prepStatus: newStatus }),
-      });
-      if (res.ok) {
-        setStatus(newStatus);
+      if (orderIds.length > 1) {
+        const res = await fetch("/api/orders/prep-status", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderIds, prepStatus: newStatus }),
+        });
+        if (res.ok) setStatus(newStatus);
+      } else {
+        const res = await fetch("/api/orders/prep-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: orderIds[0], prepStatus: newStatus }),
+        });
+        if (res.ok) setStatus(newStatus);
       }
     } finally {
       setLoading(false);

@@ -30,6 +30,12 @@ interface Listing {
   };
 }
 
+interface SubOrder {
+  listing: Listing | null;
+  quantity: number;
+  mlItemId: string;
+}
+
 interface Order {
   id: string;
   mlItemId: string;
@@ -40,6 +46,8 @@ interface Order {
   prepStatus: PrepStatus;
   listing: Listing | null;
   stockAlert: boolean;
+  subOrders: SubOrder[] | null;
+  orderIds: string[];
 }
 
 interface Group {
@@ -89,14 +97,20 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
 
+  function getAllItems(o: Order): { items: PackItem[]; qty: number }[] {
+    if (o.subOrders) {
+      return o.subOrders.map((so) => ({ items: so.listing?.pack?.items || [], qty: so.quantity }));
+    }
+    return [{ items: o.listing?.pack?.items || [], qty: o.quantity }];
+  }
+
   const allVariants = useMemo(() => {
     const set = new Set<string>();
     for (const o of orders) {
-      const items = o.listing?.pack?.items;
-      if (!items) continue;
-      for (const item of items) {
-        const label = itemLabel(item);
-        set.add(label);
+      for (const { items } of getAllItems(o)) {
+        for (const item of items) {
+          set.add(itemLabel(item));
+        }
       }
     }
     return [...set].sort();
@@ -114,9 +128,10 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       const selectedGroups = groups.filter((g) => activeGroups.includes(g.id));
       const allProductIds = new Set(selectedGroups.flatMap((g) => g.productIds));
       result = result.filter((o) => {
-        const items = o.listing?.pack?.items;
-        if (!items) return false;
-        return items.some((item) => allProductIds.has(item.productVariant.product.id));
+        for (const { items } of getAllItems(o)) {
+          if (items.some((item) => allProductIds.has(item.productVariant.product.id))) return true;
+        }
+        return false;
       });
     }
     if (activeStatuses.length > 0) {
@@ -124,9 +139,10 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     }
     if (activeVariants.length > 0) {
       result = result.filter((o) => {
-        const items = o.listing?.pack?.items;
-        if (!items) return false;
-        return items.some((item) => activeVariants.includes(itemLabel(item)));
+        for (const { items } of getAllItems(o)) {
+          if (items.some((item) => activeVariants.includes(itemLabel(item)))) return true;
+        }
+        return false;
       });
     }
     if (sortOrder === "newest") {
@@ -144,16 +160,16 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   const totalsByVariant = useMemo(() => {
     const map = new Map<string, { label: string; total: number; stock: number }>();
     for (const order of filtered) {
-      const items = order.listing?.pack?.items;
-      if (!items) continue;
-      for (const item of items) {
-        const label = itemLabel(item);
-        const existing = map.get(label);
-        const needed = item.quantity * order.quantity;
-        if (existing) {
-          existing.total += needed;
-        } else {
-          map.set(label, { label, total: needed, stock: item.productVariant.stock });
+      for (const { items, qty } of getAllItems(order)) {
+        for (const item of items) {
+          const label = itemLabel(item);
+          const existing = map.get(label);
+          const needed = item.quantity * qty;
+          if (existing) {
+            existing.total += needed;
+          } else {
+            map.set(label, { label, total: needed, stock: item.productVariant.stock });
+          }
         }
       }
     }
@@ -329,11 +345,13 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                   {section.orders.map((order) => {
                     const listing = order.listing;
                     const pack = listing?.pack;
+                    const isMulti = !!order.subOrders;
+                    const allItemGroups = getAllItems(order);
                     return (
                       <div
                         key={order.id}
                         className={`rounded-[9px] border bg-card px-3 py-2.5 space-y-2 ${
-                          order.stockAlert ? "border-red-400 dark:border-red-800" : "border-border"
+                          isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border"
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -343,23 +361,17 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
-                            <p className="font-medium text-[12px] truncate">{pack?.name || order.mlItemId}</p>
+                            <p className="font-medium text-[12px] truncate">
+                              {isMulti ? `Paquete de ${order.subOrders!.length} productos` : (pack?.name || order.mlItemId)}
+                            </p>
                             <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
-                              {pack?.sku && <span className="mono font-semibold text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground select-all">{pack.sku}</span>}
+                              {!isMulti && pack?.sku && <span className="mono font-semibold text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground select-all">{pack.sku}</span>}
+                              {isMulti && <span className="text-[10px] font-semibold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">MULTI</span>}
                               <span className="text-border">·</span>
                               <span className="font-semibold text-foreground">×{order.quantity}</span>
-                              {order.buyerNickname && (
-                                <>
-                                  <span className="text-border">·</span>
-                                  <span className="truncate">{order.buyerNickname}</span>
-                                </>
-                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            {order.stockAlert && (
-                              <span className="text-[9px] font-semibold text-red-500 uppercase">Sin stock</span>
-                            )}
                             {order.shipmentId && (
                               <button
                                 onClick={() => printLabel(order.shipmentId!)}
@@ -372,13 +384,13 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                           </div>
                         </div>
 
-                        {pack?.items && pack.items.length > 0 && (
-                          <div className="border-t border-border pt-1.5 space-y-0.5">
-                            {pack.items.map((item, idx) => {
-                              const totalNeeded = item.quantity * order.quantity;
+                        <div className="border-t border-border pt-1.5 space-y-0.5">
+                          {allItemGroups.map(({ items, qty }, gi) => (
+                            items.map((item, idx) => {
+                              const totalNeeded = item.quantity * qty;
                               const label = itemLabel(item);
                               return (
-                                <div key={idx} className="flex items-center justify-between text-[11px]">
+                                <div key={`${gi}-${idx}`} className="flex items-center justify-between text-[11px]">
                                   <span className="text-muted-foreground">
                                     {totalNeeded}× {label}
                                   </span>
@@ -387,11 +399,11 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                                   </span>
                                 </div>
                               );
-                            })}
-                          </div>
-                        )}
+                            })
+                          ))}
+                        </div>
 
-                        <PrepActions orderId={order.id} currentStatus={order.prepStatus} />
+                        <PrepActions orderId={order.orderIds.join(",")} currentStatus={order.prepStatus} />
                       </div>
                     );
                   })}
