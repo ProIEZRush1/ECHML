@@ -186,9 +186,12 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="gasto">Gasto Operativo</SelectItem>
-                  <SelectItem value="compra">Compra Productos</SelectItem>
+                  <SelectItem value="compra">Compra (solo registro)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground">
+                {expenseType === "gasto" ? "Se resta de la utilidad en Flujo de Caja" : "NO afecta utilidad, solo queda registrado"}
+              </p>
             </div>
           </div>
         </div>
