@@ -60,6 +60,14 @@ export default async function PrepararPage() {
 
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
+  // Get ML pack IDs from MPTransaction for these orders
+  const orderIds = orders.map((o) => o.mlOrderId);
+  const packIdTxs = await prisma.mPTransaction.findMany({
+    where: { mlOrderId: { in: orderIds }, mlPackId: { not: null } },
+    select: { mlOrderId: true, mlPackId: true },
+  });
+  const packIdMap = new Map(packIdTxs.map((t) => [String(t.mlOrderId), String(t.mlPackId)]));
+
   // Group orders by shipmentId to merge multi-item purchases into one card
   const ordersByShipment = new Map<string, typeof orders>();
   for (const o of orders) {
@@ -80,7 +88,7 @@ export default async function PrepararPage() {
       id: primary.id,
       mlItemId: primary.mlItemId,
       mlOrderId: String(primary.mlOrderId),
-      mlPackId: (primary.rawPayload as Record<string, unknown>)?.pack_id ? String((primary.rawPayload as Record<string, unknown>).pack_id) : null,
+      mlPackId: packIdMap.get(String(primary.mlOrderId)) || null,
       shipmentId: primary.shipmentId ? String(primary.shipmentId) : null,
       quantity: primary.quantity,
       buyerNickname: primary.buyerNickname,
