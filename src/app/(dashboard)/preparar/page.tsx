@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { PrepararContent } from "./preparar-content";
+import { mlFetch } from "@/lib/ml/client";
 
 export default async function PrepararPage() {
   const [orders, groups, todayShipped] = await Promise.all([
@@ -60,13 +61,37 @@ export default async function PrepararPage() {
 
   const listingMap = new Map(listings.map((l) => [l.mlItemId, l]));
 
-  // Get ML pack IDs from MPTransaction for these orders
+  // Get ML pack IDs: try MPTransaction first, then rawPayload fallback
   const orderIds = orders.map((o) => o.mlOrderId);
   const packIdTxs = await prisma.mPTransaction.findMany({
     where: { mlOrderId: { in: orderIds }, mlPackId: { not: null } },
     select: { mlOrderId: true, mlPackId: true },
   });
   const packIdMap = new Map(packIdTxs.map((t) => [String(t.mlOrderId), String(t.mlPackId)]));
+  for (const o of orders) {
+    const key = String(o.mlOrderId);
+    if (!packIdMap.has(key)) {
+      const raw = o.rawPayload as Record<string, unknown> | null;
+      if (raw?.pack_id) packIdMap.set(key, String(raw.pack_id));
+    }
+  }
+  // Fetch pack_id from ML API for orders still missing it
+  const missingPackIds = orders.filter((o) => !packIdMap.has(String(o.mlOrderId)));
+  if (missingPackIds.length > 0) {
+    try {
+      const mlOrders = await Promise.all(
+        missingPackIds.slice(0, 20).map(async (o) => {
+          try {
+            const data = await mlFetch<{ id: number; pack_id?: number | null }>(`/orders/${o.mlOrderId}`);
+            return { mlOrderId: String(o.mlOrderId), packId: data.pack_id ? String(data.pack_id) : null };
+          } catch { return null; }
+        })
+      );
+      for (const r of mlOrders) {
+        if (r?.packId) packIdMap.set(r.mlOrderId, r.packId);
+      }
+    } catch { /* ignore ML API errors */ }
+  }
 
   // Group orders by shipmentId to merge multi-item purchases into one card
   const ordersByShipment = new Map<string, typeof orders>();
