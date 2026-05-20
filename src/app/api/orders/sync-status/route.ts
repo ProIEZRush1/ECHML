@@ -73,8 +73,8 @@ export async function POST() {
         changed = true;
       }
 
-      const handedOff = ["dropped_off", "picked_up", "in_hub", "in_transit"].includes(shipment.substatus || "");
-      if ((newStatus === "DELIVERED" || handedOff) && order.prepStatus !== "SHIPPED") {
+      const handedOff = ["dropped_off", "picked_up", "in_hub", "in_transit", "waiting_for_withdrawal", "out_for_delivery", "at_sender", "at_agency"].includes(shipment.substatus || "");
+      if ((newStatus === "SHIPPED" || newStatus === "DELIVERED" || handedOff) && order.prepStatus !== "SHIPPED") {
         data.prepStatus = "SHIPPED";
         changed = true;
       }
