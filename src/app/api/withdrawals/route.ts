@@ -8,12 +8,12 @@ export const dynamic = "force-dynamic";
 const allocationSchema = z.object({
   packId: z.string().optional(),
   productId: z.string().optional(),
-  amount: z.number().positive("El monto de asignación debe ser mayor a 0"),
+  amount: z.number().refine((n) => n !== 0, "El monto no puede ser 0"),
   notes: z.string().optional(),
 });
 
 const createWithdrawalSchema = z.object({
-  amount: z.number().positive("El monto debe ser mayor a 0"),
+  amount: z.number().refine((n) => n !== 0, "El monto no puede ser 0"),
   date: z.string().min(1, "La fecha es obligatoria"),
   concept: z.string().min(1, "El concepto es obligatorio"),
   method: z.string().default("bank"),

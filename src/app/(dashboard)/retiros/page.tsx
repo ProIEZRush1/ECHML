@@ -94,9 +94,9 @@ export default async function RetirosPage() {
                     <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
                       {formatDate(withdrawal.date)}
                     </TableCell>
-                    <TableCell className="text-right num font-semibold margin-bad">
-                      -{formatCurrency(Number(withdrawal.amount))}
-                      {withdrawal.hasFactura && (
+                    <TableCell className={`text-right num font-semibold ${Number(withdrawal.amount) < 0 ? "margin-good" : "margin-bad"}`}>
+                      {Number(withdrawal.amount) < 0 ? "+" : "-"}{formatCurrency(Math.abs(Number(withdrawal.amount)))}
+                      {withdrawal.hasFactura && Number(withdrawal.amount) > 0 && (
                         <p className="text-[10px] text-muted-foreground">Factura: -{formatCurrency(Number(withdrawal.amount) * 0.03)}</p>
                       )}
                     </TableCell>

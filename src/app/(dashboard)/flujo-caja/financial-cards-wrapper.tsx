@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n);
@@ -19,7 +20,9 @@ interface Props {
 
 export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdrawn, totalGastos, totalFacturaCost, showWithdraw }: Props) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [adsCost, setAdsCost] = useState<number | null>(null);
+  const [depositing, setDepositing] = useState(false);
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
@@ -60,6 +63,46 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
   const totalNet = loading ? null : serverNet - adsCost;
   const netAfterFactura = totalNet !== null ? totalNet * 0.97 : null;
   const available = loading ? null : serverAvailable - adsCost;
+
+  async function handleDeposit() {
+    if (available === null || available >= 0) return;
+    const depositAmount = Math.round(Math.abs(available) * 100) / 100;
+
+    setDepositing(true);
+    try {
+      const packIdList = packIds ? packIds.split(",").filter(Boolean) : [];
+
+      const payload: Record<string, unknown> = {
+        amount: -depositAmount,
+        date: new Date().toISOString().split("T")[0],
+        concept: "Deposito a cuenta ML",
+        method: "bank",
+      };
+
+      if (packIdList.length === 1) {
+        payload.allocations = [{ packId: packIdList[0], amount: -depositAmount }];
+      }
+
+      const res = await fetch("/api/withdrawals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Error al crear deposito");
+        return;
+      }
+
+      toast.success(`Deposito de ${fmt(depositAmount)} registrado`);
+      router.refresh();
+    } catch {
+      toast.error("Error de conexion");
+    } finally {
+      setDepositing(false);
+    }
+  }
 
   return (
     <>
@@ -124,6 +167,18 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
             {totalGastos > 0 && <> · Gastos -{fmt(totalGastos)}</>}
             {totalWithdrawn > 0 && <> · Retirado {fmt(totalWithdrawn)}</>}
           </p>
+          {available !== null && available < 0 && (
+            <button
+              onClick={handleDeposit}
+              disabled={depositing}
+              className="mt-2 w-full text-[12px] font-medium py-1.5 px-3 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {depositing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : null}
+              Depositar {fmt(Math.abs(available))} a cuenta ML
+            </button>
+          )}
         </div>
       )}
     </>
