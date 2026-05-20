@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const itemId = formData.get("itemId") as string | null;
+    const uploadType = formData.get("type") as string | null;
 
     if (!file) {
       return NextResponse.json(
@@ -53,7 +55,14 @@ export async function POST(request: NextRequest) {
     const mlForm = new FormData();
     mlForm.append("file", file, file.name);
 
-    const response = await fetch(`${ML_API_BASE}/pictures/items/upload`, {
+    let url: string;
+    if (uploadType === "video" && itemId) {
+      url = `${ML_API_BASE}/items/${itemId}/video`;
+    } else {
+      url = `${ML_API_BASE}/pictures/items/upload`;
+    }
+
+    const response = await fetch(url, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: mlForm,
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error desconocido";
-    console.error("ML Picture upload error:", message);
+    console.error("ML upload error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
