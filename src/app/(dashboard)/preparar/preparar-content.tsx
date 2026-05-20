@@ -49,6 +49,8 @@ interface Order {
   stockAlert: boolean;
   subOrders: SubOrder[] | null;
   orderIds: string[];
+  shippingDeadline: string | null;
+  dateCreated: string;
 }
 
 interface Group {
@@ -81,7 +83,47 @@ const STATUS_TABS: { label: string; value: string }[] = [
 const SORT_OPTIONS = [
   { label: "Mas antiguos", value: "oldest" },
   { label: "Mas recientes", value: "newest" },
+  { label: "Mas urgentes", value: "urgent" },
 ];
+
+const URGENCY_TABS = [
+  { label: "Todos", value: "" },
+  { label: "Vencido", value: "overdue" },
+  { label: "Hoy", value: "today" },
+  { label: "Manana", value: "tomorrow" },
+];
+
+function getDeadlineUrgency(deadline: string | null): { label: string; cls: string; value: string } {
+  if (!deadline) return { label: "", cls: "", value: "" };
+  const now = new Date();
+  const dl = new Date(deadline);
+  const diffMs = dl.getTime() - now.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  if (diffHours < 0) return { label: "Vencido", cls: "text-red-600 bg-red-100 dark:bg-red-950/30 dark:text-red-400", value: "overdue" };
+  if (diffHours < 6) return { label: "Urgente", cls: "text-amber-700 bg-amber-100 dark:bg-amber-950/30 dark:text-amber-400", value: "today" };
+  const todayEnd = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  if (dl <= todayEnd) return { label: "Hoy", cls: "text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400", value: "today" };
+  const tomorrowEnd = new Date(todayEnd); tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  if (dl <= tomorrowEnd) return { label: "Manana", cls: "text-blue-600 bg-blue-50 dark:bg-blue-950/20 dark:text-blue-400", value: "tomorrow" };
+  return { label: formatDeadlineShort(dl), cls: "text-muted-foreground bg-muted", value: "later" };
+}
+
+function formatDeadlineShort(d: Date): string {
+  const day = d.getDate();
+  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  return `${day} ${months[d.getMonth()]}`;
+}
+
+function formatDeadlineFull(deadline: string): string {
+  const d = new Date(deadline);
+  const day = d.getDate();
+  const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+  const hours = d.getHours();
+  const mins = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "p.m." : "a.m.";
+  const h = hours % 12 || 12;
+  return `${day} ${months[d.getMonth()]}, ${h}:${mins} ${ampm}`;
+}
 
 function itemLabel(item: PackItem): string {
   const prodName = item.productVariant.product.name;
@@ -94,6 +136,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [activeStatuses, setActiveStatuses] = useState<string[]>([]);
   const [activeVariants, setActiveVariants] = useState<string[]>([]);
+  const [activeUrgency, setActiveUrgency] = useState<string>("");
   const [sortOrder, setSortOrder] = useState<string>("oldest");
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
@@ -146,11 +189,23 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
         return false;
       });
     }
+    if (activeUrgency) {
+      result = result.filter((o) => {
+        const u = getDeadlineUrgency(o.shippingDeadline);
+        return u.value === activeUrgency;
+      });
+    }
     if (sortOrder === "newest") {
       result = [...result].reverse();
+    } else if (sortOrder === "urgent") {
+      result = [...result].sort((a, b) => {
+        const da = a.shippingDeadline ? new Date(a.shippingDeadline).getTime() : Infinity;
+        const db = b.shippingDeadline ? new Date(b.shippingDeadline).getTime() : Infinity;
+        return da - db;
+      });
     }
     return result;
-  }, [orders, groups, activeGroups, activeStatuses, activeVariants, sortOrder]);
+  }, [orders, groups, activeGroups, activeStatuses, activeVariants, activeUrgency, sortOrder]);
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
     { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
@@ -284,6 +339,14 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
             </div>
           </>
         )}
+        <span className="lbl">Envio</span>
+        <div className="pillgroup">
+          {URGENCY_TABS.map((tab) => (
+            <button key={tab.value} className={activeUrgency === tab.value ? "on" : ""} onClick={() => setActiveUrgency(tab.value)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <span className="lbl">Orden</span>
         <div className="pillgroup">
           {SORT_OPTIONS.map((opt) => (
@@ -348,11 +411,13 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                     const pack = listing?.pack;
                     const isMulti = !!order.subOrders;
                     const allItemGroups = getAllItems(order);
+                    const urgency = getDeadlineUrgency(order.shippingDeadline);
+                    const isOverdue = urgency.value === "overdue";
                     return (
                       <div
                         key={order.id}
                         className={`rounded-[9px] border bg-card px-3 py-2.5 space-y-2 ${
-                          isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border"
+                          isOverdue ? "border-red-400 dark:border-red-800" : isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border"
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -384,6 +449,21 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                               </button>
                             )}
                           </div>
+                        </div>
+
+                        {/* Dates row */}
+                        <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                          <span className="text-muted-foreground">
+                            Venta: {new Date(order.dateCreated).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {order.shippingDeadline && (
+                            <>
+                              <span className="text-muted-foreground">·</span>
+                              <span className={`font-semibold px-1.5 py-0.5 rounded text-[9px] ${urgency.cls}`}>
+                                Enviar antes: {formatDeadlineFull(order.shippingDeadline)}
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         <div className="border-t border-border pt-1.5 space-y-0.5">

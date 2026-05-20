@@ -93,6 +93,29 @@ export default async function PrepararPage() {
     } catch { /* ignore ML API errors */ }
   }
 
+  // Fetch shipping deadlines from ML API
+  const uniqueShipmentIds = [...new Set(orders.filter((o) => o.shipmentId).map((o) => String(o.shipmentId)))];
+  const deadlineMap = new Map<string, string>();
+  if (uniqueShipmentIds.length > 0) {
+    try {
+      const shipments = await Promise.all(
+        uniqueShipmentIds.slice(0, 30).map(async (sid) => {
+          try {
+            const data = await mlFetch<{
+              id: number;
+              shipping_option?: { estimated_delivery_time?: { pay_before?: string } };
+            }>(`/shipments/${sid}`);
+            const payBefore = data.shipping_option?.estimated_delivery_time?.pay_before;
+            return { sid, payBefore: payBefore || null };
+          } catch { return { sid, payBefore: null }; }
+        })
+      );
+      for (const s of shipments) {
+        if (s.payBefore) deadlineMap.set(s.sid, s.payBefore);
+      }
+    } catch { /* ignore */ }
+  }
+
   // Group orders by shipmentId to merge multi-item purchases into one card
   const ordersByShipment = new Map<string, typeof orders>();
   for (const o of orders) {
@@ -122,6 +145,8 @@ export default async function PrepararPage() {
       stockAlert: false,
       subOrders: allListings.length > 1 ? allListings : null,
       orderIds: group.map((o) => o.id),
+      shippingDeadline: primary.shipmentId ? (deadlineMap.get(String(primary.shipmentId)) || null) : null,
+      dateCreated: primary.dateCreated.toISOString(),
     };
   });
 
