@@ -56,7 +56,11 @@ export async function POST(request: NextRequest) {
     mlForm.append("file", file, file.name);
 
     let url: string;
-    if (uploadType === "video" && itemId) {
+    if (uploadType === "clip" && itemId) {
+      url = `${ML_API_BASE}/marketplace/items/${itemId}/clips/upload`;
+      const sites = formData.get("sites") as string | null;
+      if (sites) mlForm.append("sites", sites);
+    } else if (uploadType === "video" && itemId) {
       url = `${ML_API_BASE}/items/${itemId}/video`;
     } else {
       url = `${ML_API_BASE}/pictures/items/upload`;
