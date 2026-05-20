@@ -223,7 +223,7 @@ export default async function FlujoCajaPage({
     }),
     prisma.expense.findMany({
       where: {
-        type: "gasto",
+        type: { in: ["gasto", "compra"] },
         date: {
           gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),

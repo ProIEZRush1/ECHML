@@ -231,6 +231,7 @@ export default async function ContabilidadPage({
       }
     }
 
+    if (exp.type === "registro") continue;
     const acc = getAcc(groupId);
     const amt = Number(exp.amount);
     if (exp.type === "compra") {

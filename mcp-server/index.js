@@ -431,7 +431,7 @@ server.tool(
   {
     amount: z.number().describe("Monto del gasto en MXN"),
     date: z.string().describe("Fecha del gasto (YYYY-MM-DD)"),
-    type: z.enum(["gasto", "compra"]).optional().describe("Tipo: gasto (operativo, aparece en flujo, default) o compra (de productos, no aparece en flujo)"),
+    type: z.enum(["gasto", "compra", "registro"]).optional().describe("Tipo: gasto (operativo) y compra (productos) afectan utilidad. registro = solo tracking, NO afecta utilidad"),
     category: z.enum(["proveedor", "envio", "suscripcion", "publicidad", "empaque", "otro"]).describe("Categoria"),
     concept: z.string().describe("Concepto del gasto"),
     supplierId: z.string().optional().describe("ID del proveedor"),

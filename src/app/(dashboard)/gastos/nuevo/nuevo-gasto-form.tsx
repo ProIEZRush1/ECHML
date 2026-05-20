@@ -185,12 +185,13 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
               <Select value={expenseType} onValueChange={(v) => setExpenseType(v || "gasto")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gasto">Gasto Operativo</SelectItem>
+                  <SelectItem value="gasto">Gasto</SelectItem>
                   <SelectItem value="compra">Compra</SelectItem>
+                  <SelectItem value="registro">Registro</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground">
-                {expenseType === "gasto" ? "Se resta de la utilidad en Flujo de Caja" : "NO afecta utilidad, solo queda registrado"}
+                {expenseType === "registro" ? "NO afecta utilidad, solo queda registrado" : "Se resta de la utilidad en Flujo de Caja"}
               </p>
             </div>
           </div>
