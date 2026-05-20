@@ -94,6 +94,11 @@ export default async function PrepararPage() {
   }
 
   // Fetch shipping deadlines from ML API
+  // pay_before has a generic 10AM cutoff; use the date from pay_before but with
+  // the actual seller cutoff time (13:45 for xd_drop_off in Mexico)
+  const SELLER_CUTOFF_HOUR = 13;
+  const SELLER_CUTOFF_MINUTE = 45;
+
   const uniqueShipmentIds = [...new Set(orders.filter((o) => o.shipmentId).map((o) => String(o.shipmentId)))];
   const deadlineMap = new Map<string, string>();
   if (uniqueShipmentIds.length > 0) {
@@ -106,12 +111,15 @@ export default async function PrepararPage() {
               shipping_option?: { estimated_delivery_time?: { pay_before?: string } };
             }>(`/shipments/${sid}`);
             const payBefore = data.shipping_option?.estimated_delivery_time?.pay_before;
-            return { sid, payBefore: payBefore || null };
-          } catch { return { sid, payBefore: null }; }
+            if (!payBefore) return { sid, deadline: null };
+            const d = new Date(payBefore);
+            d.setHours(SELLER_CUTOFF_HOUR, SELLER_CUTOFF_MINUTE, 0, 0);
+            return { sid, deadline: d.toISOString() };
+          } catch { return { sid, deadline: null }; }
         })
       );
       for (const s of shipments) {
-        if (s.payBefore) deadlineMap.set(s.sid, s.payBefore);
+        if (s.deadline) deadlineMap.set(s.sid, s.deadline);
       }
     } catch { /* ignore */ }
   }
