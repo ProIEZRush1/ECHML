@@ -80,6 +80,7 @@ export default async function PrepararPage() {
       id: primary.id,
       mlItemId: primary.mlItemId,
       mlOrderId: String(primary.mlOrderId),
+      mlPackId: (primary.rawPayload as Record<string, unknown>)?.pack_id ? String((primary.rawPayload as Record<string, unknown>).pack_id) : null,
       shipmentId: primary.shipmentId ? String(primary.shipmentId) : null,
       quantity: primary.quantity,
       buyerNickname: primary.buyerNickname,
