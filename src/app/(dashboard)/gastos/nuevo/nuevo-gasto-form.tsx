@@ -186,7 +186,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="gasto">Gasto Operativo</SelectItem>
-                  <SelectItem value="compra">Compra (solo registro)</SelectItem>
+                  <SelectItem value="compra">Compra</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground">
