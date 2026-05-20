@@ -9,6 +9,8 @@ function fmt(n: number) {
 
 interface GroupData {
   groupId: string;
+  groupName: string;
+  groupColor: string;
   utilidad: number;
   retiros: number;
 }
@@ -61,17 +63,13 @@ export function ContabilidadAds({ dateFrom, dateTo, productToGroupMap, groups }:
         {groups.map((g) => {
           const ads = adsByGroup[g.groupId] || 0;
           if (ads === 0) return null;
-          const adjustedUtilidad = g.utilidad - ads;
-          const adjustedSaldo = adjustedUtilidad - g.retiros;
           return (
             <div key={g.groupId} className="flex items-center justify-between text-[11.5px]">
-              <span className="text-muted-foreground">{g.groupId === "__none__" ? "Sin grupo" : g.groupId}</span>
-              <div className="flex items-center gap-4">
-                <span className="num margin-bad">Ads -{fmt(ads)}</span>
-                <span className={`num font-medium ${adjustedSaldo >= -100 ? "margin-good" : "margin-bad"}`}>
-                  Saldo ajustado: {fmt(adjustedSaldo)}
-                </span>
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: g.groupColor }} />
+                <span className="font-medium">{g.groupName}</span>
               </div>
+              <span className="num margin-bad">-{fmt(ads)}</span>
             </div>
           );
         })}

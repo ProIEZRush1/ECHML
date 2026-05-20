@@ -308,6 +308,8 @@ export default async function ContabilidadPage({
 
   const groupsForAds = rows.map((r) => ({
     groupId: r.groupId || "__none__",
+    groupName: r.groupName,
+    groupColor: r.groupColor,
     utilidad: r.utilidad,
     retiros: r.retiros,
   }));
@@ -321,29 +323,45 @@ export default async function ContabilidadPage({
 
       <ContabilidadFilters />
 
+      {/* Explanation */}
+      <div className="rounded-[9px] border border-border bg-muted/30 p-4 text-[12px] text-muted-foreground space-y-1">
+        <p className="font-medium text-foreground text-[13px]">Como leer esta pagina</p>
+        <p><strong>Utilidad</strong> = Ingresos - todas las deducciones (comisiones, envios, impuestos, costo de producto, gastos, flex, devoluciones)</p>
+        <p><strong>Saldo</strong> = Utilidad - Retiros. Si es $0 o cercano, las cuentas estan cuadradas. Si es positivo, hay dinero por retirar. Si es negativo, se retiro de mas.</p>
+        <p><span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-green-600" /> = cuadrado (diferencia menor a $100)</span> <span className="inline-flex items-center gap-1 ml-3"><AlertTriangle className="h-3 w-3 text-amber-500" /> = descuadre (falta retirar o se retiro de mas)</span></p>
+      </div>
+
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-[9px] border border-border bg-card p-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Ingresos</p>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Total Vendido</p>
           <p className="text-xl font-bold num margin-good">{formatCurrency(totals.ingresos)}</p>
           <p className="text-[11px] text-muted-foreground mt-1">{totals.salesCount} ventas · {rows.length} grupos</p>
         </div>
         <div className="rounded-[9px] border border-border bg-card p-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Deducciones</p>
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Total Deducciones</p>
           <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalDeducciones)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">{totals.ingresos > 0 ? `${((totalDeducciones / totals.ingresos) * 100).toFixed(1)}% de ingresos` : ""}</p>
-        </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Utilidad Neta</p>
-          <p className={`text-xl font-bold num ${totals.utilidad >= 0 ? "margin-good" : "margin-bad"}`}>{formatCurrency(totals.utilidad)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">Sin publicidad (carga aparte)</p>
-        </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Saldo Total</p>
-          <p className={`text-xl font-bold num ${Math.abs(totals.saldo) < 100 ? "margin-good" : "margin-bad"}`}>{formatCurrency(totals.saldo)}</p>
           <p className="text-[11px] text-muted-foreground mt-1">
-            Retirado: {formatCurrency(totals.retiros)}
-            {Math.abs(totals.saldo) < 100 ? " · Cuadrado" : " · Descuadre"}
+            Comisiones, envios, impuestos, costos, gastos, flex, devoluciones
+          </p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Ganancia Real</p>
+          <p className={`text-xl font-bold num ${totals.utilidad >= 0 ? "margin-good" : "margin-bad"}`}>{formatCurrency(totals.utilidad)}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Lo que queda despues de TODO (sin ads)
+          </p>
+        </div>
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">
+            {totals.saldo >= 0 ? "Falta Retirar" : "Retirado de Mas"}
+          </p>
+          <p className={`text-xl font-bold num ${Math.abs(totals.saldo) < 100 ? "margin-good" : totals.saldo > 0 ? "margin-good" : "margin-bad"}`}>
+            {formatCurrency(Math.abs(totals.saldo))}
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Ganancia {formatCurrency(totals.utilidad)} - Retirado {formatCurrency(totals.retiros)}
+            {Math.abs(totals.saldo) < 100 ? " = Cuadrado" : ""}
           </p>
         </div>
       </div>
@@ -359,9 +377,9 @@ export default async function ContabilidadPage({
       {/* Reconciliation Table */}
       <div className="rounded-[9px] border border-border bg-card overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
-          <p className="text-[13px] font-semibold">Conciliacion por Grupo</p>
+          <p className="text-[13px] font-semibold">Detalle por Grupo de Productos</p>
           <p className="text-[11px] text-muted-foreground">
-            Periodo: {dateFrom} al {dateTo}
+            {dateFrom} al {dateTo} · Cada fila = un grupo de productos · Saldo = lo que queda despues de retirar
           </p>
         </div>
 
