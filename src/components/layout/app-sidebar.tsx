@@ -19,6 +19,7 @@ import {
   BarChart3,
   ArrowDownToLine,
   Receipt,
+  BookOpen,
   FolderOpen,
   Key,
   Sparkles,
@@ -76,6 +77,7 @@ const navItems = [
       { title: "Rentabilidad", href: "/rentabilidad", icon: BarChart3 },
       { title: "Gastos", href: "/gastos", icon: Receipt },
       { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
+      { title: "Contabilidad", href: "/contabilidad", icon: BookOpen },
     ],
   },
   {
