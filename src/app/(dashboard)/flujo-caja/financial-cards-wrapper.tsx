@@ -146,7 +146,7 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
 
       {/* Dinero a Retirar */}
       {showWithdraw && (
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-[9px] border border-border bg-card p-4 overflow-hidden">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
             <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />
@@ -161,22 +161,21 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
               {fmt(available!)}
             </p>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1 break-words">
-            Sin costo producto
-            {adsCost !== null && adsCost > 0 && <> · Ads -{fmt(adsCost)}</>}
-            {totalGastos > 0 && <><br/>Gastos -{fmt(totalGastos)}</>}
-            {totalWithdrawn > 0 && <> · Retirado {fmt(totalWithdrawn)}</>}
-          </p>
+          <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+            {adsCost !== null && adsCost > 0 && <p>Ads: -{fmt(adsCost)}</p>}
+            {totalGastos > 0 && <p>Gastos: -{fmt(totalGastos)}</p>}
+            {totalWithdrawn > 0 && <p>Retirado: {fmt(totalWithdrawn)}</p>}
+          </div>
           {available !== null && available < 0 && (
             <button
               onClick={handleDeposit}
               disabled={depositing}
-              className="mt-2 w-full text-[12px] font-medium py-1.5 px-3 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
+              className="mt-2 w-full text-[12px] font-medium py-1.5 px-3 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5 truncate"
             >
               {depositing ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : null}
-              Depositar {fmt(Math.abs(available))} a cuenta ML
+              Depositar {fmt(Math.abs(available))}
             </button>
           )}
         </div>
