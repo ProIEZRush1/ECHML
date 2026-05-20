@@ -366,7 +366,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                             </p>
                             <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
                               {!isMulti && pack?.sku && <span className="mono font-semibold text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground select-all">{pack.sku}</span>}
-                              {!isMulti && pack?.id && <span className="mono text-[9px] text-muted-foreground select-all">{pack.id}</span>}
+                              {!isMulti && <span className="mono text-[9.5px] text-muted-foreground select-all">MLM{order.mlItemId.replace("MLM","")}</span>}
                               {isMulti && <span className="text-[10px] font-semibold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">MULTI</span>}
                               <span className="text-border">·</span>
                               <span className="font-semibold text-foreground">×{order.quantity}</span>

@@ -161,10 +161,10 @@ export function FinancialCardsWrapper({ serverNet, serverAvailable, totalWithdra
               {fmt(available!)}
             </p>
           )}
-          <p className="text-[11px] text-muted-foreground mt-1">
+          <p className="text-[11px] text-muted-foreground mt-1 break-words">
             Sin costo producto
             {adsCost !== null && adsCost > 0 && <> · Ads -{fmt(adsCost)}</>}
-            {totalGastos > 0 && <> · Gastos -{fmt(totalGastos)}</>}
+            {totalGastos > 0 && <><br/>Gastos -{fmt(totalGastos)}</>}
             {totalWithdrawn > 0 && <> · Retirado {fmt(totalWithdrawn)}</>}
           </p>
           {available !== null && available < 0 && (
