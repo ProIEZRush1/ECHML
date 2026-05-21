@@ -1,0 +1,1 @@
+ALTER TABLE "ProductVariant" ADD COLUMN "ficticioStock" INTEGER NOT NULL DEFAULT 0;

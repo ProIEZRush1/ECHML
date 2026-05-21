@@ -53,6 +53,7 @@ export default function StockEntryPage() {
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isFicticio, setIsFicticio] = useState(false);
   const [rows, setRows] = useState<StockRow[]>([
     { productId: "", variantId: "", quantity: "", unitCost: "" },
   ]);
@@ -132,7 +133,7 @@ export default function StockEntryPage() {
       const res = await fetch("/api/stock/entry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ supplierId, notes, items }),
+        body: JSON.stringify({ supplierId, notes, items, isFicticio }),
       });
 
       if (!res.ok) {
@@ -194,6 +195,20 @@ export default function StockEntryPage() {
                 rows={2}
               />
             </div>
+            <label className="flex items-center gap-2.5 cursor-pointer py-2 px-3 rounded-md border border-input hover:bg-muted/50">
+              <input
+                type="checkbox"
+                checked={isFicticio}
+                onChange={(e) => setIsFicticio(e.target.checked)}
+                className="rounded border-input h-4 w-4"
+              />
+              <div>
+                <span className="text-sm font-medium">Stock Ficticio</span>
+                <p className="text-[10px] text-muted-foreground">
+                  Se sube a ML para que no quede sin stock, pero en el CRM se marca como ficticio
+                </p>
+              </div>
+            </label>
           </div>
         </div>
 

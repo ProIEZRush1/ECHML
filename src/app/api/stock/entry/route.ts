@@ -6,6 +6,7 @@ import { addStock } from "@/lib/stock/engine";
 const stockEntrySchema = z.object({
   supplierId: z.string().min(1),
   notes: z.string().optional(),
+  isFicticio: z.boolean().optional(),
   items: z.array(
     z.object({
       productVariantId: z.string().min(1),
@@ -35,9 +36,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { supplierId, notes, items } = result.data;
+    const { supplierId, notes, items, isFicticio } = result.data;
 
-    await addStock(items, supplierId, session.id, notes);
+    await addStock(items, supplierId, session.id, notes, isFicticio);
 
     return NextResponse.json({ success: true });
   } catch (error) {

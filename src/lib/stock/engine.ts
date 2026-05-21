@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { calculatePackStock } from "./calculator";
+import { calculatePackStock, calculatePackStockWithFicticio } from "./calculator";
 import { mlFetch } from "@/lib/ml/client";
 
 const MAX_RETRIES = 3;
@@ -134,7 +134,8 @@ export async function addStock(
   }>,
   supplierId: string,
   userId: string,
-  notes?: string
+  notes?: string,
+  isFicticio?: boolean
 ): Promise<void> {
   const affectedVariantIds = items.map((i) => i.productVariantId);
   const totalCost = items.reduce(
@@ -148,7 +149,7 @@ export async function addStock(
         data: {
           supplierId,
           userId,
-          notes,
+          notes: isFicticio ? `[FICTICIO] ${notes || ""}`.trim() : notes,
           totalCost,
         },
       });
@@ -158,12 +159,22 @@ export async function addStock(
           where: { id: item.productVariantId },
         });
 
-        const newStock = variant.stock + item.quantity;
+        if (isFicticio) {
+          const newFicticio = variant.ficticioStock + item.quantity;
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { ficticioStock: newFicticio },
+          });
+        } else {
+          const newStock = variant.stock + item.quantity;
+          await tx.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stock: newStock },
+          });
+        }
 
-        await tx.productVariant.update({
-          where: { id: item.productVariantId },
-          data: { stock: newStock },
-        });
+        const currentReal = isFicticio ? variant.stock : variant.stock + item.quantity;
+        const currentFicticio = isFicticio ? variant.ficticioStock + item.quantity : variant.ficticioStock;
 
         await tx.stockEntryItem.create({
           data: {
@@ -180,8 +191,10 @@ export async function addStock(
             changeType: "MANUAL_ADD",
             quantityChange: item.quantity,
             previousStock: variant.stock,
-            newStock,
-            reason: notes ? `Entrada de stock - ${notes}` : "Entrada de stock",
+            newStock: currentReal,
+            reason: isFicticio
+              ? `Stock ficticio${notes ? ` - ${notes}` : ""}`
+              : notes ? `Entrada de stock - ${notes}` : "Entrada de stock",
             userId,
           },
         });
@@ -248,6 +261,7 @@ export async function recalculateAffectedPacks(
     if (!pack) continue;
 
     const newStock = calculatePackStock(pack.items);
+    const mlStock = calculatePackStockWithFicticio(pack.items);
 
     await prisma.pack.update({
       where: { id: packId },
@@ -256,12 +270,12 @@ export async function recalculateAffectedPacks(
 
     if (pack.stockSyncEnabled) {
       for (const listing of pack.mlListings) {
-        if (listing.currentStock !== newStock) {
+        if (listing.currentStock !== mlStock) {
           let pushedToML = false;
           try {
             await mlFetch(`/items/${listing.mlItemId}`, {
               method: "PUT",
-              body: JSON.stringify({ available_quantity: newStock }),
+              body: JSON.stringify({ available_quantity: mlStock }),
             });
             pushedToML = true;
           } catch (err) {
@@ -271,7 +285,7 @@ export async function recalculateAffectedPacks(
           await prisma.mLListing.update({
             where: { id: listing.id },
             data: {
-              currentStock: newStock,
+              currentStock: mlStock,
               ...(pushedToML && { lastSyncedAt: new Date() }),
             },
           });
