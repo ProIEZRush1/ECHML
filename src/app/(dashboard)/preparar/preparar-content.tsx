@@ -218,9 +218,9 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     { title: "Listos para Enviar", status: "READY", orders: filtered.filter((o) => o.prepStatus === "READY"), color: "oklch(0.55 0.12 200)" },
   ];
 
-  const totalsByVariant = useMemo(() => {
+  function computeVariantTotals(orderList: Order[]) {
     const map = new Map<string, { label: string; total: number; stock: number }>();
-    for (const order of filtered) {
+    for (const order of orderList) {
       for (const { items, qty } of getAllItems(order)) {
         for (const item of items) {
           const label = itemLabel(item);
@@ -235,7 +235,12 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       }
     }
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
-  }, [filtered]);
+  }
+
+  const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW"), [filtered]);
+  const preparedOrders = useMemo(() => filtered.filter((o) => o.prepStatus !== "NEW"), [filtered]);
+  const newTotals = useMemo(() => computeVariantTotals(newOrders), [newOrders]);
+  const preparedTotals = useMemo(() => computeVariantTotals(preparedOrders), [preparedOrders]);
 
   async function printLabel(shipmentId: string) {
     const res = await fetch(`/api/ml/shipping-label?shipmentId=${shipmentId}`);
@@ -370,20 +375,39 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
         </button>
       </div>
 
-      {/* Totals by variant */}
-      {totalsByVariant.length > 0 && (
-        <div className="rounded-[9px] border border-border bg-card p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">
-            Total a preparar ({filtered.length} ordenes)
-          </p>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {totalsByVariant.map((v) => (
-              <span key={v.label} className="text-[12px] mono">
-                {v.total}× {v.label}
-                <span className="text-[10px] text-muted-foreground ml-1">({v.stock} en stock)</span>
-              </span>
-            ))}
-          </div>
+      {/* Totals by variant - split by status */}
+      {filtered.length > 0 && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {newTotals.length > 0 && (
+            <div className="rounded-[9px] border border-border bg-card p-3">
+              <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.58 0.16 22)" }}>
+                Nuevos por preparar ({newOrders.length})
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {newTotals.map((v) => (
+                  <span key={v.label} className="text-[12px] mono">
+                    {v.total}× {v.label}
+                    <span className="text-[10px] text-muted-foreground ml-1">({v.stock} en stock)</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {preparedTotals.length > 0 && (
+            <div className="rounded-[9px] border border-border bg-card p-3">
+              <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.55 0.12 200)" }}>
+                Ya preparados ({preparedOrders.length})
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {preparedTotals.map((v) => (
+                  <span key={v.label} className="text-[12px] mono">
+                    {v.total}× {v.label}
+                    <span className="text-[10px] text-muted-foreground ml-1">({v.stock} en stock)</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
