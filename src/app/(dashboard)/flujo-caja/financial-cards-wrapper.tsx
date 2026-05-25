@@ -23,6 +23,8 @@ interface Props {
   totalFacturaCost: number;
   totalFlexCost: number;
   flexCount: number;
+  flexPaidCount: number;
+  flexUnpaidCost: number;
   gastosByAccount: Record<string, number>;
   accounts: AccountInfo[];
   showWithdraw: boolean;
@@ -30,12 +32,13 @@ interface Props {
 
 export function FinancialCardsWrapper({
   serverNet, serverAvailable, totalWithdrawn, totalGastos, totalFacturaCost,
-  totalFlexCost, flexCount, gastosByAccount, accounts, showWithdraw,
+  totalFlexCost, flexCount, flexPaidCount, flexUnpaidCost, gastosByAccount, accounts, showWithdraw,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [adsCost, setAdsCost] = useState<number | null>(null);
   const [depositing, setDepositing] = useState(false);
+  const [payingFlex, setPayingFlex] = useState(false);
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
@@ -164,7 +167,37 @@ export function FinancialCardsWrapper({
                 <span className="text-muted-foreground">Envios Flex ({flexCount})</span>
                 <span className="num margin-warn font-medium">-{fmt(totalFlexCost)}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Pagar manualmente desde tu cuenta</p>
+              {flexPaidCount > 0 && flexPaidCount < flexCount && (
+                <div className="flex items-center justify-between text-[10px] mt-0.5">
+                  <span className="text-green-600 dark:text-green-400">{flexPaidCount} pagados</span>
+                  <span className="text-muted-foreground">{flexCount - flexPaidCount} pendientes</span>
+                </div>
+              )}
+              {flexPaidCount === flexCount ? (
+                <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">Todos pagados</p>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setPayingFlex(true);
+                    try {
+                      const res = await fetch("/api/flex-pay", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
+                      });
+                      if (!res.ok) { toast.error("Error al marcar flex"); return; }
+                      const data = await res.json();
+                      toast.success(`${data.marked} envios flex marcados como pagados`);
+                      router.refresh();
+                    } catch { toast.error("Error de conexion"); } finally { setPayingFlex(false); }
+                  }}
+                  disabled={payingFlex}
+                  className="mt-1.5 w-full text-[11px] font-medium py-1 px-2 rounded-md border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {payingFlex && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Marcar pagado ({fmt(flexUnpaidCost)})
+                </button>
+              )}
             </div>
           )}
 

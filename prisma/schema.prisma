@@ -384,6 +384,7 @@ model MPTransaction {
   quantity      Int      @default(1)
   dateCreated   DateTime
   syncedAt      DateTime @default(now())
+  paidAt        DateTime?
 
   pack Pack? @relation(fields: [packId], references: [id])
 

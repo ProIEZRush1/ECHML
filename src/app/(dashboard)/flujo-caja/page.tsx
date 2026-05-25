@@ -332,6 +332,7 @@ export default async function FlujoCajaPage({
       packId: true,
       quantity: true,
       mlOrderId: true,
+      paidAt: true,
     },
   });
 
@@ -428,7 +429,10 @@ export default async function FlujoCajaPage({
   const totalReturnShipCost = returnedOrders
     .filter((o) => countedReturnOrderIds.has(o.mlOrderId))
     .reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
-  const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
+  const flexTxs = allFilteredTransactions.filter((t) => t.label === "flex_cost");
+  const flexCount = flexTxs.length;
+  const flexPaidCount = flexTxs.filter((t) => t.paidAt !== null).length;
+  const flexUnpaidCost = flexTxs.filter((t) => t.paidAt === null).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
   const totalWithdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
@@ -646,6 +650,8 @@ export default async function FlujoCajaPage({
               totalFacturaCost={totalFacturaCost}
               totalFlexCost={totalFlexNet}
               flexCount={flexCount}
+              flexPaidCount={flexPaidCount}
+              flexUnpaidCost={flexUnpaidCost}
               gastosByAccount={gastosByAccount}
               accounts={accounts}
               showWithdraw={true}
