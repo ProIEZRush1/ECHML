@@ -34,12 +34,15 @@ interface Sale {
 interface Option { id: string; name: string; sku?: string }
 interface GroupOption { id: string; name: string; productIds: string[] }
 
+interface AccountOption { id: string; name: string; color: string; isDefault: boolean }
+
 interface Props {
   suppliers: Option[];
   products: Option[];
   packs: Option[];
   groups: GroupOption[];
   sales: Sale[];
+  accounts: AccountOption[];
 }
 
 const CATEGORIES = [
@@ -60,7 +63,7 @@ const ENUM_DOT: Record<string, string> = {
   AZUL: "bg-blue-500", VERDE: "bg-green-500", ROSA: "bg-pink-400", MORADO: "bg-purple-500",
 };
 
-export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Props) {
+export function NuevoGastoForm({ suppliers, products, packs, groups, sales, accounts }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -74,6 +77,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
   const [packId, setPackId] = useState("");
   const [productGroupId, setProductGroupId] = useState("");
   const [notes, setNotes] = useState("");
+  const [accountId, setAccountId] = useState(() => accounts.find((a) => a.isDefault)?.id || "");
 
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
   const [salesSearch, setSalesSearch] = useState("");
@@ -131,6 +135,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
           productGroupId: productGroupId || undefined,
           transactionIds: selectedSaleIds.length > 0 ? selectedSaleIds.join(",") : undefined,
           notes: notes || undefined,
+          accountId: accountId || undefined,
         }),
       });
       if (!res.ok) {
@@ -195,6 +200,24 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales }: Pr
               </p>
             </div>
           </div>
+          {accounts.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Cuenta</Label>
+              <Select value={accountId} onValueChange={(v) => setAccountId(v || "")}>
+                <SelectTrigger><SelectValue placeholder="Seleccionar cuenta..." /></SelectTrigger>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id} label={a.name}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: a.color }} />
+                        {a.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <div className="rounded-[9px] border border-border bg-card p-5 space-y-4">

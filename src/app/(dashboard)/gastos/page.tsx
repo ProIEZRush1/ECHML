@@ -33,6 +33,7 @@ export default async function GastosPage() {
       product: { select: { name: true } },
       pack: { select: { sku: true, name: true } },
       productGroup: { select: { name: true } },
+      account: { select: { name: true, color: true } },
     },
     orderBy: { date: "desc" },
   });
@@ -62,6 +63,7 @@ export default async function GastosPage() {
                 <TableHead className="text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Categoria</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Concepto</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider">Cuenta</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider hidden sm:table-cell">Asignado a</TableHead>
                 <TableHead className="text-right text-[11px] uppercase tracking-wider">Acciones</TableHead>
               </TableRow>
@@ -90,6 +92,14 @@ export default async function GastosPage() {
                     </TableCell>
                     <TableCell className="font-medium text-[12.5px]">
                       {expense.concept}
+                    </TableCell>
+                    <TableCell>
+                      {expense.account ? (
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: expense.account.color + "20", color: expense.account.color }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: expense.account.color }} />
+                          {expense.account.name}
+                        </span>
+                      ) : <span className="text-[11px] text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="text-[12.5px] text-muted-foreground hidden sm:table-cell">
                       {expense.product?.name || expense.pack?.name || expense.productGroup?.name || expense.supplier?.name || "-"}

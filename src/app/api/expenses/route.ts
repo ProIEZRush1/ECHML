@@ -21,6 +21,7 @@ const createExpenseSchema = z.object({
   productGroupId: z.string().optional(),
   transactionIds: z.string().optional(),
   notes: z.string().optional(),
+  accountId: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       product: { select: { id: true, name: true } },
       pack: { select: { id: true, sku: true, name: true } },
       productGroup: { select: { id: true, name: true } },
+      account: { select: { id: true, name: true, color: true } },
       user: { select: { id: true, name: true } },
     },
     orderBy: { date: "desc" },
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { amount, date, category, concept, type, supplierId, productId, packId, productGroupId, transactionIds, notes } = result.data;
+    const { amount, date, category, concept, type, supplierId, productId, packId, productGroupId, transactionIds, notes, accountId } = result.data;
 
     if (supplierId) {
       const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } });
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
         productGroupId: productGroupId || null,
         transactionIds: transactionIds || null,
         notes,
+        accountId: accountId || null,
         userId: session.id,
       },
       include: {

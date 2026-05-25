@@ -6,7 +6,7 @@ import Link from "next/link";
 import { NuevoGastoForm } from "./nuevo-gasto-form";
 
 export default async function NuevoGastoPage() {
-  const [suppliers, products, packs, groups, sales, shippingTxs] = await Promise.all([
+  const [suppliers, products, packs, groups, sales, shippingTxs, accounts] = await Promise.all([
     prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.product.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.pack.findMany({ select: { id: true, sku: true, name: true }, orderBy: { name: "asc" } }),
@@ -35,6 +35,7 @@ export default async function NuevoGastoPage() {
       take: 500,
       select: { mlOrderId: true, label: true },
     }),
+    prisma.account.findMany({ select: { id: true, name: true, color: true, isDefault: true }, orderBy: { name: "asc" } }),
   ]);
 
   const flexOrderIds = new Set(
@@ -76,6 +77,7 @@ export default async function NuevoGastoPage() {
         packs={packs}
         groups={groups.map((g) => ({ id: g.id, name: g.name, productIds: g.items.map((i) => i.productId) }))}
         sales={serializedSales}
+        accounts={accounts}
       />
     </div>
   );

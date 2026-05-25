@@ -170,6 +170,8 @@ export function WithdrawalFormDialog({
   const [hasFactura, setHasFactura] = useState(false);
   const [packId, setPackId] = useState("");
   const [productId, setProductId] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [accounts, setAccounts] = useState<Array<{ id: string; name: string; color: string; isDefault: boolean }>>([]);
   const [groups, setGroups] = useState<Array<{ id: string; name: string }>>([]);
   const [packs, setPacks] = useState<PackOption[]>([]);
   const [products, setProducts] = useState<ProductOption[]>([]);
@@ -209,15 +211,17 @@ export function WithdrawalFormDialog({
     setHasFactura(false);
     setPackId("");
     setProductId("");
+    setAccountId("");
   }
 
   async function fetchOptions() {
     setLoadingOptions(true);
     try {
-      const [cashflowRes, groupsRes, productsRes] = await Promise.all([
+      const [cashflowRes, groupsRes, productsRes, accountsRes] = await Promise.all([
         fetch("/api/cashflow"),
         fetch("/api/product-groups"),
         fetch("/api/products?all=true"),
+        fetch("/api/accounts"),
       ]);
       if (cashflowRes.ok) {
         const data = await cashflowRes.json();
@@ -229,6 +233,14 @@ export function WithdrawalFormDialog({
       if (productsRes.ok) {
         const data = await productsRes.json();
         setProducts(Array.isArray(data) ? data : data.products || []);
+      }
+      if (accountsRes.ok) {
+        const accs = await accountsRes.json();
+        setAccounts(accs);
+        if (!accountId) {
+          const def = accs.find((a: { isDefault: boolean }) => a.isDefault);
+          if (def) setAccountId(def.id);
+        }
       }
     } catch {
       toast.error("Error al cargar datos");
@@ -271,6 +283,7 @@ export function WithdrawalFormDialog({
         reference: reference.trim() || undefined,
         notes: notes.trim() || undefined,
         productGroupId: productGroupId || undefined,
+        accountId: accountId || undefined,
         hasFactura,
         allocations: allocations.length > 0 ? allocations : undefined,
       };
@@ -386,6 +399,27 @@ export function WithdrawalFormDialog({
               rows={2}
             />
           </div>
+
+          {accounts.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Cuenta</Label>
+              <Select value={accountId} onValueChange={(v) => setAccountId(v || "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cuenta..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id} label={a.name}>
+                      <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: a.color }} />
+                        {a.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">

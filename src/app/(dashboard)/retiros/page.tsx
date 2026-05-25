@@ -42,6 +42,7 @@ export default async function RetirosPage() {
           },
         },
         productGroup: { select: { id: true, name: true, color: true } },
+        account: { select: { id: true, name: true, color: true } },
       },
       orderBy: { date: "desc" },
     }),
@@ -75,6 +76,7 @@ export default async function RetirosPage() {
                 <TableHead className="text-right text-[11px] uppercase tracking-wider">Monto</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Concepto</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Metodo</TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wider">Cuenta</TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wider">Asignacion</TableHead>
                 <TableHead className="text-right text-[11px] uppercase tracking-wider">Acciones</TableHead>
               </TableRow>
@@ -113,6 +115,14 @@ export default async function RetirosPage() {
                           <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400">FACTURA</span>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {withdrawal.account ? (
+                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: withdrawal.account.color + "20", color: withdrawal.account.color }}>
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: withdrawal.account.color }} />
+                          {withdrawal.account.name}
+                        </span>
+                      ) : <span className="text-[11px] text-muted-foreground">-</span>}
                     </TableCell>
                     <TableCell className="max-w-[250px]">
                       {withdrawal.productGroup ? (

@@ -60,11 +60,12 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  stockLogs    StockLog[]
-  stockEntries StockEntry[]
-  apiKeys      ApiKey[]
-  withdrawals  Withdrawal[]
-  expenses     Expense[]
+  stockLogs        StockLog[]
+  stockEntries     StockEntry[]
+  apiKeys          ApiKey[]
+  withdrawals      Withdrawal[]
+  expenses         Expense[]
+  accountTransfers AccountTransfer[]
 }
 
 model ApiKey {
@@ -305,16 +306,19 @@ model Withdrawal {
   notes           String?
   userId          String
   productGroupId  String?
+  accountId       String?
   hasFactura      Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user         User                  @relation(fields: [userId], references: [id])
   productGroup ProductGroup?         @relation(fields: [productGroupId], references: [id])
+  account      Account?              @relation(fields: [accountId], references: [id])
   allocations  WithdrawalAllocation[]
 
   @@index([date])
   @@index([productGroupId])
+  @@index([accountId])
 }
 
 model WithdrawalAllocation {
@@ -346,6 +350,7 @@ model Expense {
   transactionIds  String?
   notes           String?
   userId          String
+  accountId       String?
   createdAt       DateTime @default(now())
 
   user         User          @relation(fields: [userId], references: [id])
@@ -353,9 +358,11 @@ model Expense {
   product      Product?      @relation(fields: [productId], references: [id])
   pack         Pack?         @relation(fields: [packId], references: [id])
   productGroup ProductGroup? @relation(fields: [productGroupId], references: [id])
+  account      Account?      @relation(fields: [accountId], references: [id])
 
   @@index([date])
   @@index([category])
+  @@index([accountId])
 }
 
 model MPTransaction {
@@ -415,6 +422,40 @@ model PackCost {
   pack Pack @relation(fields: [packId], references: [id], onDelete: Cascade)
 
   @@index([packId])
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#6b7280")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses     Expense[]
+  withdrawals  Withdrawal[]
+  transfersOut AccountTransfer[] @relation("TransferFrom")
+  transfersIn  AccountTransfer[] @relation("TransferTo")
+}
+
+model AccountTransfer {
+  id            String   @id @default(cuid())
+  fromAccountId String
+  toAccountId   String
+  amount        Decimal  @db.Decimal(10, 2)
+  date          DateTime
+  concept       String
+  notes         String?
+  userId        String
+  createdAt     DateTime @default(now())
+
+  fromAccount Account @relation("TransferFrom", fields: [fromAccountId], references: [id])
+  toAccount   Account @relation("TransferTo", fields: [toAccountId], references: [id])
+  user        User    @relation(fields: [userId], references: [id])
+
+  @@index([date])
+  @@index([fromAccountId])
+  @@index([toAccountId])
 }
 
 model SystemConfig {
