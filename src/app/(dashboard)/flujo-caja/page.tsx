@@ -497,6 +497,7 @@ export default async function FlujoCajaPage({
   // Build pack balances with taxes and product cost
   const packBalances: PackBalance[] = [];
   for (const pack of allPacks) {
+    if (effectivePackIds.length > 0 && !effectivePackIds.includes(pack.id)) continue;
     const data = packMap.get(pack.id);
     if (!data) continue;
 
