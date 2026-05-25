@@ -308,9 +308,15 @@ export default async function FlujoCajaPage({
     }
   }
 
-  // Find returned/cancelled order IDs to exclude from KPIs
+  // Find returned/cancelled order IDs to exclude from KPIs (filtered by date)
   const returnedOrders = await prisma.mLOrder.findMany({
-    where: { shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] } },
+    where: {
+      shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] },
+      dateCreated: {
+        gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
+        ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
+      },
+    },
     select: { mlOrderId: true, mlItemId: true, quantity: true, logisticType: true, shippingStatus: true, returnShipCost: true },
   });
   const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
@@ -419,7 +425,9 @@ export default async function FlujoCajaPage({
     gastosByAccount[accId] = (gastosByAccount[accId] || 0) + Number(exp.amount);
   }
 
-  const totalReturnShipCost = returnedOrders.reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
+  const totalReturnShipCost = returnedOrders
+    .filter((o) => countedReturnOrderIds.has(o.mlOrderId))
+    .reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
