@@ -229,7 +229,7 @@ export default async function FlujoCajaPage({
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
         },
       },
-      select: { id: true, amount: true, date: true, concept: true, category: true, type: true, transactionIds: true, packId: true, productId: true },
+      select: { id: true, amount: true, date: true, concept: true, category: true, type: true, transactionIds: true, packId: true, productId: true, productGroupId: true },
     }),
     prisma.withdrawal.findMany({
       where: {
@@ -299,7 +299,8 @@ export default async function FlujoCajaPage({
       const matchesPack = exp.packId && effectivePackSet.has(exp.packId);
       const matchesProduct = exp.productId && productIdList.includes(exp.productId);
       const matchesTxPacks = uniquePacks.some((pId) => effectivePackSet.has(pId));
-      if (matchesPack || matchesProduct || matchesTxPacks) {
+      const matchesGroup = exp.productGroupId && filteredGroupIds.length > 0 && filteredGroupIds.includes(exp.productGroupId);
+      if (matchesPack || matchesProduct || matchesTxPacks || matchesGroup) {
         relevantExpenses.push({ ...exp, resolvedPackIds: uniquePacks });
       }
     }
