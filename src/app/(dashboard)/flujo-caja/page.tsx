@@ -545,7 +545,7 @@ export default async function FlujoCajaPage({
   const salesCount = allFilteredTransactions.filter((t) => t.label === "sale").length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 overflow-x-hidden">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageHeader

@@ -317,7 +317,7 @@ export function CashflowFilters() {
 
         {/* Active filter badges */}
         {hasFilters && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
             {selectedPackIds.map(id => {
               const pack = packs.find(p => p.id === id);
               return (
