@@ -176,12 +176,12 @@ export function FinancialCardsWrapper({
                   {flexPaidCount < flexCount && <span className="text-muted-foreground">{flexCount - flexPaidCount} pendientes</span>}
                 </div>
               )}
-              {flexUnpaidCost > 0 && (
+              {flexPaidCount < flexCount && (
                 <button
-                  onClick={() => { setFlexPayAmount(String(Math.round(flexUnpaidCost * 100) / 100)); setShowFlexModal(true); setTimeout(() => flexInputRef.current?.select(), 100); }}
+                  onClick={() => { setFlexPayAmount(""); setShowFlexModal(true); setTimeout(() => flexInputRef.current?.focus(), 100); }}
                   className="mt-1.5 w-full text-[11px] font-medium py-1 px-2 rounded-md border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 flex items-center justify-center gap-1.5"
                 >
-                  Pagar Flex ({fmt(flexUnpaidCost)} pendiente)
+                  Pagar Flex
                 </button>
               )}
               {flexPaidCount === flexCount && flexCount > 0 && (
@@ -200,7 +200,7 @@ export function FinancialCardsWrapper({
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-muted-foreground block mb-1">Pendiente: {fmt(flexUnpaidCost)}</label>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Total Flex: {fmt(totalFlexCost)} · {flexCount - flexPaidCount} pendientes</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">$</span>
                       <input
