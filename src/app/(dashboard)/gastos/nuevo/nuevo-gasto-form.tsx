@@ -179,7 +179,11 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
             <div className="space-y-1.5">
               <Label className="text-[12px]">Categoria *</Label>
               <Select value={category} onValueChange={(v) => setCategory(v || "")}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar..." /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar...">
+                    {CATEGORIES.find((c) => c.value === category)?.label || "Seleccionar..."}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
@@ -188,7 +192,11 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
             <div className="space-y-1.5">
               <Label className="text-[12px]">Tipo</Label>
               <Select value={expenseType} onValueChange={(v) => setExpenseType(v || "gasto")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue>
+                    {expenseType === "compra" ? "Compra" : expenseType === "registro" ? "Registro" : "Gasto"}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="gasto">Gasto</SelectItem>
                   <SelectItem value="compra">Compra</SelectItem>
@@ -204,15 +212,18 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
             <div className="space-y-1.5">
               <Label className="text-[12px]">Cuenta</Label>
               <Select value={accountId} onValueChange={(v) => setAccountId(v || "")}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar cuenta..." /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cuenta...">
+                    {(() => {
+                      const acc = accounts.find((a) => a.id === accountId);
+                      if (!acc) return "Seleccionar cuenta...";
+                      return acc.name;
+                    })()}
+                  </SelectValue>
+                </SelectTrigger>
                 <SelectContent>
                   {accounts.map((a) => (
-                    <SelectItem key={a.id} value={a.id} label={a.name}>
-                      <span className="flex items-center gap-2">
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: a.color }} />
-                        {a.name}
-                      </span>
-                    </SelectItem>
+                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -223,44 +234,54 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
         <div className="rounded-[9px] border border-border bg-card p-5 space-y-4">
           <h3 className="text-[13px] font-semibold">Asignar a (opcional)</h3>
 
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Producto</Label>
-            <Select value={productId} onValueChange={(v) => setProductId(v || "")}>
-              <SelectTrigger><SelectValue placeholder="Producto..." /></SelectTrigger>
-              <SelectContent>
-                {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Producto</Label>
+              <Select value={productId} onValueChange={(v) => setProductId(v || "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Producto...">{products.find((p) => p.id === productId)?.name || "Producto..."}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Pack</Label>
+              <Select value={packId} onValueChange={(v) => setPackId(v || "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pack...">{packs.find((p) => p.id === packId)?.name || "Pack..."}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {packs.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku || p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Pack</Label>
-            <Select value={packId} onValueChange={(v) => setPackId(v || "")}>
-              <SelectTrigger><SelectValue placeholder="Pack..." /></SelectTrigger>
-              <SelectContent>
-                {packs.map((p) => <SelectItem key={p.id} value={p.id}>{p.sku || p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Grupo</Label>
-            <Select value={productGroupId} onValueChange={(v) => setProductGroupId(v || "")}>
-              <SelectTrigger><SelectValue placeholder="Grupo..." /></SelectTrigger>
-              <SelectContent>
-                {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[12px]">Proveedor</Label>
-            <Select value={supplierId} onValueChange={(v) => setSupplierId(v || "")}>
-              <SelectTrigger><SelectValue placeholder="Proveedor..." /></SelectTrigger>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Grupo</Label>
+              <Select value={productGroupId} onValueChange={(v) => setProductGroupId(v || "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Grupo...">{groups.find((g) => g.id === productGroupId)?.name || "Grupo..."}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[12px]">Proveedor</Label>
+              <Select value={supplierId} onValueChange={(v) => setSupplierId(v || "")}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Proveedor...">{suppliers.find((s) => s.id === supplierId)?.name || "Proveedor..."}</SelectValue>
+                </SelectTrigger>
               <SelectContent>
                 {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            </div>
           </div>
 
           <div className="space-y-1.5">
