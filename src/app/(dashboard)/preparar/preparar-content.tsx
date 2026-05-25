@@ -143,6 +143,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeVariants, setActiveVariants] = useState<string[]>([]);
   const [activeUrgency, setActiveUrgency] = useState<string>("");
   const [sortOrder, setSortOrder] = useState<string>("oldest");
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
 
@@ -380,16 +381,33 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
         <div className="grid gap-2 sm:grid-cols-2">
           {newTotals.length > 0 && (
             <div className="rounded-[9px] border border-border bg-card p-3">
-              <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.58 0.16 22)" }}>
-                Nuevos por preparar ({newOrders.length})
-              </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {newTotals.map((v) => (
-                  <span key={v.label} className="text-[12px] mono">
-                    {v.total}× {v.label}
-                    <span className="text-[10px] text-muted-foreground ml-1">({v.stock} en stock)</span>
-                  </span>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: "oklch(0.58 0.16 22)" }}>
+                  Nuevos por preparar ({newOrders.length})
+                </p>
+                {checkedItems.size > 0 && (
+                  <button onClick={() => setCheckedItems(new Set())} className="text-[10px] text-muted-foreground hover:text-foreground">
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              <div className="space-y-0.5">
+                {newTotals.map((v) => {
+                  const key = `new-${v.label}`;
+                  const checked = checkedItems.has(key);
+                  return (
+                    <label key={v.label} className={`flex items-center gap-2 text-[12px] mono cursor-pointer py-0.5 rounded hover:bg-muted/50 px-1 -mx-1 ${checked ? "line-through opacity-40" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setCheckedItems((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
+                        className="rounded border-input h-3.5 w-3.5 shrink-0"
+                      />
+                      {v.total}× {v.label}
+                      <span className="text-[10px] text-muted-foreground">({v.stock} en stock)</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -398,13 +416,23 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
               <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.55 0.12 200)" }}>
                 Ya preparados ({preparedOrders.length})
               </p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {preparedTotals.map((v) => (
-                  <span key={v.label} className="text-[12px] mono">
-                    {v.total}× {v.label}
-                    <span className="text-[10px] text-muted-foreground ml-1">({v.stock} en stock)</span>
-                  </span>
-                ))}
+              <div className="space-y-0.5">
+                {preparedTotals.map((v) => {
+                  const key = `prep-${v.label}`;
+                  const checked = checkedItems.has(key);
+                  return (
+                    <label key={v.label} className={`flex items-center gap-2 text-[12px] mono cursor-pointer py-0.5 rounded hover:bg-muted/50 px-1 -mx-1 ${checked ? "line-through opacity-40" : ""}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setCheckedItems((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; })}
+                        className="rounded border-input h-3.5 w-3.5 shrink-0"
+                      />
+                      {v.total}× {v.label}
+                      <span className="text-[10px] text-muted-foreground">({v.stock} en stock)</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           )}
