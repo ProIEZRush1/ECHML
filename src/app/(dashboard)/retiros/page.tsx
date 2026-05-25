@@ -18,6 +18,7 @@ import { WithdrawalDeleteButton } from "@/components/withdrawals/withdrawal-dele
 import { WithdrawalEditButton } from "@/components/withdrawals/withdrawal-edit-button";
 import { WithdrawalGroupSelect } from "./withdrawal-group-select";
 import { WithdrawalFacturaToggle } from "./withdrawal-factura-toggle";
+import { AccountFilter } from "@/components/accounts/account-filter";
 
 const METHOD_CSS: Record<string, string> = {
   bank: "tx-pill withdraw",
@@ -31,9 +32,20 @@ const METHOD_LABELS: Record<string, string> = {
   provider: "Proveedor",
 };
 
-export default async function RetirosPage() {
-  const [withdrawals, groups] = await Promise.all([
+export default async function RetirosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ accountId?: string }>;
+}) {
+  const params = await searchParams;
+
+  const withdrawalWhere = params.accountId
+    ? { OR: [{ accountId: params.accountId }, { toAccountId: params.accountId }] }
+    : {};
+
+  const [withdrawals, groups, accounts] = await Promise.all([
     prisma.withdrawal.findMany({
+      where: withdrawalWhere,
       include: {
         allocations: {
           include: {
@@ -51,6 +63,10 @@ export default async function RetirosPage() {
       select: { id: true, name: true, color: true },
       orderBy: { name: "asc" },
     }),
+    prisma.account.findMany({
+      select: { id: true, name: true, color: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -61,6 +77,8 @@ export default async function RetirosPage() {
       >
         <WithdrawalCreateButton />
       </PageHeader>
+
+      <AccountFilter accounts={accounts} basePath="/retiros" />
 
       {withdrawals.length === 0 ? (
         <EmptyState

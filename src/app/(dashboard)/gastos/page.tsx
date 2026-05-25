@@ -4,18 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Receipt } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ExpenseCreateButton } from "@/components/expenses/expense-create-button";
 import { ExpenseDeleteButton } from "@/components/expenses/expense-delete-button";
 import { ExpenseEditButton } from "@/components/expenses/expense-edit-button";
+import { AccountFilter } from "@/components/accounts/account-filter";
 
 const CATEGORY_CSS: Record<string, { label: string; cls: string }> = {
   proveedor: { label: "Proveedor", cls: "tx-pill fee" },
@@ -26,26 +22,40 @@ const CATEGORY_CSS: Record<string, { label: string; cls: string }> = {
   otro: { label: "Otro", cls: "tx-pill expense" },
 };
 
-export default async function GastosPage() {
-  const expenses = await prisma.expense.findMany({
-    include: {
-      supplier: { select: { name: true } },
-      product: { select: { name: true } },
-      pack: { select: { sku: true, name: true } },
-      productGroup: { select: { name: true } },
-      account: { select: { name: true, color: true } },
-    },
-    orderBy: { date: "desc" },
-  });
+export default async function GastosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ accountId?: string }>;
+}) {
+  const params = await searchParams;
+
+  const where = params.accountId ? { accountId: params.accountId } : {};
+
+  const [expenses, accounts] = await Promise.all([
+    prisma.expense.findMany({
+      where,
+      include: {
+        supplier: { select: { name: true } },
+        product: { select: { name: true } },
+        pack: { select: { sku: true, name: true } },
+        productGroup: { select: { name: true } },
+        account: { select: { name: true, color: true } },
+      },
+      orderBy: { date: "desc" },
+    }),
+    prisma.account.findMany({
+      select: { id: true, name: true, color: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        title="Gastos"
-        description="Registro de gastos operativos"
-      >
+      <PageHeader title="Gastos" description="Registro de gastos operativos">
         <ExpenseCreateButton />
       </PageHeader>
+
+      <AccountFilter accounts={accounts} basePath="/gastos" />
 
       {expenses.length === 0 ? (
         <EmptyState
@@ -55,7 +65,7 @@ export default async function GastosPage() {
         />
       ) : (
         <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
-          <Table className="min-w-[600px]">
+          <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>
@@ -71,7 +81,6 @@ export default async function GastosPage() {
             <TableBody>
               {expenses.map((expense) => {
                 const catConfig = CATEGORY_CSS[expense.category] || CATEGORY_CSS.otro;
-
                 return (
                   <TableRow key={expense.id} className="hover:bg-muted/50">
                     <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">
@@ -86,9 +95,7 @@ export default async function GastosPage() {
                       -{formatCurrency(Number(expense.amount))}
                     </TableCell>
                     <TableCell>
-                      <span className={catConfig.cls}>
-                        {catConfig.label}
-                      </span>
+                      <span className={catConfig.cls}>{catConfig.label}</span>
                     </TableCell>
                     <TableCell className="font-medium text-[12.5px]">
                       {expense.concept}
