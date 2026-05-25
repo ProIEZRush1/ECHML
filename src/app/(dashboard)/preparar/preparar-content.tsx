@@ -130,6 +130,13 @@ function formatDeadlineFull(deadline: string): string {
   return `${day} ${months[d.getMonth()]}`;
 }
 
+const INTERNAL_VARIANT_PATTERN = /^(BIB-4PK|KIT-|BIB-4PK-)/;
+
+function isInternalVariant(label: string | null): boolean {
+  if (!label) return false;
+  return INTERNAL_VARIANT_PATTERN.test(label);
+}
+
 function itemLabel(item: PackItem): string {
   const prodName = item.productVariant.product.name;
   const variant = item.productVariant.variantLabel;
@@ -224,6 +231,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     for (const order of orderList) {
       for (const { items, qty } of getAllItems(order)) {
         for (const item of items) {
+          if (isInternalVariant(item.productVariant.variantLabel)) continue;
           const label = itemLabel(item);
           const existing = map.get(label);
           const needed = item.quantity * qty;
