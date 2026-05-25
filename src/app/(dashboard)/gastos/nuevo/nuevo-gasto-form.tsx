@@ -82,19 +82,18 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
   const [salesSearch, setSalesSearch] = useState("");
   const [salesPackFilter, setSalesPackFilter] = useState("");
-  const [salesGroupFilter, setSalesGroupFilter] = useState("");
+  const [salesGroupFilters, setSalesGroupFilters] = useState<string[]>([]);
   const [salesShippingFilter, setSalesShippingFilter] = useState("");
   const [salesDateFrom, setSalesDateFrom] = useState("");
   const [salesDateTo, setSalesDateTo] = useState("");
 
   const filteredSales = sales.filter((s) => {
     if (salesPackFilter && s.packId !== salesPackFilter) return false;
-    if (salesGroupFilter) {
-      const group = groups.find((g) => g.id === salesGroupFilter);
-      if (group) {
-        const hasProduct = s.pack?.items?.some((item) => group.productIds.includes(item.productVariant.product?.id || ""));
-        if (!hasProduct) return false;
-      }
+    if (salesGroupFilters.length > 0) {
+      const matchingGroups = groups.filter((g) => salesGroupFilters.includes(g.id));
+      const allProductIds = new Set(matchingGroups.flatMap((g) => g.productIds));
+      const hasProduct = s.pack?.items?.some((item) => allProductIds.has(item.productVariant.product?.id || ""));
+      if (!hasProduct) return false;
     }
     if (salesShippingFilter && s.shippingType !== salesShippingFilter) return false;
     if (salesDateFrom && s.dateCreated < salesDateFrom + "T00:00:00") return false;
@@ -324,27 +323,9 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
                 className="pl-8 h-9 text-xs"
               />
             </div>
-            <Select value={salesGroupFilter} onValueChange={(v) => setSalesGroupFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Grupo">{salesGroupFilter ? (groups.find((g) => g.id === salesGroupFilter)?.name || "Grupo") : "Grupo"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos los grupos</SelectItem>
-                {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={salesPackFilter} onValueChange={(v) => setSalesPackFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Pack">{salesPackFilter ? (uniquePacks.find((p) => p.id === salesPackFilter)?.name?.slice(0, 20) || "Pack") : "Pack"}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos los packs</SelectItem>
-                {uniquePacks.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
             <Select value={salesShippingFilter} onValueChange={(v) => setSalesShippingFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Envio">{salesShippingFilter === "flex" ? "Flex" : salesShippingFilter === "normal" ? "Normal (ME2)" : "Envio"}</SelectValue>
+              <SelectTrigger className="h-9 text-xs w-24">
+                <SelectValue placeholder="Envio">{salesShippingFilter === "flex" ? "Flex" : salesShippingFilter === "normal" ? "ME2" : "Envio"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos</SelectItem>
@@ -352,14 +333,31 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
                 <SelectItem value="normal">Normal (ME2)</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex gap-1">
-              <Input type="date" value={salesDateFrom} onChange={(e) => setSalesDateFrom(e.target.value)} className="h-9 text-xs flex-1" />
-              <Input type="date" value={salesDateTo} onChange={(e) => setSalesDateTo(e.target.value)} className="h-9 text-xs flex-1" />
-            </div>
+            <Input type="date" value={salesDateFrom} onChange={(e) => setSalesDateFrom(e.target.value)} className="h-9 text-xs w-28" />
+            <Input type="date" value={salesDateTo} onChange={(e) => setSalesDateTo(e.target.value)} className="h-9 text-xs w-28" />
+          </div>
+
+          {/* Group toggle buttons */}
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => setSalesGroupFilters([])}
+              className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${salesGroupFilters.length === 0 ? "bg-foreground text-background border-foreground" : "border-border hover:border-muted-foreground"}`}
+            >Todos</button>
+            {groups.map((g) => {
+              const isOn = salesGroupFilters.includes(g.id);
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => setSalesGroupFilters((prev) => prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id])}
+                  className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${isOn ? "font-semibold" : "border-border hover:border-muted-foreground"}`}
+                  style={isOn ? { background: (g as GroupOption & { color?: string }).color ? (g as GroupOption & { color?: string }).color + "20" : undefined } : {}}
+                >{g.name}{isOn && salesGroupFilters.length > 1 && <span className="ml-0.5 opacity-50">x</span>}</button>
+              );
+            })}
           </div>
 
           <p className="text-[11px] text-muted-foreground">
-            {filteredSales.length} ventas{salesSearch || salesPackFilter || salesDateFrom ? " (filtrado)" : ""}
+            {filteredSales.length} ventas{salesSearch || salesGroupFilters.length > 0 || salesDateFrom ? " (filtrado)" : ""}
           </p>
         </div>
 
