@@ -229,7 +229,7 @@ export default async function FlujoCajaPage({
           ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
         },
       },
-      select: { id: true, amount: true, date: true, concept: true, category: true, type: true, transactionIds: true, packId: true, productId: true, productGroupId: true },
+      select: { id: true, amount: true, date: true, concept: true, category: true, type: true, transactionIds: true, packId: true, productId: true, productGroupId: true, accountId: true },
     }),
     prisma.withdrawal.findMany({
       where: {
@@ -253,6 +253,8 @@ export default async function FlujoCajaPage({
       select: { amount: true, hasFactura: true, productGroupId: true, allocations: { select: { packId: true } } },
     }),
   ]);
+
+  const accounts = await prisma.account.findMany({ select: { id: true, name: true, color: true }, orderBy: { name: "asc" } });
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -409,6 +411,14 @@ export default async function FlujoCajaPage({
   const totalImpuestos = totalRetencionIVA + totalRetencionISR;
 
   const totalGastos = relevantExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+  // Gastos per account for the "what to pay" breakdown
+  const gastosByAccount: Record<string, number> = {};
+  for (const exp of relevantExpenses) {
+    const accId = exp.accountId || "__none__";
+    gastosByAccount[accId] = (gastosByAccount[accId] || 0) + Number(exp.amount);
+  }
+
   const totalReturnShipCost = returnedOrders.reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
@@ -626,6 +636,10 @@ export default async function FlujoCajaPage({
               totalWithdrawn={totalWithdrawn}
               totalGastos={totalGastos}
               totalFacturaCost={totalFacturaCost}
+              totalFlexCost={totalFlexNet}
+              flexCount={flexCount}
+              gastosByAccount={gastosByAccount}
+              accounts={accounts}
               showWithdraw={true}
             />
           </div>
