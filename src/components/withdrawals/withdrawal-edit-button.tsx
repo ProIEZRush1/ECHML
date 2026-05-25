@@ -42,12 +42,16 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
   const [accountId, setAccountId] = useState(withdrawal.accountId || "");
   const [toAccountId, setToAccountId] = useState(withdrawal.toAccountId || "");
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
 
   useEffect(() => {
-    if (open && accounts.length === 0) {
-      fetch("/api/accounts").then((r) => r.ok ? r.json() : []).then(setAccounts).catch(() => {});
+    if (open && !accountsLoaded) {
+      fetch("/api/accounts")
+        .then((r) => r.ok ? r.json() : [])
+        .then((data) => { setAccounts(data); setAccountsLoaded(true); })
+        .catch(() => setAccountsLoaded(true));
     }
-  }, [open, accounts.length]);
+  }, [open, accountsLoaded]);
 
   async function handleSave() {
     setSaving(true);
@@ -117,11 +121,11 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
                 <option value="provider">Proveedor</option>
               </select>
             </div>
-            {accounts.length > 0 && (
+            {accountsLoaded && accounts.length > 0 && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>De (origen)</Label>
-                  <Select value={accountId} onValueChange={(v) => setAccountId(v === "NONE" ? "" : (v || ""))}>
+                  <Select value={accountId || "NONE"} onValueChange={(v) => setAccountId(v === "NONE" ? "" : (v ?? ""))}>
                     <SelectTrigger><SelectValue placeholder="Cuenta origen..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NONE">Sin cuenta</SelectItem>
@@ -138,7 +142,7 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
                 </div>
                 <div>
                   <Label>A (destino)</Label>
-                  <Select value={toAccountId} onValueChange={(v) => setToAccountId(v === "NONE" ? "" : (v || ""))}>
+                  <Select value={toAccountId || "NONE"} onValueChange={(v) => setToAccountId(v === "NONE" ? "" : (v ?? ""))}>
                     <SelectTrigger><SelectValue placeholder="Cuenta destino..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="NONE">Sin cuenta</SelectItem>
