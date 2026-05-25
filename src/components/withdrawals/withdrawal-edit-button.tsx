@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Loader2 } from "lucide-react";
 import {
@@ -9,7 +9,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+
+interface Account {
+  id: string;
+  name: string;
+  color: string;
+}
 
 interface WithdrawalEditButtonProps {
   withdrawal: {
@@ -19,6 +26,8 @@ interface WithdrawalEditButtonProps {
     concept: string;
     method: string;
     hasFactura: boolean;
+    accountId?: string | null;
+    toAccountId?: string | null;
   };
 }
 
@@ -30,6 +39,15 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
   const [concept, setConcept] = useState(withdrawal.concept);
   const [date, setDate] = useState(withdrawal.date.split("T")[0]);
   const [method, setMethod] = useState(withdrawal.method);
+  const [accountId, setAccountId] = useState(withdrawal.accountId || "");
+  const [toAccountId, setToAccountId] = useState(withdrawal.toAccountId || "");
+  const [accounts, setAccounts] = useState<Account[]>([]);
+
+  useEffect(() => {
+    if (open && accounts.length === 0) {
+      fetch("/api/accounts").then((r) => r.ok ? r.json() : []).then(setAccounts).catch(() => {});
+    }
+  }, [open, accounts.length]);
 
   async function handleSave() {
     setSaving(true);
@@ -42,6 +60,8 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
           concept,
           date,
           method,
+          accountId: accountId || null,
+          toAccountId: toAccountId || null,
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");
@@ -66,27 +86,28 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Editar Retiro</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div>
-              <Label htmlFor="edit-amount">Monto</Label>
-              <Input id="edit-amount" type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Monto</Label>
+                <Input type="number" step="0.01" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              </div>
+              <div>
+                <Label>Fecha</Label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
             </div>
             <div>
-              <Label htmlFor="edit-concept">Concepto</Label>
-              <Input id="edit-concept" value={concept} onChange={(e) => setConcept(e.target.value)} />
+              <Label>Concepto</Label>
+              <Input value={concept} onChange={(e) => setConcept(e.target.value)} />
             </div>
             <div>
-              <Label htmlFor="edit-date">Fecha</Label>
-              <Input id="edit-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="edit-method">Metodo</Label>
+              <Label>Metodo</Label>
               <select
-                id="edit-method"
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
@@ -96,6 +117,44 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
                 <option value="provider">Proveedor</option>
               </select>
             </div>
+            {accounts.length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>De (origen)</Label>
+                  <Select value={accountId} onValueChange={(v) => setAccountId(v === "NONE" ? "" : (v || ""))}>
+                    <SelectTrigger><SelectValue placeholder="Cuenta origen..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">Sin cuenta</SelectItem>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id} label={a.name}>
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full" style={{ background: a.color }} />
+                            {a.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>A (destino)</Label>
+                  <Select value={toAccountId} onValueChange={(v) => setToAccountId(v === "NONE" ? "" : (v || ""))}>
+                    <SelectTrigger><SelectValue placeholder="Cuenta destino..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NONE">Sin cuenta</SelectItem>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id} label={a.name}>
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full" style={{ background: a.color }} />
+                            {a.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

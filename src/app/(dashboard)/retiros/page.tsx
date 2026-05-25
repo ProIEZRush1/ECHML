@@ -42,7 +42,8 @@ export default async function RetirosPage() {
           },
         },
         productGroup: { select: { id: true, name: true, color: true } },
-        account: { select: { id: true, name: true, color: true } },
+        fromAccount: { select: { id: true, name: true, color: true } },
+        toAccount: { select: { id: true, name: true, color: true } },
       },
       orderBy: { date: "desc" },
     }),
@@ -117,12 +118,22 @@ export default async function RetirosPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {withdrawal.account ? (
-                        <span className="inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: withdrawal.account.color + "20", color: withdrawal.account.color }}>
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ background: withdrawal.account.color }} />
-                          {withdrawal.account.name}
-                        </span>
-                      ) : <span className="text-[11px] text-muted-foreground">-</span>}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {withdrawal.fromAccount ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: withdrawal.fromAccount.color + "20", color: withdrawal.fromAccount.color }}>
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: withdrawal.fromAccount.color }} />
+                            {withdrawal.fromAccount.name}
+                          </span>
+                        ) : null}
+                        {withdrawal.fromAccount && withdrawal.toAccount && <span className="text-[10px] text-muted-foreground">→</span>}
+                        {withdrawal.toAccount ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: withdrawal.toAccount.color + "20", color: withdrawal.toAccount.color }}>
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: withdrawal.toAccount.color }} />
+                            {withdrawal.toAccount.name}
+                          </span>
+                        ) : null}
+                        {!withdrawal.fromAccount && !withdrawal.toAccount && <span className="text-[11px] text-muted-foreground">-</span>}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-[250px]">
                       {withdrawal.productGroup ? (
@@ -157,6 +168,8 @@ export default async function RetirosPage() {
                             concept: withdrawal.concept,
                             method: withdrawal.method,
                             hasFactura: withdrawal.hasFactura,
+                            accountId: withdrawal.accountId,
+                            toAccountId: withdrawal.toAccountId,
                           }}
                         />
                         <WithdrawalFacturaToggle

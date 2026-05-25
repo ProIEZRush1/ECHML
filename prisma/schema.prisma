@@ -307,18 +307,21 @@ model Withdrawal {
   userId          String
   productGroupId  String?
   accountId       String?
+  toAccountId     String?
   hasFactura      Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user         User                  @relation(fields: [userId], references: [id])
   productGroup ProductGroup?         @relation(fields: [productGroupId], references: [id])
-  account      Account?              @relation(fields: [accountId], references: [id])
+  fromAccount  Account?              @relation("WithdrawalFrom", fields: [accountId], references: [id])
+  toAccount    Account?              @relation("WithdrawalTo", fields: [toAccountId], references: [id])
   allocations  WithdrawalAllocation[]
 
   @@index([date])
   @@index([productGroupId])
   @@index([accountId])
+  @@index([toAccountId])
 }
 
 model WithdrawalAllocation {
@@ -432,10 +435,11 @@ model Account {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  expenses     Expense[]
-  withdrawals  Withdrawal[]
-  transfersOut AccountTransfer[] @relation("TransferFrom")
-  transfersIn  AccountTransfer[] @relation("TransferTo")
+  expenses          Expense[]
+  withdrawalsFrom   Withdrawal[]        @relation("WithdrawalFrom")
+  withdrawalsTo     Withdrawal[]        @relation("WithdrawalTo")
+  transfersOut      AccountTransfer[]   @relation("TransferFrom")
+  transfersIn       AccountTransfer[]   @relation("TransferTo")
 }
 
 model AccountTransfer {

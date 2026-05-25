@@ -21,6 +21,8 @@ const updateWithdrawalSchema = z.object({
   notes: z.string().nullable().optional(),
   productGroupId: z.string().nullable().optional(),
   hasFactura: z.boolean().optional(),
+  accountId: z.string().nullable().optional(),
+  toAccountId: z.string().nullable().optional(),
   allocations: z.array(allocationSchema).optional(),
 });
 
@@ -141,6 +143,8 @@ export async function PUT(
       if (fields.reference !== undefined) updateData.reference = fields.reference;
       if (fields.notes !== undefined) updateData.notes = fields.notes;
       if (fields.productGroupId !== undefined) updateData.productGroupId = fields.productGroupId || null;
+      if (fields.accountId !== undefined) updateData.accountId = fields.accountId || null;
+      if (fields.toAccountId !== undefined) updateData.toAccountId = fields.toAccountId || null;
       if (fields.hasFactura !== undefined) updateData.hasFactura = fields.hasFactura;
 
       return tx.withdrawal.update({

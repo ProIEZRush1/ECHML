@@ -36,7 +36,7 @@ export async function DELETE(
   const { id } = await params;
 
   const count = await prisma.expense.count({ where: { accountId: id } });
-  const wCount = await prisma.withdrawal.count({ where: { accountId: id } });
+  const wCount = await prisma.withdrawal.count({ where: { OR: [{ accountId: id }, { toAccountId: id }] } });
   if (count > 0 || wCount > 0) {
     return NextResponse.json({ error: "No se puede eliminar: tiene gastos o retiros asignados" }, { status: 400 });
   }
