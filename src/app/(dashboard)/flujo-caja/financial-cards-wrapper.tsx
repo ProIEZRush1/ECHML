@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
 function fmt(n: number) {
@@ -39,6 +39,9 @@ export function FinancialCardsWrapper({
   const [adsCost, setAdsCost] = useState<number | null>(null);
   const [depositing, setDepositing] = useState(false);
   const [payingFlex, setPayingFlex] = useState(false);
+  const [showFlexModal, setShowFlexModal] = useState(false);
+  const [flexPayAmount, setFlexPayAmount] = useState("");
+  const flexInputRef = useRef<HTMLInputElement>(null);
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
@@ -167,37 +170,77 @@ export function FinancialCardsWrapper({
                 <span className="text-muted-foreground">Envios Flex ({flexCount})</span>
                 <span className="num margin-warn font-medium">-{fmt(totalFlexCost)}</span>
               </div>
-              {flexPaidCount > 0 && flexPaidCount < flexCount && (
+              {flexPaidCount > 0 && (
                 <div className="flex items-center justify-between text-[10px] mt-0.5">
                   <span className="text-green-600 dark:text-green-400">{flexPaidCount} pagados</span>
-                  <span className="text-muted-foreground">{flexCount - flexPaidCount} pendientes</span>
+                  {flexPaidCount < flexCount && <span className="text-muted-foreground">{flexCount - flexPaidCount} pendientes</span>}
                 </div>
               )}
-              {flexPaidCount === flexCount ? (
-                <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">Todos pagados</p>
-              ) : (
+              {flexUnpaidCost > 0 && (
                 <button
-                  onClick={async () => {
-                    setPayingFlex(true);
-                    try {
-                      const res = await fetch("/api/flex-pay", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
-                      });
-                      if (!res.ok) { toast.error("Error al marcar flex"); return; }
-                      const data = await res.json();
-                      toast.success(`${data.marked} envios flex marcados como pagados`);
-                      router.refresh();
-                    } catch { toast.error("Error de conexion"); } finally { setPayingFlex(false); }
-                  }}
-                  disabled={payingFlex}
-                  className="mt-1.5 w-full text-[11px] font-medium py-1 px-2 rounded-md border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  onClick={() => { setFlexPayAmount(String(Math.round(flexUnpaidCost * 100) / 100)); setShowFlexModal(true); setTimeout(() => flexInputRef.current?.select(), 100); }}
+                  className="mt-1.5 w-full text-[11px] font-medium py-1 px-2 rounded-md border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 flex items-center justify-center gap-1.5"
                 >
-                  {payingFlex && <Loader2 className="h-3 w-3 animate-spin" />}
-                  Marcar pagado ({fmt(flexUnpaidCost)})
+                  Pagar Flex ({fmt(flexUnpaidCost)} pendiente)
                 </button>
               )}
+              {flexPaidCount === flexCount && flexCount > 0 && (
+                <p className="text-[10px] text-green-600 dark:text-green-400 mt-0.5">Todos pagados</p>
+              )}
+            </div>
+          )}
+
+          {/* Flex Payment Modal */}
+          {showFlexModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowFlexModal(false)}>
+              <div className="bg-card border border-border rounded-lg p-5 w-[320px] shadow-xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-[14px] font-semibold">Pagar Envios Flex</h3>
+                  <button onClick={() => setShowFlexModal(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Pendiente: {fmt(flexUnpaidCost)}</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">$</span>
+                      <input
+                        ref={flexInputRef}
+                        type="number"
+                        step="0.01"
+                        value={flexPayAmount}
+                        onChange={(e) => setFlexPayAmount(e.target.value)}
+                        className="w-full pl-7 pr-3 py-2 text-[14px] rounded-md border border-border bg-background num"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Se descontara de tu cuenta Mercado Pago</p>
+                  <button
+                    onClick={async () => {
+                      const amt = parseFloat(flexPayAmount);
+                      if (!amt || amt <= 0) { toast.error("Ingresa un monto valido"); return; }
+                      setPayingFlex(true);
+                      try {
+                        const res = await fetch("/api/flex-pay", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ amount: amt, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
+                        });
+                        if (!res.ok) { toast.error("Error al pagar flex"); return; }
+                        const data = await res.json();
+                        toast.success(`Pago de ${fmt(amt)} registrado (${data.marked} envios marcados)`);
+                        setShowFlexModal(false);
+                        router.refresh();
+                      } catch { toast.error("Error de conexion"); } finally { setPayingFlex(false); }
+                    }}
+                    disabled={payingFlex}
+                    className="w-full text-[12px] font-medium py-2 rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {payingFlex && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    Confirmar Pago
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

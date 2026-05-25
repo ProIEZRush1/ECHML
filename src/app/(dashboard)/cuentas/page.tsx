@@ -20,7 +20,7 @@ export default async function CuentasPage({
   const params = await searchParams;
   const filterAccountId = params.accountId || null;
 
-  const [accounts, transfers, expenses, withdrawals] = await Promise.all([
+  const [accounts, transfers, expenses, withdrawals, mlSalesAgg] = await Promise.all([
     prisma.account.findMany({ orderBy: { name: "asc" } }),
     prisma.accountTransfer.findMany({
       where: filterAccountId
@@ -45,7 +45,18 @@ export default async function CuentasPage({
       select: { id: true, accountId: true, toAccountId: true, amount: true, concept: true, date: true },
       orderBy: { date: "desc" },
     }),
+    prisma.mPTransaction.groupBy({
+      by: ["label"],
+      where: { label: { in: ["sale", "fee", "commission"] } },
+      _sum: { amount: true },
+    }),
   ]);
+
+  const mlSaleIncome = Number(mlSalesAgg.find((g) => g.label === "sale")?._sum?.amount || 0);
+  const mlFees = Math.abs(Number(mlSalesAgg.find((g) => g.label === "fee")?._sum?.amount || 0));
+  const mlCommissions = Math.abs(Number(mlSalesAgg.find((g) => g.label === "commission")?._sum?.amount || 0));
+  const mlNetSales = mlSaleIncome - mlFees - mlCommissions;
+  const mpAccount = accounts.find((a) => a.name === "Mercado Pago");
 
   const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
@@ -150,8 +161,10 @@ export default async function CuentasPage({
               const retirosRecibidoCount = retirosCountTo.get(account.id) || 0;
               const tIn = transfersIn.get(account.id) || 0;
               const tOut = transfersOut.get(account.id) || 0;
+              const isMercadoPago = mpAccount && account.id === mpAccount.id;
+              const mlEntry = isMercadoPago ? mlNetSales : 0;
               const totalSalidas = gastos + retirosSale + tOut;
-              const totalEntradas = retirosRecibido + tIn;
+              const totalEntradas = retirosRecibido + tIn + mlEntry;
 
               return (
                 <div key={account.id} className="rounded-[9px] border border-border bg-card overflow-hidden">
@@ -191,6 +204,12 @@ export default async function CuentasPage({
                       <div>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5">Entradas</p>
                         <div className="space-y-1">
+                          {mlEntry > 0 && (
+                            <div className="flex items-center justify-between text-[11.5px]">
+                              <span className="flex items-center gap-1.5 text-muted-foreground"><Landmark className="h-3 w-3" />Ventas ML (neto comisiones)</span>
+                              <span className="num margin-good">+{formatCurrency(mlEntry)}</span>
+                            </div>
+                          )}
                           {retirosRecibido > 0 && (
                             <div className="flex items-center justify-between text-[11.5px]">
                               <span className="flex items-center gap-1.5 text-muted-foreground"><ArrowDownToLine className="h-3 w-3" />Retiros recibidos ({retirosRecibidoCount})</span>

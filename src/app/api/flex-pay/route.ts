@@ -7,23 +7,54 @@ export async function POST(request: NextRequest) {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const body = await request.json();
-  const { dateFrom, dateTo } = body as { dateFrom?: string; dateTo?: string };
+  const { amount, dateFrom, dateTo } = body as { amount: number; dateFrom?: string; dateTo?: string };
 
-  const where: Record<string, unknown> = {
-    label: "flex_cost",
-    paidAt: null,
-  };
-
-  if (dateFrom || dateTo) {
-    where.dateCreated = {};
-    if (dateFrom) (where.dateCreated as Record<string, Date>).gte = new Date(`${dateFrom}T00:00:00.000Z`);
-    if (dateTo) (where.dateCreated as Record<string, Date>).lte = new Date(`${dateTo}T23:59:59.999Z`);
+  if (!amount || amount <= 0) {
+    return NextResponse.json({ error: "Monto invalido" }, { status: 400 });
   }
 
-  const result = await prisma.mPTransaction.updateMany({
-    where,
-    data: { paidAt: new Date() },
+  const mpAccount = await prisma.account.findFirst({ where: { name: "Mercado Pago" } });
+
+  const dateFilter: Record<string, Date> = {};
+  if (dateFrom) dateFilter.gte = new Date(`${dateFrom}T00:00:00.000Z`);
+  if (dateTo) dateFilter.lte = new Date(`${dateTo}T23:59:59.999Z`);
+
+  const unpaidFlex = await prisma.mPTransaction.findMany({
+    where: {
+      label: "flex_cost",
+      paidAt: null,
+      ...(Object.keys(dateFilter).length > 0 ? { dateCreated: dateFilter } : {}),
+    },
+    orderBy: { dateCreated: "asc" },
+    select: { id: true, amount: true },
   });
 
-  return NextResponse.json({ marked: result.count });
+  let remaining = amount;
+  const toMark: string[] = [];
+  for (const tx of unpaidFlex) {
+    if (remaining <= 0) break;
+    toMark.push(tx.id);
+    remaining -= Math.abs(Number(tx.amount));
+  }
+
+  if (toMark.length > 0) {
+    await prisma.mPTransaction.updateMany({
+      where: { id: { in: toMark } },
+      data: { paidAt: new Date() },
+    });
+  }
+
+  await prisma.expense.create({
+    data: {
+      concept: `Pago envios Flex (${toMark.length} envios)`,
+      amount,
+      date: new Date(),
+      category: "envios",
+      type: "registro",
+      userId: session.id,
+      ...(mpAccount ? { accountId: mpAccount.id } : {}),
+    },
+  });
+
+  return NextResponse.json({ marked: toMark.length, expenseCreated: true });
 }
