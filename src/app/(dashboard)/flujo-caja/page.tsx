@@ -254,7 +254,14 @@ export default async function FlujoCajaPage({
     }),
   ]);
 
-  const accounts = await prisma.account.findMany({ select: { id: true, name: true, color: true }, orderBy: { name: "asc" } });
+  const [accounts, flexPayments] = await Promise.all([
+    prisma.account.findMany({ select: { id: true, name: true, color: true }, orderBy: { name: "asc" } }),
+    prisma.expense.aggregate({
+      where: { type: "registro", category: "envios" },
+      _sum: { amount: true },
+    }),
+  ]);
+  const totalFlexPaid = Number(flexPayments._sum?.amount || 0);
 
   const totalPages = Math.ceil(totalCount / pageSize);
 
@@ -652,6 +659,7 @@ export default async function FlujoCajaPage({
               flexCount={flexCount}
               flexPaidCount={flexPaidCount}
               flexUnpaidCost={flexUnpaidCost}
+              totalFlexPaid={totalFlexPaid}
               gastosByAccount={gastosByAccount}
               accounts={accounts}
               showWithdraw={true}
