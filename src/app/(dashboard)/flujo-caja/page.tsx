@@ -412,8 +412,7 @@ export default async function FlujoCajaPage({
   const flexCount = allFilteredTransactions.filter((t) => t.label === "flex_cost").length;
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet;
-  const hasDateFilter = !!params.dateFrom;
-  const totalWithdrawn = hasDateFilter ? 0 : withdrawals.reduce((s, w) => s + Number(w.amount), 0);
+  const totalWithdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
   const totalFacturaCost = withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
   const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
 
