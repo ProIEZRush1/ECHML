@@ -97,7 +97,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
       }
     }
     if (salesShippingFilter && s.shippingType !== salesShippingFilter) return false;
-    if (salesDateFrom && s.dateCreated < salesDateFrom) return false;
+    if (salesDateFrom && s.dateCreated < salesDateFrom + "T00:00:00") return false;
     if (salesDateTo && s.dateCreated > salesDateTo + "T23:59:59") return false;
     if (salesSearch) {
       const q = salesSearch.toLowerCase();
@@ -325,21 +325,27 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
               />
             </div>
             <Select value={salesGroupFilter} onValueChange={(v) => setSalesGroupFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Grupo" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Grupo">{salesGroupFilter ? (groups.find((g) => g.id === salesGroupFilter)?.name || "Grupo") : "Grupo"}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos los grupos</SelectItem>
                 {groups.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={salesPackFilter} onValueChange={(v) => setSalesPackFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Pack" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Pack">{salesPackFilter ? (uniquePacks.find((p) => p.id === salesPackFilter)?.name?.slice(0, 20) || "Pack") : "Pack"}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos los packs</SelectItem>
                 {uniquePacks.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={salesShippingFilter} onValueChange={(v) => setSalesShippingFilter(v === "ALL" ? "" : (v || ""))}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Envio" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Envio">{salesShippingFilter === "flex" ? "Flex" : salesShippingFilter === "normal" ? "Normal (ME2)" : "Envio"}</SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos</SelectItem>
                 <SelectItem value="flex">Flex</SelectItem>
