@@ -29,7 +29,12 @@ export function TransferFormDialog({ open, onOpenChange, accounts }: Props) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [concept, setConcept] = useState("");
+  const [hasFactura, setHasFactura] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const numAmount = parseFloat(amount) || 0;
+  const netAmount = hasFactura ? numAmount * 0.97 : numAmount;
+  const facturaCost = hasFactura ? numAmount * 0.03 : 0;
 
   async function handleSubmit() {
     if (!fromId || !toId || !amount || !concept.trim()) {
@@ -47,6 +52,7 @@ export function TransferFormDialog({ open, onOpenChange, accounts }: Props) {
           amount: parseFloat(amount),
           date,
           concept: concept.trim(),
+          hasFactura,
         }),
       });
       if (!res.ok) {
@@ -106,6 +112,22 @@ export function TransferFormDialog({ open, onOpenChange, accounts }: Props) {
             <Label>Concepto</Label>
             <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Ej: Pago proveedor" />
           </div>
+          <label className="flex items-center gap-2.5 cursor-pointer py-2 px-3 rounded-md border border-input hover:bg-muted/50">
+            <input
+              type="checkbox"
+              checked={hasFactura}
+              onChange={(e) => setHasFactura(e.target.checked)}
+              className="rounded border-input h-4 w-4"
+            />
+            <div className="flex-1">
+              <span className="text-sm font-medium">Factura (3%)</span>
+              {hasFactura && numAmount > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  Sale {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(numAmount)} → Llega {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(netAmount)} (factura -{new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(facturaCost)})
+                </p>
+              )}
+            </div>
+          </label>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

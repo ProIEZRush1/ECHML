@@ -12,6 +12,7 @@ const createSchema = z.object({
   date: z.string().min(1),
   concept: z.string().min(1),
   notes: z.string().optional(),
+  hasFactura: z.boolean().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
       date: new Date(result.data.date),
       concept: result.data.concept,
       notes: result.data.notes,
+      hasFactura: result.data.hasFactura || false,
       userId: session.id,
     },
     include: {

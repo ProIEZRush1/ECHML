@@ -450,6 +450,7 @@ model AccountTransfer {
   date          DateTime
   concept       String
   notes         String?
+  hasFactura    Boolean  @default(false)
   userId        String
   createdAt     DateTime @default(now())
 

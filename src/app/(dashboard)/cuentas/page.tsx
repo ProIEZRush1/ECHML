@@ -47,8 +47,10 @@ export default async function CuentasPage() {
   const transfersIn = new Map<string, number>();
   const transfersOut = new Map<string, number>();
   for (const t of transfers) {
-    transfersOut.set(t.fromAccountId, (transfersOut.get(t.fromAccountId) || 0) + Number(t.amount));
-    transfersIn.set(t.toAccountId, (transfersIn.get(t.toAccountId) || 0) + Number(t.amount));
+    const amt = Number(t.amount);
+    const netAmt = t.hasFactura ? amt * 0.97 : amt;
+    transfersOut.set(t.fromAccountId, (transfersOut.get(t.fromAccountId) || 0) + amt);
+    transfersIn.set(t.toAccountId, (transfersIn.get(t.toAccountId) || 0) + netAmt);
   }
 
   return (
@@ -161,8 +163,18 @@ export default async function CuentasPage() {
                         </TableCell>
                         <TableCell className="text-right num font-medium text-[12px]">
                           {formatCurrency(Number(t.amount))}
+                          {t.hasFactura && (
+                            <p className="text-[9px] text-muted-foreground">Llega: {formatCurrency(Number(t.amount) * 0.97)}</p>
+                          )}
                         </TableCell>
-                        <TableCell className="text-[12px]">{t.concept}</TableCell>
+                        <TableCell className="text-[12px]">
+                          <div className="flex items-center gap-1.5">
+                            {t.concept}
+                            {t.hasFactura && (
+                              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-400">3%</span>
+                            )}
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

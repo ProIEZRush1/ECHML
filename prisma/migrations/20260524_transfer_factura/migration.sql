@@ -1,0 +1,1 @@
+ALTER TABLE "AccountTransfer" ADD COLUMN IF NOT EXISTS "hasFactura" BOOLEAN NOT NULL DEFAULT false;
