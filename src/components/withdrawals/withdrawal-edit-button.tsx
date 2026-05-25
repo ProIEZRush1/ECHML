@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+// native selects for accounts to avoid radix display issues
 import { toast } from "sonner";
 
 interface Account {
@@ -125,37 +125,29 @@ export function WithdrawalEditButton({ withdrawal }: WithdrawalEditButtonProps) 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>De (origen)</Label>
-                  <Select value={accountId || "NONE"} onValueChange={(v) => setAccountId(v === "NONE" ? "" : (v ?? ""))}>
-                    <SelectTrigger><SelectValue placeholder="Cuenta origen..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NONE">Sin cuenta</SelectItem>
-                      {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id} label={a.name}>
-                          <span className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full" style={{ background: a.color }} />
-                            {a.name}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    value={accountId}
+                    onChange={(e) => setAccountId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  >
+                    <option value="">Sin cuenta</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <Label>A (destino)</Label>
-                  <Select value={toAccountId || "NONE"} onValueChange={(v) => setToAccountId(v === "NONE" ? "" : (v ?? ""))}>
-                    <SelectTrigger><SelectValue placeholder="Cuenta destino..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="NONE">Sin cuenta</SelectItem>
-                      {accounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id} label={a.name}>
-                          <span className="flex items-center gap-2">
-                            <span className="h-2 w-2 rounded-full" style={{ background: a.color }} />
-                            {a.name}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <select
+                    value={toAccountId}
+                    onChange={(e) => setToAccountId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  >
+                    <option value="">Sin cuenta</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>{a.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
