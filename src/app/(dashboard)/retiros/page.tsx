@@ -15,6 +15,7 @@ import { ArrowDownToLine } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { WithdrawalCreateButton } from "@/components/withdrawals/withdrawal-create-button";
 import { WithdrawalDeleteButton } from "@/components/withdrawals/withdrawal-delete-button";
+import { WithdrawalEditButton } from "@/components/withdrawals/withdrawal-edit-button";
 import { WithdrawalGroupSelect } from "./withdrawal-group-select";
 import { WithdrawalFacturaToggle } from "./withdrawal-factura-toggle";
 
@@ -138,6 +139,16 @@ export default async function RetirosPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <WithdrawalEditButton
+                          withdrawal={{
+                            id: withdrawal.id,
+                            amount: Number(withdrawal.amount),
+                            date: withdrawal.date.toISOString(),
+                            concept: withdrawal.concept,
+                            method: withdrawal.method,
+                            hasFactura: withdrawal.hasFactura,
+                          }}
+                        />
                         <WithdrawalFacturaToggle
                           withdrawalId={withdrawal.id}
                           hasFactura={withdrawal.hasFactura}
