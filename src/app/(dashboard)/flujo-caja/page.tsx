@@ -655,7 +655,8 @@ export default async function FlujoCajaPage({
               totalWithdrawn={totalWithdrawn}
               totalGastos={totalGastos}
               totalFacturaCost={totalFacturaCost}
-              totalFlexCost={totalFlexNet}
+              totalFlexCost={totalFlexCost}
+              totalFlexBonif={totalFlexBonificacion}
               flexCount={flexCount}
               flexPaidCount={flexPaidCount}
               flexUnpaidCost={flexUnpaidCost}

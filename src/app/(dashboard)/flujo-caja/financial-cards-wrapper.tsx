@@ -22,6 +22,7 @@ interface Props {
   totalGastos: number;
   totalFacturaCost: number;
   totalFlexCost: number;
+  totalFlexBonif: number;
   flexCount: number;
   flexPaidCount: number;
   flexUnpaidCost: number;
@@ -33,7 +34,7 @@ interface Props {
 
 export function FinancialCardsWrapper({
   serverNet, serverAvailable, totalWithdrawn, totalGastos, totalFacturaCost,
-  totalFlexCost, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, gastosByAccount, accounts, showWithdraw,
+  totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, gastosByAccount, accounts, showWithdraw,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -166,12 +167,23 @@ export function FinancialCardsWrapper({
 
           {/* Flex shipping costs */}
           {(totalFlexCost > 0 || totalFlexPaid > 0) && (() => {
-            const flexBalance = totalFlexPaid - totalFlexCost;
+            const flexNet = totalFlexCost - totalFlexBonif;
+            const flexBalance = totalFlexPaid - flexNet;
             return (
               <div className="mt-3 pt-3 border-t border-border">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground">Envios Flex ({flexCount})</span>
-                  <span className="num margin-warn font-medium">-{fmt(totalFlexCost)}</span>
+                  <span className="text-muted-foreground">Costo Flex ({flexCount})</span>
+                  <span className="num margin-bad font-medium">-{fmt(totalFlexCost)}</span>
+                </div>
+                {totalFlexBonif > 0 && (
+                  <div className="flex items-center justify-between text-[11px] mt-0.5">
+                    <span className="text-muted-foreground">Bonificaciones ML</span>
+                    <span className="num margin-good font-medium">+{fmt(totalFlexBonif)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-[11px] mt-0.5">
+                  <span className="text-muted-foreground font-medium">Neto Flex</span>
+                  <span className="num margin-warn font-medium">-{fmt(flexNet)}</span>
                 </div>
                 {totalFlexPaid > 0 && (
                   <div className="flex items-center justify-between text-[11px] mt-0.5">
@@ -205,7 +217,7 @@ export function FinancialCardsWrapper({
                 </div>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[11px] text-muted-foreground block mb-1">Total Flex: {fmt(totalFlexCost)} · {flexCount - flexPaidCount} pendientes</label>
+                    <label className="text-[11px] text-muted-foreground block mb-1">Neto: {fmt(totalFlexCost - totalFlexBonif)} ({fmt(totalFlexCost)} - {fmt(totalFlexBonif)} bonif)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">$</span>
                       <input
