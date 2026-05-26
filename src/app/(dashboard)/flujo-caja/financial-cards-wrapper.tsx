@@ -165,8 +165,8 @@ export function FinancialCardsWrapper({
             </div>
           )}
 
-          {/* Flex shipping costs */}
-          {(totalFlexCost > 0 || totalFlexPaid > 0) && (() => {
+          {/* Flex shipping costs — only show when there are flex orders in current filter */}
+          {flexCount > 0 && (() => {
             const flexBalance = totalFlexPaid - totalFlexCost;
             return (
               <div className="mt-3 pt-3 border-t border-border">
