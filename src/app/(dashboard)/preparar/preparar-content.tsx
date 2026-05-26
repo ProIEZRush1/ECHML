@@ -84,6 +84,7 @@ const SORT_OPTIONS = [
   { label: "Mas antiguos", value: "oldest" },
   { label: "Mas recientes", value: "newest" },
   { label: "Mas urgentes", value: "urgent" },
+  { label: "Por tipo", value: "type" },
 ];
 
 const URGENCY_TABS = [
@@ -216,6 +217,16 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
         const da = a.shippingDeadline ? new Date(a.shippingDeadline).getTime() : Infinity;
         const db = b.shippingDeadline ? new Date(b.shippingDeadline).getTime() : Infinity;
         return da - db;
+      });
+    } else if (sortOrder === "type") {
+      result = [...result].sort((a, b) => {
+        const keyFor = (o: Order) => {
+          const allItems = getAllItems(o);
+          return allItems.map(({ items, qty }) =>
+            items.map((i) => `${qty}x${itemLabel(i)}`).sort().join("+")
+          ).sort().join("|");
+        };
+        return keyFor(a).localeCompare(keyFor(b));
       });
     }
     return result;
