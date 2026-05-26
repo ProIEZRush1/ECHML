@@ -66,24 +66,14 @@ export async function GET(request: NextRequest) {
       const srcPage = src.getPage(0);
       const { width: srcW, height: srcH } = srcPage.getSize();
 
-      // ML labels: content is top ~75% of a letter page, ~396pt wide × 590pt tall
-      // Crop to content area first, then scale to thermal label size
+      // Clip to label content area (top portion of ML page), then stretch to fill thermal label
       const contentW = Math.min(srcW, 420);
-      const contentH = Math.min(srcH, 620);
+      const contentH = Math.min(srcH, 560);
       const clipRect = { left: 0, bottom: srcH - contentH, right: contentW, top: srcH };
 
       const embedded = await merged.embedPage(srcPage, clipRect);
-      const scale = Math.min(LABEL_W / contentW, LABEL_H / contentH);
-      const scaledW = contentW * scale;
-      const scaledH = contentH * scale;
-
       const page = merged.addPage([LABEL_W, LABEL_H]);
-      page.drawPage(embedded, {
-        x: (LABEL_W - scaledW) / 2,
-        y: LABEL_H - scaledH,
-        width: scaledW,
-        height: scaledH,
-      });
+      page.drawPage(embedded, { x: 0, y: 0, width: LABEL_W, height: LABEL_H });
     }
 
     if (bulkPdf) {
