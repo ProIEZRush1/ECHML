@@ -55,12 +55,19 @@ export async function GET(request: NextRequest) {
       fetchLabelPdf(ids, token),
     ]);
 
+    const LABEL_W = 283.46; // 100mm in points
+    const LABEL_H = 425.20; // 150mm in points
+
     const merged = await PDFDocument.create();
 
     for (const pdfBytes of individualResults) {
       if (!pdfBytes) continue;
       const src = await PDFDocument.load(pdfBytes);
       const [labelPage] = await merged.copyPages(src, [0]);
+      const { width: srcW, height: srcH } = labelPage.getSize();
+      labelPage.setMediaBox(0, srcH - LABEL_H, LABEL_W, LABEL_H);
+      labelPage.setCropBox(0, srcH - LABEL_H, LABEL_W, LABEL_H);
+      labelPage.setSize(LABEL_W, LABEL_H);
       merged.addPage(labelPage);
     }
 
