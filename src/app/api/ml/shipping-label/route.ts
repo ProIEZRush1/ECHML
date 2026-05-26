@@ -49,34 +49,33 @@ export async function GET(request: NextRequest) {
 
   if (layout === "single") {
     const idList = ids.split(",").filter(Boolean);
-    const labelPages: { src: PDFDocument; idx: number }[] = [];
-    const contentPages: { src: PDFDocument; idx: number }[] = [];
 
-    const batchSize = 5;
-    for (let i = 0; i < idList.length; i += batchSize) {
-      const batch = idList.slice(i, i + batchSize);
-      const results = await Promise.all(
-        batch.map((id) => fetchLabelPdf(id, token))
-      );
-      for (const pdfBytes of results) {
-        if (!pdfBytes) continue;
-        const src = await PDFDocument.load(pdfBytes);
-        const pageCount = src.getPageCount();
-        labelPages.push({ src, idx: 0 });
-        for (let p = 1; p < pageCount; p++) {
-          contentPages.push({ src, idx: p });
-        }
-      }
-    }
+    const [individualResults, bulkPdf] = await Promise.all([
+      Promise.all(idList.map((id) => fetchLabelPdf(id, token))),
+      fetchLabelPdf(ids, token),
+    ]);
 
     const merged = await PDFDocument.create();
-    for (const { src, idx } of labelPages) {
-      const [page] = await merged.copyPages(src, [idx]);
-      merged.addPage(page);
+
+    for (const pdfBytes of individualResults) {
+      if (!pdfBytes) continue;
+      const src = await PDFDocument.load(pdfBytes);
+      const [labelPage] = await merged.copyPages(src, [0]);
+      merged.addPage(labelPage);
     }
-    for (const { src, idx } of contentPages) {
-      const [page] = await merged.copyPages(src, [idx]);
-      merged.addPage(page);
+
+    if (bulkPdf) {
+      const bulkDoc = await PDFDocument.load(bulkPdf);
+      const totalPages = bulkDoc.getPageCount();
+      const labelPageCount = Math.ceil(idList.length / 3);
+      if (totalPages > labelPageCount) {
+        const contentIndices = Array.from(
+          { length: totalPages - labelPageCount },
+          (_, i) => labelPageCount + i
+        );
+        const contentPages = await merged.copyPages(bulkDoc, contentIndices);
+        for (const page of contentPages) merged.addPage(page);
+      }
     }
 
     const mergedBytes = await merged.save();
