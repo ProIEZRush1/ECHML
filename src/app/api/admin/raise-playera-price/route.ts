@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { mlFetch } from "@/lib/ml/client";
+import { mlFetch, getMLCredentials } from "@/lib/ml/client";
 
 export const maxDuration = 300;
 
@@ -34,11 +34,15 @@ export async function POST() {
 
   try {
     // Get all active listings
+    const creds = await getMLCredentials();
+    if (!creds) return NextResponse.json({ success: false, error: "No ML credentials", log }, { status: 500 });
+    const sellerId = creds.mlUserId.toString();
+
     const allItems: string[] = [];
     let offset = 0;
     while (true) {
       const page = await mlFetch<{ results: string[]; paging: { total: number } }>(
-        `/users/me/items/search?status=active&limit=100&offset=${offset}`
+        `/users/${sellerId}/items/search?status=active&limit=100&offset=${offset}`
       );
       allItems.push(...page.results);
       if (offset + 100 >= page.paging.total) break;
