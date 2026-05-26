@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { PackageCheck, Printer, Truck } from "lucide-react";
 
 interface PrepActionsProps {
@@ -11,6 +12,7 @@ interface PrepActionsProps {
 export function PrepActions({ orderId, currentStatus }: PrepActionsProps) {
   const [status, setStatus] = useState(currentStatus);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const orderIds = orderId.split(",").filter(Boolean);
 
@@ -23,14 +25,20 @@ export function PrepActions({ orderId, currentStatus }: PrepActionsProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderIds, prepStatus: newStatus }),
         });
-        if (res.ok) setStatus(newStatus);
+        if (res.ok) {
+          setStatus(newStatus);
+          router.refresh();
+        }
       } else {
         const res = await fetch("/api/orders/prep-status", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId: orderIds[0], prepStatus: newStatus }),
         });
-        if (res.ok) setStatus(newStatus);
+        if (res.ok) {
+          setStatus(newStatus);
+          router.refresh();
+        }
       }
     } finally {
       setLoading(false);

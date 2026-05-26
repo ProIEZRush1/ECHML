@@ -76,7 +76,7 @@ interface Props {
 const STATUS_TABS: { label: string; value: string }[] = [
   { label: "Todos", value: "" },
   { label: "Nuevos", value: "NEW" },
-  { label: "Preparando", value: "PREPARING" },
+  { label: "Etiqueta impresa", value: "PREPARING" },
   { label: "Listos", value: "READY" },
 ];
 
@@ -223,7 +223,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
     { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
-    { title: "Preparando", status: "PREPARING", orders: filtered.filter((o) => o.prepStatus === "PREPARING"), color: "oklch(0.60 0.14 78)" },
+    { title: "Etiqueta impresa", status: "PREPARING", orders: filtered.filter((o) => o.prepStatus === "PREPARING"), color: "oklch(0.60 0.14 78)" },
     { title: "Listos para Enviar", status: "READY", orders: filtered.filter((o) => o.prepStatus === "READY"), color: "oklch(0.55 0.12 200)" },
   ];
 
@@ -278,7 +278,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       <div className="grid grid-cols-4 gap-2">
         {[
           { label: "Nuevos", value: kpis.totalNew, cls: "margin-bad" },
-          { label: "Preparando", value: kpis.totalPreparing, cls: "margin-warn" },
+          { label: "Etiqueta impresa", value: kpis.totalPreparing, cls: "margin-warn" },
           { label: "Listos", value: kpis.totalReady, style: { color: "oklch(0.55 0.12 200)" } as React.CSSProperties },
           { label: "Enviados Hoy", value: kpis.todayShipped, cls: "margin-good" },
         ].map((kpi) => (
@@ -458,7 +458,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
           {preparedTotals.length > 0 && (
             <div className="rounded-[9px] border border-border bg-card p-3">
               <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.55 0.12 200)" }}>
-                Ya preparados ({preparedOrders.length})
+                Etiqueta impresa / Listos ({preparedOrders.length})
               </p>
               <div className="space-y-0.5">
                 {preparedTotals.map((v) => {
