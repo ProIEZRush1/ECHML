@@ -45,6 +45,7 @@ interface Order {
   quantity: number;
   buyerNickname: string | null;
   prepStatus: PrepStatus;
+  shippingStatus: string;
   listing: Listing | null;
   stockAlert: boolean;
   subOrders: SubOrder[] | null;
@@ -635,7 +636,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                           ))}
                         </div>
 
-                        <PrepActions orderId={order.orderIds.join(",")} currentStatus={order.prepStatus} />
+                        <PrepActions orderId={order.orderIds.join(",")} currentStatus={order.prepStatus} shippingStatus={order.shippingStatus} />
                       </div>
                     );
                   })}
