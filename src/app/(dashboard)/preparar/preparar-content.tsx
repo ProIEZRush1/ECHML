@@ -151,6 +151,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   const [activeUrgency, setActiveUrgency] = useState<string>("");
   const [sortOrder, setSortOrder] = useState<string>("oldest");
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const printRef = useRef<HTMLDivElement>(null);
   const hasSynced = useRef(false);
 
@@ -376,13 +377,37 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-1.5">
+          {selectedOrders.size > 0 && (
+            <>
+              <button
+                onClick={() => printLabels(filtered.filter((o) => selectedOrders.has(o.id)))}
+                className="filt-input border-blue-400 text-blue-700 dark:text-blue-400 hover:border-blue-500"
+              >
+                <Printer className="h-3 w-3" />
+                Seleccion 3x ({filtered.filter((o) => selectedOrders.has(o.id) && o.shipmentId).length})
+              </button>
+              <button
+                onClick={() => printLabels(filtered.filter((o) => selectedOrders.has(o.id)), "single")}
+                className="filt-input border-blue-400 text-blue-700 dark:text-blue-400 hover:border-blue-500"
+              >
+                <Printer className="h-3 w-3" />
+                Seleccion 1x
+              </button>
+              <button
+                onClick={() => setSelectedOrders(new Set())}
+                className="filt-input hover:border-muted-foreground text-[10px]"
+              >
+                Deseleccionar ({selectedOrders.size})
+              </button>
+            </>
+          )}
           <button
             onClick={() => printLabels(filtered)}
             className="filt-input hover:border-muted-foreground"
             disabled={filtered.length === 0}
           >
             <Printer className="h-3 w-3" />
-            3x pagina ({filtered.filter((o) => o.shipmentId).length})
+            Todas 3x ({filtered.filter((o) => o.shipmentId).length})
           </button>
           <button
             onClick={() => printLabels(filtered, "single")}
@@ -390,7 +415,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
             disabled={filtered.length === 0}
           >
             <Printer className="h-3 w-3" />
-            1x pagina
+            Todas 1x
           </button>
         </div>
       </div>
@@ -475,6 +500,22 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                   <h2 className="text-[14px] font-semibold">{section.title} ({section.orders.length})</h2>
                   <div className="ml-auto flex items-center gap-1.5">
                     <button
+                      onClick={() => {
+                        const ids = section.orders.map((o) => o.id);
+                        const allSelected = ids.every((id) => selectedOrders.has(id));
+                        setSelectedOrders((prev) => {
+                          const n = new Set(prev);
+                          if (allSelected) ids.forEach((id) => n.delete(id));
+                          else ids.forEach((id) => n.add(id));
+                          return n;
+                        });
+                      }}
+                      className="text-[10px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                    >
+                      {section.orders.every((o) => selectedOrders.has(o.id)) ? "Deseleccionar" : "Seleccionar"} todos
+                    </button>
+                    <span className="text-border">|</span>
+                    <button
                       onClick={() => printLabels(section.orders)}
                       className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                     >
@@ -505,6 +546,16 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={selectedOrders.has(order.id)}
+                            onChange={() => setSelectedOrders((prev) => {
+                              const n = new Set(prev);
+                              n.has(order.id) ? n.delete(order.id) : n.add(order.id);
+                              return n;
+                            })}
+                            className="rounded border-input h-3.5 w-3.5 shrink-0 cursor-pointer accent-blue-600"
+                          />
                           {pack?.imageUrl && (
                             <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">
                               <Image src={pack.imageUrl} alt={pack.name} width={40} height={40} className="h-full w-full object-cover" unoptimized />

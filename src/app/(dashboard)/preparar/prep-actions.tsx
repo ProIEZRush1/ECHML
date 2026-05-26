@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PackageCheck, PackageOpen, Truck } from "lucide-react";
+import { PackageCheck, Printer, Truck } from "lucide-react";
 
 interface PrepActionsProps {
   orderId: string;
@@ -47,8 +47,8 @@ export function PrepActions({ orderId, currentStatus }: PrepActionsProps) {
           disabled={loading}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 px-3 py-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 transition-colors"
         >
-          <PackageOpen className="h-3.5 w-3.5" />
-          Preparar
+          <Printer className="h-3.5 w-3.5" />
+          Etiqueta impresa
         </button>
       )}
       {status === "PREPARING" && (
