@@ -63,12 +63,21 @@ export async function GET(request: NextRequest) {
     for (const pdfBytes of individualResults) {
       if (!pdfBytes) continue;
       const src = await PDFDocument.load(pdfBytes);
-      const [labelPage] = await merged.copyPages(src, [0]);
-      const { width: srcW, height: srcH } = labelPage.getSize();
-      labelPage.setMediaBox(0, srcH - LABEL_H, LABEL_W, LABEL_H);
-      labelPage.setCropBox(0, srcH - LABEL_H, LABEL_W, LABEL_H);
-      labelPage.setSize(LABEL_W, LABEL_H);
-      merged.addPage(labelPage);
+      const srcPage = src.getPage(0);
+      const { width: srcW, height: srcH } = srcPage.getSize();
+
+      const embedded = await merged.embedPage(srcPage);
+      const scale = Math.min(LABEL_W / srcW, LABEL_H / srcH);
+      const scaledW = srcW * scale;
+      const scaledH = srcH * scale;
+
+      const page = merged.addPage([LABEL_W, LABEL_H]);
+      page.drawPage(embedded, {
+        x: (LABEL_W - scaledW) / 2,
+        y: (LABEL_H - scaledH) / 2,
+        width: scaledW,
+        height: scaledH,
+      });
     }
 
     if (bulkPdf) {
