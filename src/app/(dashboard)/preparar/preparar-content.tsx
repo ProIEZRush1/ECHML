@@ -259,11 +259,12 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     window.open(url, "_blank");
   }
 
-  async function printLabels(ordersToPrint: Order[]) {
+  async function printLabels(ordersToPrint: Order[], layout?: "single") {
     const withShipment = ordersToPrint.filter((o) => o.shipmentId);
     if (withShipment.length === 0) { alert("Ninguna orden tiene envio asignado"); return; }
     const ids = withShipment.map((o) => o.shipmentId).join(",");
-    const res = await fetch(`/api/ml/shipping-label?shipmentIds=${ids}`);
+    const layoutParam = layout ? `&layout=${layout}` : "";
+    const res = await fetch(`/api/ml/shipping-label?shipmentIds=${ids}${layoutParam}`);
     if (!res.ok) { alert("Error al obtener etiquetas"); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -374,14 +375,24 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => printLabels(filtered)}
-          className="ml-auto filt-input hover:border-muted-foreground"
-          disabled={filtered.length === 0}
-        >
-          <Printer className="h-3 w-3" />
-          Etiquetas ML ({filtered.filter((o) => o.shipmentId).length})
-        </button>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={() => printLabels(filtered)}
+            className="filt-input hover:border-muted-foreground"
+            disabled={filtered.length === 0}
+          >
+            <Printer className="h-3 w-3" />
+            3x pagina ({filtered.filter((o) => o.shipmentId).length})
+          </button>
+          <button
+            onClick={() => printLabels(filtered, "single")}
+            className="filt-input hover:border-muted-foreground"
+            disabled={filtered.length === 0}
+          >
+            <Printer className="h-3 w-3" />
+            1x pagina
+          </button>
+        </div>
       </div>
 
       {/* Totals by variant - split by status */}
@@ -462,13 +473,21 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: section.color }} />
                   <h2 className="text-[14px] font-semibold">{section.title} ({section.orders.length})</h2>
-                  <button
-                    onClick={() => printLabels(section.orders)}
-                    className="ml-auto text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-                  >
-                    <Printer className="h-3 w-3" />
-                    Etiquetas ({section.orders.filter((o) => o.shipmentId).length})
-                  </button>
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <button
+                      onClick={() => printLabels(section.orders)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                    >
+                      <Printer className="h-3 w-3" />
+                      3x ({section.orders.filter((o) => o.shipmentId).length})
+                    </button>
+                    <button
+                      onClick={() => printLabels(section.orders, "single")}
+                      className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                    >
+                      1x
+                    </button>
+                  </div>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {section.orders.map((order) => {
