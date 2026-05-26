@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
 
   if (layout === "single") {
     const idList = ids.split(",").filter(Boolean);
-    const merged = await PDFDocument.create();
+    const labelPages: { src: PDFDocument; idx: number }[] = [];
+    const contentPages: { src: PDFDocument; idx: number }[] = [];
 
     const batchSize = 5;
     for (let i = 0; i < idList.length; i += batchSize) {
@@ -60,9 +61,22 @@ export async function GET(request: NextRequest) {
       for (const pdfBytes of results) {
         if (!pdfBytes) continue;
         const src = await PDFDocument.load(pdfBytes);
-        const pages = await merged.copyPages(src, src.getPageIndices());
-        for (const page of pages) merged.addPage(page);
+        const pageCount = src.getPageCount();
+        labelPages.push({ src, idx: 0 });
+        for (let p = 1; p < pageCount; p++) {
+          contentPages.push({ src, idx: p });
+        }
       }
+    }
+
+    const merged = await PDFDocument.create();
+    for (const { src, idx } of labelPages) {
+      const [page] = await merged.copyPages(src, [idx]);
+      merged.addPage(page);
+    }
+    for (const { src, idx } of contentPages) {
+      const [page] = await merged.copyPages(src, [idx]);
+      merged.addPage(page);
     }
 
     const mergedBytes = await merged.save();
