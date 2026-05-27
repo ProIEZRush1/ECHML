@@ -604,6 +604,8 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                               )}
                               {isMulti && <span className="text-[10px] font-semibold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded">MULTI</span>}
                               <span className="font-semibold text-foreground">×{order.quantity}</span>
+                              <span className="text-border">·</span>
+                              <span className="mono text-[9px] select-all">{order.mlPackId ? `Pack: ${order.mlPackId}` : `Venta: ${order.mlOrderId}`}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
