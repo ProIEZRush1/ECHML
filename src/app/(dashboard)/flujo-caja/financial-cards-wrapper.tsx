@@ -202,6 +202,7 @@ export function FinancialCardsWrapper({
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium mb-2">Pagar a cada cuenta</p>
               <div className="space-y-1">
                 {accounts.map((acc) => {
+                  if (acc.name.toLowerCase().includes("mercado pago")) return null;
                   const amount = gastosByAccount[acc.id] || 0;
                   if (amount === 0) return null;
                   return (
