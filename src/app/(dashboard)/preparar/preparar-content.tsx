@@ -62,16 +62,31 @@ interface Group {
   productIds: string[];
 }
 
+interface CancelledOrder {
+  id: string;
+  mlItemId: string;
+  mlOrderId: string;
+  mlPackId: string | null;
+  shipmentId: string | null;
+  quantity: number;
+  buyerNickname: string | null;
+  listing: Listing | null;
+  logisticType: string | null;
+  dateCreated: string;
+}
+
 interface KpiData {
   totalNew: number;
   totalPending: number;
   totalPreparing: number;
   totalReady: number;
   todayShipped: number;
+  totalCancelled: number;
 }
 
 interface Props {
   orders: Order[];
+  cancelledOrders: CancelledOrder[];
   groups: Group[];
   kpis: KpiData;
 }
@@ -148,7 +163,7 @@ function itemLabel(item: PackItem): string {
   return `${prodName} (${variant})`;
 }
 
-export function PrepararContent({ orders, groups, kpis }: Props) {
+export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props) {
   const [activeGroups, setActiveGroups] = useState<string[]>([]);
   const [activeStatuses, setActiveStatuses] = useState<string[]>([]);
   const [activeVariants, setActiveVariants] = useState<string[]>([]);
@@ -663,6 +678,53 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Cancelled orders */}
+      {cancelledOrders.length > 0 && (
+        <div className="space-y-3 mt-6 pt-6 border-t border-border">
+          <div className="flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <h2 className="text-[14px] font-semibold text-muted-foreground">Canceladas ({cancelledOrders.length})</h2>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {cancelledOrders.map((co) => {
+              const pack = co.listing?.pack;
+              return (
+                <div key={co.id} className="rounded-[9px] border border-red-300 dark:border-red-800/50 bg-card px-3 py-2.5 space-y-2 opacity-70">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {pack?.imageUrl && (
+                      <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">
+                        <Image src={pack.imageUrl} alt={pack.name} width={40} height={40} className="h-full w-full object-cover" unoptimized />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-[12px] truncate">{pack?.name || co.mlItemId}</p>
+                      <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
+                        <span className="text-[9px] font-semibold text-red-600 bg-red-500/10 px-1.5 py-0.5 rounded">CANCELADA</span>
+                        <span className="font-semibold text-foreground">×{co.quantity}</span>
+                        <span className="text-border">·</span>
+                        <span className="mono text-[9px] select-all">{co.mlPackId ? `Pack: ${co.mlPackId}` : `Venta: ${co.mlOrderId}`}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <span>Venta: {new Date(co.dateCreated).toLocaleDateString("es-MX", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                  </div>
+                  {pack?.items && pack.items.length > 0 && (
+                    <div className="border-t border-border pt-1.5 space-y-0.5">
+                      {pack.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{item.quantity * co.quantity}× {itemLabel(item)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </>

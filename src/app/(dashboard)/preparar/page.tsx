@@ -6,7 +6,10 @@ import { PrepararContent } from "./preparar-content";
 import { mlFetch } from "@/lib/ml/client";
 
 export default async function PrepararPage() {
-  const [orders, groups, todayShipped] = await Promise.all([
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const [orders, cancelledOrders, groups, todayShipped] = await Promise.all([
     prisma.mLOrder.findMany({
       where: {
         shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "SHIPPED"] },
@@ -15,6 +18,15 @@ export default async function PrepararPage() {
       },
       orderBy: { dateCreated: "asc" },
       take: 200,
+    }),
+    prisma.mLOrder.findMany({
+      where: {
+        shippingStatus: { in: ["CANCELLED"] },
+        dateCreated: { gte: sevenDaysAgo },
+        logisticType: { not: "fulfillment" },
+      },
+      orderBy: { dateCreated: "desc" },
+      take: 50,
     }),
     prisma.productGroup.findMany({
       include: { items: { select: { productId: true } } },
@@ -28,7 +40,8 @@ export default async function PrepararPage() {
     }),
   ]);
 
-  const mlItemIds = [...new Set(orders.map((o) => o.mlItemId))];
+  const allOrders = [...orders, ...cancelledOrders];
+  const mlItemIds = [...new Set(allOrders.map((o) => o.mlItemId))];
   const listings = await prisma.mLListing.findMany({
     where: { mlItemId: { in: mlItemIds } },
     select: {
@@ -152,6 +165,22 @@ export default async function PrepararPage() {
     };
   });
 
+  const enrichedCancelled = cancelledOrders.map((o) => {
+    const listing = listingMap.get(o.mlItemId) || null;
+    return {
+      id: o.id,
+      mlItemId: o.mlItemId,
+      mlOrderId: String(o.mlOrderId),
+      mlPackId: packIdMap.get(String(o.mlOrderId)) || null,
+      shipmentId: o.shipmentId ? String(o.shipmentId) : null,
+      quantity: o.quantity,
+      buyerNickname: o.buyerNickname,
+      listing,
+      logisticType: o.logisticType,
+      dateCreated: o.dateCreated.toISOString(),
+    };
+  });
+
   const groupsData = groups.map((g) => ({
     id: g.id,
     name: g.name,
@@ -175,8 +204,9 @@ export default async function PrepararPage() {
 
       <PrepararContent
         orders={enrichedOrders}
+        cancelledOrders={enrichedCancelled}
         groups={groupsData}
-        kpis={{ totalNew, totalPending, totalPreparing, totalReady, todayShipped }}
+        kpis={{ totalNew, totalPending, totalPreparing, totalReady, todayShipped, totalCancelled: enrichedCancelled.length }}
       />
     </div>
   );
