@@ -121,7 +121,9 @@ export default async function GastosPage({
                             date: expense.date.toISOString(),
                             category: expense.category,
                             concept: expense.concept,
+                            accountId: expense.accountId,
                           }}
+                          accounts={accounts}
                         />
                         <ExpenseDeleteButton
                           expenseId={expense.id}

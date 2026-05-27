@@ -33,6 +33,7 @@ export async function PUT(
       ...(body.productId !== undefined && { productId: body.productId || null }),
       ...(body.packId !== undefined && { packId: body.packId || null }),
       ...(body.supplierId !== undefined && { supplierId: body.supplierId || null }),
+      ...(body.accountId !== undefined && { accountId: body.accountId || null }),
     },
   });
 

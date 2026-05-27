@@ -11,6 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+interface AccountInfo {
+  id: string;
+  name: string;
+  color: string;
+}
+
 interface ExpenseEditButtonProps {
   expense: {
     id: string;
@@ -19,10 +25,12 @@ interface ExpenseEditButtonProps {
     date: string;
     category: string;
     concept: string;
+    accountId: string | null;
   };
+  accounts: AccountInfo[];
 }
 
-export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
+export function ExpenseEditButton({ expense, accounts }: ExpenseEditButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -31,6 +39,7 @@ export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
   const [date, setDate] = useState(expense.date.split("T")[0]);
   const [category, setCategory] = useState(expense.category);
   const [type, setType] = useState(expense.type);
+  const [accountId, setAccountId] = useState(expense.accountId || "");
 
   async function handleSave() {
     setSaving(true);
@@ -44,6 +53,7 @@ export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
           date,
           category,
           type,
+          accountId: accountId || null,
         }),
       });
       if (!res.ok) throw new Error("Error al guardar");
@@ -115,6 +125,22 @@ export function ExpenseEditButton({ expense }: ExpenseEditButtonProps) {
                 <option value="otro">Otro</option>
               </select>
             </div>
+            {accounts.length > 0 && (
+              <div>
+                <Label htmlFor="edit-account">Cuenta</Label>
+                <select
+                  id="edit-account"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                >
+                  <option value="">Sin cuenta</option>
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
