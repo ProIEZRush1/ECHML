@@ -177,18 +177,15 @@ export default async function FlujoCajaPage({
     where.label = params.label;
   }
 
-  // Fetch filtered data
-  const [mpTransactions, totalCount, allPacks, packsWithCosts, filteredExpenses, withdrawals] = await Promise.all([
+  // Fetch ALL filtered transactions once — reused for KPIs, table, and pack balances
+  const [allTransactions, allPacks, packsWithCosts, filteredExpenses, withdrawals] = await Promise.all([
     prisma.mPTransaction.findMany({
       where,
       orderBy: { dateCreated: "desc" },
-      skip: (currentPage - 1) * pageSize,
-      take: pageSize,
       include: {
         pack: { select: { id: true, sku: true, name: true, imageUrl: true } },
       },
     }),
-    prisma.mPTransaction.count({ where }),
     prisma.pack.findMany({
       select: {
         id: true,
@@ -263,7 +260,10 @@ export default async function FlujoCajaPage({
   ]);
   const totalFlexPaid = Number(flexPayments._sum?.amount || 0);
 
+  // Derive paginated table + count from the single fetch
+  const totalCount = allTransactions.length;
   const totalPages = Math.ceil(totalCount / pageSize);
+  const mpTransactions = allTransactions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Resolve expense transactionIds -> packIds for filtering and distribution
   const allTxIdsFromExpenses = new Set<string>();
@@ -329,19 +329,8 @@ export default async function FlujoCajaPage({
   const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
 
 
-  // Aggregate KPIs with same filters (no pagination)
-  const allFilteredTransactions = await prisma.mPTransaction.findMany({
-    where,
-    select: {
-      amount: true,
-      label: true,
-      type: true,
-      packId: true,
-      quantity: true,
-      mlOrderId: true,
-      paidAt: true,
-    },
-  });
+  // Use the same data for KPIs (no separate query = no inconsistency)
+  const allFilteredTransactions = allTransactions;
 
   // Build pack cost map: packId -> cost per unit sold
   const packCostMap = new Map<string, number>();
@@ -468,15 +457,8 @@ export default async function FlujoCajaPage({
     packWhere.dateCreated.lte = new Date(`${params.dateTo}T23:59:59.999Z`);
   }
 
-  const packTransactions = await prisma.mPTransaction.findMany({
-    where: packWhere,
-    select: {
-      amount: true,
-      label: true,
-      packId: true,
-      quantity: true,
-    },
-  });
+  // Reuse allTransactions for pack balances (same data, no separate query)
+  const packTransactions = allTransactions;
 
   // Aggregate by pack
   const packMap = new Map<
