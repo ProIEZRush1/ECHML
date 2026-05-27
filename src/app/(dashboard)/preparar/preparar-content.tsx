@@ -262,14 +262,14 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
     return result;
   }, [orders, groups, activeGroups, activeStatuses, activeVariants, activeUrgency, sortOrder]);
 
-  const newWithLabel = filtered.filter((o) => o.prepStatus === "NEW" && o.shipmentId);
-  const newWithoutLabel = filtered.filter((o) => o.prepStatus === "NEW" && !o.shipmentId);
+  const newReady = filtered.filter((o) => o.prepStatus === "NEW" && o.shippingStatus !== "PENDING");
+  const newPending = filtered.filter((o) => o.prepStatus === "NEW" && o.shippingStatus === "PENDING");
 
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
-    { title: "Nuevos", status: "NEW", orders: newWithLabel, color: "oklch(0.58 0.16 22)" },
+    { title: "Nuevos", status: "NEW", orders: newReady, color: "oklch(0.58 0.16 22)" },
     { title: "Etiqueta impresa", status: "PREPARING", orders: filtered.filter((o) => o.prepStatus === "PREPARING"), color: "oklch(0.60 0.14 78)" },
     { title: "Listos para Enviar", status: "READY", orders: filtered.filter((o) => o.prepStatus === "READY"), color: "oklch(0.55 0.12 200)" },
-    ...(newWithoutLabel.length > 0 ? [{ title: "Esperando etiqueta", status: "NEW" as PrepStatus, orders: newWithoutLabel, color: "oklch(0.50 0.05 250)" }] : []),
+    ...(newPending.length > 0 ? [{ title: "Esperando etiqueta", status: "NEW" as PrepStatus, orders: newPending, color: "oklch(0.50 0.05 250)" }] : []),
   ];
 
   function computeVariantTotals(orderList: Order[]) {
@@ -292,7 +292,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
   }
 
-  const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW" && o.shipmentId), [filtered]);
+  const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW" && o.shippingStatus !== "PENDING"), [filtered]);
   const preparedOrders = useMemo(() => filtered.filter((o) => o.prepStatus !== "NEW"), [filtered]);
   const newTotals = useMemo(() => computeVariantTotals(newOrders), [newOrders]);
   const preparedTotals = useMemo(() => computeVariantTotals(preparedOrders), [preparedOrders]);

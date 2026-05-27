@@ -188,8 +188,8 @@ export default async function PrepararPage() {
     productIds: g.items.map((i) => i.productId),
   }));
 
-  const totalNew = enrichedOrders.filter((o) => o.prepStatus === "NEW" && o.shipmentId).length;
-  const totalPending = enrichedOrders.filter((o) => o.prepStatus === "NEW" && !o.shipmentId).length;
+  const totalNew = enrichedOrders.filter((o) => o.prepStatus === "NEW" && o.shippingStatus !== "PENDING").length;
+  const totalPending = enrichedOrders.filter((o) => o.prepStatus === "NEW" && o.shippingStatus === "PENDING").length;
   const totalPreparing = enrichedOrders.filter((o) => o.prepStatus === "PREPARING").length;
   const totalReady = enrichedOrders.filter((o) => o.prepStatus === "READY").length;
 
