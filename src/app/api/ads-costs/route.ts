@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { mlFetch } from "@/lib/ml/client";
 
 const adsCache = new Map<string, { data: AdsSearchResponse["results"]; ts: number }>();
-const CACHE_TTL = 60_000;
+const CACHE_TTL = 300_000; // 5 minutes — ML ads data updates in real-time, longer cache prevents reload inconsistencies
 
 interface AdsSearchResponse {
   paging: { total: number; offset: number; limit: number };
