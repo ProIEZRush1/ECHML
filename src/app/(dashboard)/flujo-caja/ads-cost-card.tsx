@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Megaphone, Loader2 } from "lucide-react";
+import { Megaphone, Loader2, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface AdsCostData {
   totalAdsCost: number;
@@ -48,9 +49,11 @@ function filterByProductsOrPacks(data: AdsCostData, productIds: string, packIds:
 
 export function AdsCostCard() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [data, setData] = useState<AdsCostData | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
@@ -99,9 +102,28 @@ export function AdsCostCard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Publicidad (Ads)</CardTitle>
-          <div className="rounded-md p-2 bg-pink-100 dark:bg-pink-900/30">
-            <Megaphone className="h-4 w-4 text-pink-600 dark:text-pink-400" />
-          </div>
+          <button
+            onClick={async () => {
+              setSyncing(true);
+              try {
+                const params = new URLSearchParams();
+                if (dateFrom) params.set("dateFrom", dateFrom);
+                if (dateTo) params.set("dateTo", dateTo);
+                await fetch(`/api/ads-costs`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }),
+                });
+                router.refresh();
+                window.location.reload();
+              } finally { setSyncing(false); }
+            }}
+            disabled={syncing}
+            className="rounded-md p-2 bg-pink-100 dark:bg-pink-900/30 hover:bg-pink-200 dark:hover:bg-pink-900/50 transition-colors"
+            title="Sincronizar publicidad desde ML"
+          >
+            {syncing ? <Loader2 className="h-4 w-4 text-pink-600 animate-spin" /> : <RefreshCw className="h-4 w-4 text-pink-600 dark:text-pink-400" />}
+          </button>
         </CardHeader>
         <CardContent>
           <div className="text-xl font-bold text-pink-600 dark:text-pink-400 truncate">
