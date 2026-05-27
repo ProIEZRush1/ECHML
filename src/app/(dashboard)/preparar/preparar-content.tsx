@@ -189,15 +189,9 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     if (activeGroups.length > 0) {
       const selectedGroups = groups.filter((g) => activeGroups.includes(g.id));
       const allProductIds = new Set(selectedGroups.flatMap((g) => g.productIds));
-      const groupKeywords = selectedGroups.flatMap((g) => g.name.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
       result = result.filter((o) => {
         for (const { items } of getAllItems(o)) {
           if (items.some((item) => allProductIds.has(item.productVariant.product.id))) return true;
-        }
-        if (groupKeywords.length > 0) {
-          const packName = (o.listing?.pack?.name || "").toLowerCase();
-          const title = (o.listing?.title || "").toLowerCase();
-          if (packName && groupKeywords.some((kw) => packName.includes(kw) || title.includes(kw))) return true;
         }
         return false;
       });
