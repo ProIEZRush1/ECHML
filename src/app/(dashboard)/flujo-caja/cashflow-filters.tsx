@@ -68,9 +68,21 @@ export function CashflowFilters() {
       })));
     });
     fetch("/api/product-groups").then(r => r.ok ? r.json() : []).then(data => {
-      setGroups(data || []);
+      const loadedGroups: ProductGroupOption[] = data || [];
+      setGroups(loadedGroups);
+      // Auto-detect active group from URL productIds
+      if (selectedProductIds.length > 0) {
+        const urlSet = new Set(selectedProductIds);
+        for (const g of loadedGroups) {
+          const groupProductIds = new Set(g.products.map(p => p.id));
+          if (groupProductIds.size > 0 && [...groupProductIds].every(id => urlSet.has(id)) && [...urlSet].every(id => groupProductIds.has(id))) {
+            setActiveGroupIds(new Set([g.id]));
+            break;
+          }
+        }
+      }
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function apply() {
     const p = new URLSearchParams();
@@ -327,15 +339,27 @@ export function CashflowFilters() {
                 </Badge>
               );
             })}
-            {selectedProductIds.map(id => {
-              const prod = products.find(p => p.id === id);
-              return (
-                <Badge key={id} variant="outline" className="gap-1 text-xs cursor-pointer" onClick={() => toggleProduct(id)}>
-                  {prod?.name?.slice(0, 20) || id.slice(-6)}
-                  <X className="h-3 w-3" />
-                </Badge>
-              );
-            })}
+            {activeGroupIds.size > 0 ? (
+              [...activeGroupIds].map(gid => {
+                const g = groups.find(gr => gr.id === gid);
+                return g ? (
+                  <Badge key={gid} variant="outline" className="gap-1 text-xs cursor-pointer font-semibold" onClick={() => toggleGroup(gid)} style={{ borderColor: g.color, color: g.color }}>
+                    {g.name} ({g.products.length})
+                    <X className="h-3 w-3" />
+                  </Badge>
+                ) : null;
+              })
+            ) : (
+              selectedProductIds.map(id => {
+                const prod = products.find(p => p.id === id);
+                return (
+                  <Badge key={id} variant="outline" className="gap-1 text-xs cursor-pointer" onClick={() => toggleProduct(id)}>
+                    {prod?.name?.slice(0, 20) || id.slice(-6)}
+                    <X className="h-3 w-3" />
+                  </Badge>
+                );
+              })
+            )}
             {dateFrom && (
               <Badge variant="secondary" className="gap-1 text-xs cursor-pointer" onClick={() => setDateFrom("")}>
                 Desde: {dateFrom} <X className="h-3 w-3" />
