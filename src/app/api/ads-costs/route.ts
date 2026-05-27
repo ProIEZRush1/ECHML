@@ -5,6 +5,9 @@ import { verifyAnyAuth } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { mlFetch } from "@/lib/ml/client";
 
+const adsCache = new Map<string, { data: AdsSearchResponse["results"]; ts: number }>();
+const CACHE_TTL = 60_000;
+
 interface AdsSearchResponse {
   paging: { total: number; offset: number; limit: number };
   results: Array<{
@@ -44,20 +47,29 @@ export async function GET(request: NextRequest) {
 
   try {
     const advertiserId = 853025;
-    const allItems: AdsSearchResponse["results"] = [];
-    let offset = 0;
-    const limit = 50;
-    let total = Infinity;
+    const cacheKey = `${dateFrom}:${dateTo}`;
+    const cached = adsCache.get(cacheKey);
+    let allItems: AdsSearchResponse["results"];
 
-    while (offset < total) {
-      const data = await mlFetch<AdsSearchResponse>(
-        `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}&offset=${offset}&date_from=${dateFrom}&date_to=${dateTo}&filters[statuses]=active,paused,hold,idle&metrics=cost,clicks,prints,total_amount,acos,roas,direct_amount,indirect_amount,units_quantity&metrics_summary=true`,
-        { headers: { "api-version": "2" } }
-      );
-      total = data.paging.total;
-      allItems.push(...data.results);
-      offset += limit;
-      if (offset >= total) break;
+    if (cached && Date.now() - cached.ts < CACHE_TTL) {
+      allItems = cached.data;
+    } else {
+      allItems = [];
+      let offset = 0;
+      const limit = 50;
+      let total = Infinity;
+
+      while (offset < total) {
+        const data = await mlFetch<AdsSearchResponse>(
+          `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}&offset=${offset}&date_from=${dateFrom}&date_to=${dateTo}&filters[statuses]=active,paused,hold,idle&metrics=cost,clicks,prints,total_amount,acos,roas,direct_amount,indirect_amount,units_quantity&metrics_summary=true`,
+          { headers: { "api-version": "2" } }
+        );
+        total = data.paging.total;
+        allItems.push(...data.results);
+        offset += limit;
+        if (offset >= total) break;
+      }
+      adsCache.set(cacheKey, { data: allItems, ts: Date.now() });
     }
 
     const listings = await prisma.mLListing.findMany({
