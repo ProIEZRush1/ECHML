@@ -12,7 +12,7 @@ export default async function PrepararPage() {
   const [orders, cancelledOrders, groups, todayShipped] = await Promise.all([
     prisma.mLOrder.findMany({
       where: {
-        shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "SHIPPED"] },
+        shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "SHIPPED", "NOT_DELIVERED"] },
         prepStatus: { in: ["NEW", "PREPARING", "READY"] },
         logisticType: { not: "fulfillment" },
       },
