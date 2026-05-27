@@ -18,6 +18,7 @@ export async function DELETE(
   try {
     await prisma.packItem.deleteMany({ where: { productVariantId: id } });
     await prisma.stockEntryItem.deleteMany({ where: { productVariantId: id } });
+    await prisma.stockLog.deleteMany({ where: { productVariantId: id } });
     await prisma.productVariant.delete({ where: { id } });
 
     return NextResponse.json({ deleted: id });
