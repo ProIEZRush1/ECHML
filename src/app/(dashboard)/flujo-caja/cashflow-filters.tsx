@@ -147,8 +147,8 @@ export function CashflowFilters() {
     activeGroupIds.size > 0 || dateFrom || dateTo || label;
 
   return (
-    <Card>
-      <CardContent className="pt-4 space-y-3">
+    <Card className="overflow-hidden">
+      <CardContent className="pt-4 space-y-3 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
@@ -317,7 +317,7 @@ export function CashflowFilters() {
 
         {/* Active filter badges */}
         {hasFilters && (
-          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
+          <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto overflow-x-hidden max-w-full">
             {selectedPackIds.map(id => {
               const pack = packs.find(p => p.id === id);
               return (
