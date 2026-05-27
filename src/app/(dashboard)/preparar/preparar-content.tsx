@@ -46,6 +46,7 @@ interface Order {
   buyerNickname: string | null;
   prepStatus: PrepStatus;
   shippingStatus: string;
+  logisticType: string | null;
   listing: Listing | null;
   stockAlert: boolean;
   subOrders: SubOrder[] | null;
@@ -578,14 +579,12 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
                               {isMulti ? `Paquete de ${order.subOrders!.length} productos` : (pack?.name || order.mlItemId)}
                             </p>
                             <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mt-0.5">
-                              {!isMulti && pack?.sku && <span className="mono font-semibold text-[11px] bg-muted px-1.5 py-0.5 rounded text-foreground select-all">{pack.sku}</span>}
-                              {order.mlPackId ? (
-                                <span className="mono text-[9.5px] text-muted-foreground select-all">Pack: {order.mlPackId}</span>
+                              {order.logisticType === "self_service" ? (
+                                <span className="text-[9px] font-semibold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded">FLEX</span>
                               ) : (
-                                <span className="mono text-[9.5px] text-muted-foreground select-all">Venta: {order.mlOrderId}</span>
+                                <span className="text-[9px] font-semibold text-blue-600 bg-blue-500/10 px-1.5 py-0.5 rounded">ME</span>
                               )}
-                              {isMulti && <span className="text-[10px] font-semibold text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded">MULTI</span>}
-                              <span className="text-border">·</span>
+                              {isMulti && <span className="text-[10px] font-semibold text-purple-500 bg-purple-500/10 px-1.5 py-0.5 rounded">MULTI</span>}
                               <span className="font-semibold text-foreground">×{order.quantity}</span>
                             </div>
                           </div>

@@ -142,6 +142,7 @@ export default async function PrepararPage() {
       buyerNickname: primary.buyerNickname,
       prepStatus: primary.prepStatus,
       shippingStatus: primary.shippingStatus,
+      logisticType: primary.logisticType,
       listing: allListings[0].listing,
       stockAlert: false,
       subOrders: allListings.length > 1 ? allListings : null,
