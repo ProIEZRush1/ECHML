@@ -1,5 +1,6 @@
 services:
   app:
+    image: ghcr.io/proiezrush1/echml:latest
     build:
       context: .
       dockerfile: Dockerfile

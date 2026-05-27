@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+LICENSE
+.env*
+.vscode
+.idea
+assets
+generated-images
+scripts/add-xl-variants.ts
+scripts/raise-prices-xl.js
+.claude
+.mcp.json
+.playwright-mcp
+*.output
