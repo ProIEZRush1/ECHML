@@ -338,15 +338,23 @@ export default async function FlujoCajaPage({
     }
   }
 
-  // Find returned/cancelled order IDs to exclude from KPIs (filtered by date)
-  const returnedOrders = await prisma.mLOrder.findMany({
-    where: {
-      shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] },
-      dateCreated: {
-        gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
-        ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
-      },
+  // Find returned/cancelled order IDs to exclude from KPIs (filtered by date + pack)
+  const returnedWhere: Record<string, unknown> = {
+    shippingStatus: { in: ["RETURNED", "NOT_DELIVERED", "CANCELLED"] },
+    dateCreated: {
+      gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
+      ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
     },
+  };
+  if (effectivePackIds.length > 0) {
+    const returnMlItemIds = await prisma.mLListing.findMany({
+      where: { packId: { in: effectivePackIds } },
+      select: { mlItemId: true },
+    });
+    returnedWhere.mlItemId = { in: returnMlItemIds.map((l) => l.mlItemId) };
+  }
+  const returnedOrders = await prisma.mLOrder.findMany({
+    where: returnedWhere,
     select: { mlOrderId: true, mlItemId: true, quantity: true, logisticType: true, shippingStatus: true, returnShipCost: true },
   });
   const returnedOrderIds = new Set(returnedOrders.map((o) => o.mlOrderId));
