@@ -260,6 +260,29 @@ export default async function FlujoCajaPage({
   ]);
   const totalFlexPaid = Number(flexPayments._sum?.amount || 0);
 
+  // Fetch ads cost server-side using the DB snapshot (or ML API fallback)
+  let serverAdsCost = 0;
+  try {
+    const adsConfig = await prisma.systemConfig.findUnique({ where: { key: "ads_snapshot" } });
+    if (adsConfig) {
+      const snapshot = JSON.parse(adsConfig.value);
+      const adsItems: { item_id: string; metrics: { cost: number } }[] = snapshot.items || [];
+
+      // Build allowed ML item IDs for product filter
+      let adsAllowedIds: Set<string> | null = null;
+      if (effectivePackIds.length > 0) {
+        const adsListings = await prisma.mLListing.findMany({
+          where: { packId: { in: effectivePackIds } },
+          select: { mlItemId: true },
+        });
+        adsAllowedIds = new Set(adsListings.map((l) => l.mlItemId));
+      }
+
+      const filteredAds = adsAllowedIds ? adsItems.filter((i) => adsAllowedIds!.has(i.item_id)) : adsItems;
+      serverAdsCost = Math.round(filteredAds.reduce((s, i) => s + (i.metrics?.cost || 0), 0) * 100) / 100;
+    }
+  } catch { /* ignore ads errors — will show 0 */ }
+
   // Derive paginated table + count from the single fetch
   const totalCount = allTransactions.length;
   const totalPages = Math.ceil(totalCount / pageSize);
@@ -607,6 +630,7 @@ export default async function FlujoCajaPage({
               deductionItems={deductionItems}
               serverNet={totalNet}
               serverAvailable={availableToWithdraw}
+              serverAdsCost={serverAdsCost}
               totalWithdrawn={totalWithdrawn}
               totalGastos={totalGastos}
               totalFacturaCost={totalFacturaCost}

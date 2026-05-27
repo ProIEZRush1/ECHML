@@ -28,6 +28,7 @@ interface Props {
   deductionItems: DeductionItem[];
   serverNet: number;
   serverAvailable: number;
+  serverAdsCost: number;
   totalWithdrawn: number;
   totalGastos: number;
   totalFacturaCost: number;
@@ -44,12 +45,11 @@ interface Props {
 
 export function FinancialCardsWrapper({
   totalIncome, salesCount, totalUnits, totalDeducciones, deductionItems,
-  serverNet, serverAvailable, totalWithdrawn, totalGastos, totalFacturaCost,
+  serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, gastosByAccount, accounts, showWithdraw,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [adsCost, setAdsCost] = useState<number | null>(null);
   const [depositing, setDepositing] = useState(false);
   const [payingFlex, setPayingFlex] = useState(false);
   const [showFlexModal, setShowFlexModal] = useState(false);
@@ -58,31 +58,12 @@ export function FinancialCardsWrapper({
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
-  const productIds = searchParams.get("productIds") || searchParams.get("productId") || "";
   const packIds = searchParams.get("packIds") || searchParams.get("packId") || "";
 
-  useEffect(() => {
-    setAdsCost(null);
-    const params = new URLSearchParams();
-    if (dateFrom) params.set("dateFrom", dateFrom);
-    if (dateTo) params.set("dateTo", dateTo);
-    if (packIds) params.set("packIds", packIds);
-    if (productIds) params.set("productIds", productIds);
-
-    let retries = 0;
-    const fetchAds = () => {
-      fetch(`/api/ads-costs?${params.toString()}`)
-        .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
-        .then((data) => { setAdsCost(Math.round((data?.totalAdsCost ?? 0) * 100) / 100); })
-        .catch(() => { if (retries < 2) { retries++; setTimeout(fetchAds, 1000 * retries); } else { setAdsCost(0); } });
-    };
-    fetchAds();
-  }, [dateFrom, dateTo, productIds, packIds]);
-
-  const loading = adsCost === null;
-  const totalNet = loading ? null : serverNet - adsCost;
-  const netAfterFactura = totalNet !== null && totalFacturaCost > 0 ? totalNet - totalFacturaCost : null;
-  const available = loading ? null : serverAvailable - adsCost;
+  const adsCost = serverAdsCost;
+  const totalNet = serverNet - adsCost;
+  const netAfterFactura = totalFacturaCost > 0 ? totalNet - totalFacturaCost : null;
+  const available = serverAvailable - adsCost;
 
   const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
@@ -101,16 +82,12 @@ export function FinancialCardsWrapper({
     } catch { toast.error("Error de conexion"); } finally { setDepositing(false); }
   }
 
-  const loadingCard = (
-    <div className="rounded-[9px] border border-border bg-card p-4">
-      <div className="flex items-center gap-2 h-16"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>
-    </div>
-  );
+  const loading = false;
 
   return (
     <>
       {/* Ingresos */}
-      {loading ? loadingCard : (
+      {loading ? null : (
         <div className="rounded-[9px] border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
@@ -122,7 +99,7 @@ export function FinancialCardsWrapper({
       )}
 
       {/* Costos y Deducciones */}
-      {loading ? loadingCard : (
+      {loading ? null : (
         <div className="rounded-[9px] border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
