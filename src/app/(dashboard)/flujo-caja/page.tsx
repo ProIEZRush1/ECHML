@@ -388,7 +388,7 @@ export default async function FlujoCajaPage({
         if (!countedReturnOrderIds.has(tx.mlOrderId)) {
           countedReturnOrderIds.add(tx.mlOrderId);
           const ro = returnedOrders.find((o) => o.mlOrderId === tx.mlOrderId);
-          if (ro && ro.shippingStatus !== "CANCELLED") {
+          if (ro) {
             filteredReturnCount++;
             if (ro.logisticType === "fulfillment") filteredReturnFromFull++;
           }
@@ -422,7 +422,6 @@ export default async function FlujoCajaPage({
   // Calculate product cost for returned orders using MPTransaction packId
   let returnedProductCost = 0;
   for (const ro of returnedOrders) {
-    if (ro.shippingStatus === "CANCELLED") continue;
     const roTx = allFilteredTransactions.find((t) => t.mlOrderId === ro.mlOrderId && t.label === "sale");
     if (roTx?.packId) {
       const costPerUnit = packCostMap.get(roTx.packId) || 0;
