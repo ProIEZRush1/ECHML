@@ -617,39 +617,12 @@ export default async function FlujoCajaPage({
 
         return (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0 [&>*]:overflow-hidden">
-            {/* Ingresos */}
-            <div className="rounded-[9px] border border-border bg-card p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
-                <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
-              </div>
-              <p className="text-xl font-bold num margin-good truncate">{formatCurrency(totalIncome)}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
-            </div>
-
-            {/* Costos y Deducciones (merged) */}
-            <div className="rounded-[9px] border border-border bg-card p-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
-                <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
-              </div>
-              <p className="text-xl font-bold num margin-bad truncate">-{formatCurrency(totalDeducciones)}</p>
-              <div className="mt-1.5 space-y-0.5">
-                {deductionItems.map((d) => (
-                  <div key={d.label} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>{d.label}</span>
-                    <span className="num">-{formatCurrency(d.value)}</span>
-                  </div>
-                ))}
-              </div>
-              {totalIncome > 0 && (
-                <p className="text-[10.5px] text-muted-foreground mt-1.5 pt-1.5 border-t border-border">
-                  {((totalDeducciones / totalIncome) * 100).toFixed(1)}% de ingresos
-                </p>
-              )}
-            </div>
-
             <FinancialCardsWrapper
+              totalIncome={totalIncome}
+              salesCount={salesCount}
+              totalUnits={totalUnits}
+              totalDeducciones={totalDeducciones}
+              deductionItems={deductionItems}
               serverNet={totalNet}
               serverAvailable={availableToWithdraw}
               totalWithdrawn={totalWithdrawn}

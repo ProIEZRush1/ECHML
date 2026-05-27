@@ -15,7 +15,17 @@ interface AccountInfo {
   color: string;
 }
 
+interface DeductionItem {
+  label: string;
+  value: number;
+}
+
 interface Props {
+  totalIncome: number;
+  salesCount: number;
+  totalUnits: number;
+  totalDeducciones: number;
+  deductionItems: DeductionItem[];
   serverNet: number;
   serverAvailable: number;
   totalWithdrawn: number;
@@ -33,6 +43,7 @@ interface Props {
 }
 
 export function FinancialCardsWrapper({
+  totalIncome, salesCount, totalUnits, totalDeducciones, deductionItems,
   serverNet, serverAvailable, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, gastosByAccount, accounts, showWithdraw,
 }: Props) {
@@ -90,8 +101,56 @@ export function FinancialCardsWrapper({
     } catch { toast.error("Error de conexion"); } finally { setDepositing(false); }
   }
 
+  const loadingCard = (
+    <div className="rounded-[9px] border border-border bg-card p-4">
+      <div className="flex items-center gap-2 h-16"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>
+    </div>
+  );
+
   return (
     <>
+      {/* Ingresos */}
+      {loading ? loadingCard : (
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
+            <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
+          </div>
+          <p className="text-xl font-bold num margin-good truncate">{fmt(totalIncome)}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
+        </div>
+      )}
+
+      {/* Costos y Deducciones */}
+      {loading ? loadingCard : (
+        <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
+            <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
+          </div>
+          <p className="text-xl font-bold num margin-bad truncate">-{fmt(totalDeducciones + (adsCost || 0))}</p>
+          <div className="mt-1.5 space-y-0.5">
+            {deductionItems.map((d) => (
+              <div key={d.label} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>{d.label}</span>
+                <span className="num">-{fmt(d.value)}</span>
+              </div>
+            ))}
+            {adsCost !== null && adsCost > 0 && (
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Publicidad</span>
+                <span className="num">-{fmt(adsCost)}</span>
+              </div>
+            )}
+          </div>
+          {totalIncome > 0 && (
+            <p className="text-[10.5px] text-muted-foreground mt-1.5 pt-1.5 border-t border-border">
+              {(((totalDeducciones + (adsCost || 0)) / totalIncome) * 100).toFixed(1)}% de ingresos
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Utilidad Neta */}
       <div className="rounded-[9px] border border-border bg-card p-4">
         <div className="flex items-center justify-between mb-2">
