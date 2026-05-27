@@ -63,11 +63,14 @@ export async function GET(request: NextRequest) {
     for (const pdfBytes of individualResults) {
       if (!pdfBytes) continue;
       const src = await PDFDocument.load(pdfBytes);
-      const srcPage = src.getPage(0);
-
-      const embedded = await merged.embedPage(srcPage);
-      const page = merged.addPage([LABEL_W, LABEL_H]);
-      page.drawPage(embedded, { x: 0, y: 0, width: LABEL_W, height: LABEL_H });
+      const [copiedPage] = await merged.copyPages(src, [0]);
+      const { width: srcW, height: srcH } = copiedPage.getSize();
+      // Crop to top 68% of page (where label content lives), set page to thermal size
+      const cropH = srcH * 0.68;
+      copiedPage.setMediaBox(0, srcH - cropH, srcW, cropH);
+      copiedPage.setCropBox(0, srcH - cropH, srcW, cropH);
+      copiedPage.setSize(LABEL_W, LABEL_H);
+      merged.addPage(copiedPage);
     }
 
     if (bulkPdf) {
