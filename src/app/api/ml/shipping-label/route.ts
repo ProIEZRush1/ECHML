@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const LABEL_W = 283.46; // 100mm in points
-    const LABEL_H = 425.20; // 150mm in points
+    const LABEL_MAX_H = 425.20; // 150mm in points
 
     const merged = await PDFDocument.create();
 
@@ -66,14 +66,36 @@ export async function GET(request: NextRequest) {
       const srcPage = src.getPage(0);
       const { width: srcW, height: srcH } = srcPage.getSize();
 
-      // Clip to label content area (top portion of ML page), then stretch to fill thermal label
-      const contentW = Math.min(srcW, 420);
-      const contentH = Math.min(srcH, 560);
-      const clipRect = { left: 0, bottom: srcH - contentH, right: contentW, top: srcH };
+      // Use TrimBox/CropBox if available, else estimate content area
+      const trimBox = srcPage.getTrimBox();
+      const cropBox = srcPage.getCropBox();
+      const box = (trimBox.width > 0 && trimBox.width < srcW) ? trimBox :
+                  (cropBox.width > 0 && cropBox.width < srcW) ? cropBox : null;
 
+      let contentW: number, contentH: number, clipLeft: number, clipBottom: number;
+      if (box) {
+        contentW = box.width;
+        contentH = box.height;
+        clipLeft = box.x;
+        clipBottom = box.y;
+      } else {
+        // Heuristic: content is left ~55% width, top ~65% height of a letter page
+        contentW = Math.min(srcW, srcW * 0.58);
+        contentH = Math.min(srcH, srcH * 0.68);
+        clipLeft = 0;
+        clipBottom = srcH - contentH;
+      }
+
+      const clipRect = { left: clipLeft, bottom: clipBottom, right: clipLeft + contentW, top: clipBottom + contentH };
       const embedded = await merged.embedPage(srcPage, clipRect);
-      const page = merged.addPage([LABEL_W, LABEL_H]);
-      page.drawPage(embedded, { x: 0, y: 0, width: LABEL_W, height: LABEL_H });
+
+      // Scale to 100mm width, proportional height capped at 150mm
+      const scale = LABEL_W / contentW;
+      const scaledH = Math.min(contentH * scale, LABEL_MAX_H);
+      const pageH = Math.max(scaledH, LABEL_MAX_H);
+
+      const page = merged.addPage([LABEL_W, pageH]);
+      page.drawPage(embedded, { x: 0, y: pageH - scaledH, width: LABEL_W, height: scaledH });
     }
 
     if (bulkPdf) {
