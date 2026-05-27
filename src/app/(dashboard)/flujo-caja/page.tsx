@@ -375,24 +375,13 @@ export default async function FlujoCajaPage({
   const salesPerPack = new Map<string, number>();
 
   let totalReturns = 0;
-  // ML refunds original shipping/fees on returns — don't count as costs
-  // The actual return shipping debit comes as a separate ML transaction later
-  let filteredReturnCount = 0;
-  let filteredReturnFromFull = 0;
-  const countedReturnOrderIds = new Set<bigint>();
+  const filteredReturnCount = returnedOrders.length;
+  const filteredReturnFromFull = returnedOrders.filter((o) => o.logisticType === "fulfillment").length;
   for (const tx of allFilteredTransactions) {
     if (tx.mlOrderId && returnedOrderIds.has(tx.mlOrderId)) {
       const amt = Number(tx.amount);
       if (tx.label === "sale") {
         totalReturns += amt;
-        if (!countedReturnOrderIds.has(tx.mlOrderId)) {
-          countedReturnOrderIds.add(tx.mlOrderId);
-          const ro = returnedOrders.find((o) => o.mlOrderId === tx.mlOrderId);
-          if (ro) {
-            filteredReturnCount++;
-            if (ro.logisticType === "fulfillment") filteredReturnFromFull++;
-          }
-        }
       }
       continue;
     }
@@ -445,7 +434,6 @@ export default async function FlujoCajaPage({
   }
 
   const totalReturnShipCost = returnedOrders
-    .filter((o) => countedReturnOrderIds.has(o.mlOrderId))
     .reduce((s, o) => s + Number(o.returnShipCost || 0), 0);
   const flexTxs = allFilteredTransactions.filter((t) => t.label === "flex_cost");
   const flexCount = flexTxs.length;
