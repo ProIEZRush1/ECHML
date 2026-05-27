@@ -166,9 +166,21 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     return [{ items: o.listing?.pack?.items || [], qty: o.quantity }];
   }
 
+  const groupFilteredOrders = useMemo(() => {
+    if (activeGroups.length === 0) return orders;
+    const selectedGroups = groups.filter((g) => activeGroups.includes(g.id));
+    const allProductIds = new Set(selectedGroups.flatMap((g) => g.productIds));
+    return orders.filter((o) => {
+      for (const { items } of getAllItems(o)) {
+        if (items.some((item) => allProductIds.has(item.productVariant.product.id))) return true;
+      }
+      return false;
+    });
+  }, [orders, groups, activeGroups]);
+
   const allVariants = useMemo(() => {
     const set = new Set<string>();
-    for (const o of orders) {
+    for (const o of groupFilteredOrders) {
       for (const { items } of getAllItems(o)) {
         for (const item of items) {
           set.add(itemLabel(item));
@@ -176,7 +188,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
       }
     }
     return [...set].sort();
-  }, [orders]);
+  }, [groupFilteredOrders]);
 
   useEffect(() => {
     if (hasSynced.current) return;
