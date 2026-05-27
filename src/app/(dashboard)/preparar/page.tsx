@@ -159,7 +159,8 @@ export default async function PrepararPage() {
     productIds: g.items.map((i) => i.productId),
   }));
 
-  const totalNew = enrichedOrders.filter((o) => o.prepStatus === "NEW").length;
+  const totalNew = enrichedOrders.filter((o) => o.prepStatus === "NEW" && o.shipmentId).length;
+  const totalPending = enrichedOrders.filter((o) => o.prepStatus === "NEW" && !o.shipmentId).length;
   const totalPreparing = enrichedOrders.filter((o) => o.prepStatus === "PREPARING").length;
   const totalReady = enrichedOrders.filter((o) => o.prepStatus === "READY").length;
 
@@ -175,7 +176,7 @@ export default async function PrepararPage() {
       <PrepararContent
         orders={enrichedOrders}
         groups={groupsData}
-        kpis={{ totalNew, totalPreparing, totalReady, todayShipped }}
+        kpis={{ totalNew, totalPending, totalPreparing, totalReady, todayShipped }}
       />
     </div>
   );

@@ -64,6 +64,7 @@ interface Group {
 
 interface KpiData {
   totalNew: number;
+  totalPending: number;
   totalPreparing: number;
   totalReady: number;
   todayShipped: number;
@@ -234,10 +235,14 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     return result;
   }, [orders, groups, activeGroups, activeStatuses, activeVariants, activeUrgency, sortOrder]);
 
+  const newWithLabel = filtered.filter((o) => o.prepStatus === "NEW" && o.shipmentId);
+  const newWithoutLabel = filtered.filter((o) => o.prepStatus === "NEW" && !o.shipmentId);
+
   const sections: { title: string; status: PrepStatus; orders: Order[]; color: string }[] = [
-    { title: "Nuevos", status: "NEW", orders: filtered.filter((o) => o.prepStatus === "NEW"), color: "oklch(0.58 0.16 22)" },
+    { title: "Nuevos", status: "NEW", orders: newWithLabel, color: "oklch(0.58 0.16 22)" },
     { title: "Etiqueta impresa", status: "PREPARING", orders: filtered.filter((o) => o.prepStatus === "PREPARING"), color: "oklch(0.60 0.14 78)" },
     { title: "Listos para Enviar", status: "READY", orders: filtered.filter((o) => o.prepStatus === "READY"), color: "oklch(0.55 0.12 200)" },
+    ...(newWithoutLabel.length > 0 ? [{ title: "Esperando etiqueta", status: "NEW" as PrepStatus, orders: newWithoutLabel, color: "oklch(0.50 0.05 250)" }] : []),
   ];
 
   function computeVariantTotals(orderList: Order[]) {
@@ -260,7 +265,7 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
     return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
   }
 
-  const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW"), [filtered]);
+  const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW" && o.shipmentId), [filtered]);
   const preparedOrders = useMemo(() => filtered.filter((o) => o.prepStatus !== "NEW"), [filtered]);
   const newTotals = useMemo(() => computeVariantTotals(newOrders), [newOrders]);
   const preparedTotals = useMemo(() => computeVariantTotals(preparedOrders), [preparedOrders]);
@@ -288,9 +293,10 @@ export function PrepararContent({ orders, groups, kpis }: Props) {
   return (
     <>
       {/* KPI cards */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-5 gap-2">
         {[
           { label: "Nuevos", value: kpis.totalNew, cls: "margin-bad" },
+          { label: "Esperando etiqueta", value: kpis.totalPending, cls: "text-muted-foreground" },
           { label: "Etiqueta impresa", value: kpis.totalPreparing, cls: "margin-warn" },
           { label: "Listos", value: kpis.totalReady, style: { color: "oklch(0.55 0.12 200)" } as React.CSSProperties },
           { label: "Enviados Hoy", value: kpis.todayShipped, cls: "margin-good" },
