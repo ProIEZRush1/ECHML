@@ -55,12 +55,21 @@ export async function GET(request: NextRequest) {
       fetchLabelPdf(ids, token),
     ]);
 
+    // ML labels: A4 landscape (841.89 × 595.28 pt), label is 90×149mm box at top-left
+    // Crop margins: left 11mm, top 10mm, right 196mm, bottom 51mm
+    const CROP_LEFT = 31.18;   // 11mm
+    const CROP_BOTTOM = 144.57; // 51mm from bottom
+    const CROP_W = 255.12;     // 90mm
+    const CROP_H = 422.36;     // 149mm
+
     const merged = await PDFDocument.create();
 
     for (const pdfBytes of individualResults) {
       if (!pdfBytes) continue;
       const src = await PDFDocument.load(pdfBytes);
       const [copiedPage] = await merged.copyPages(src, [0]);
+      copiedPage.setCropBox(CROP_LEFT, CROP_BOTTOM, CROP_W, CROP_H);
+      copiedPage.setMediaBox(CROP_LEFT, CROP_BOTTOM, CROP_W, CROP_H);
       merged.addPage(copiedPage);
     }
 
