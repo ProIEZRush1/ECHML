@@ -78,12 +78,14 @@ export async function GET(request: NextRequest) {
   const packIdsParam = request.nextUrl.searchParams.get("packIds");
 
   try {
-    // Read from DB snapshot — if none exists, fetch from ML and save
-    let snapshot = await getAdsSnapshot();
+    // Read ONLY from DB snapshot — never fetch from ML on GET
+    const snapshot = await getAdsSnapshot();
     if (!snapshot) {
-      const items = await fetchAdsFromML(dateFrom, dateTo);
-      await saveAdsSnapshot(items);
-      snapshot = { items, syncedAt: new Date().toISOString() };
+      return NextResponse.json({
+        dateFrom, dateTo, syncedAt: null,
+        totalAdsCost: 0, totalClicks: 0, totalSalesFromAds: 0, overallAcos: 0, itemCount: 0, byProduct: [],
+        message: "No ads data synced yet. Click the sync button to fetch from ML.",
+      });
     }
 
     const allItems = snapshot.items;
