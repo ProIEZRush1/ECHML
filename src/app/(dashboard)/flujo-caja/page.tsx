@@ -433,6 +433,8 @@ export default async function FlujoCajaPage({
   const totalImpuestos = totalRetencionIVA + totalRetencionISR;
 
   const totalGastos = relevantExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalGastosOp = relevantExpenses.filter((e) => e.type === "gasto").reduce((sum, e) => sum + Number(e.amount), 0);
+  const totalCompras = relevantExpenses.filter((e) => e.type === "compra").reduce((sum, e) => sum + Number(e.amount), 0);
 
   // Gastos per account for the "what to pay" breakdown
   const gastosByAccount: Record<string, number> = {};
@@ -610,7 +612,8 @@ export default async function FlujoCajaPage({
           { label: "Envios", value: totalShipping },
           { label: "Impuestos", value: totalImpuestos },
           { label: "Costo producto", value: totalProductCost },
-          { label: "Gastos", value: totalGastos },
+          { label: "Gastos", value: totalGastosOp },
+          { label: "Compra productos", value: totalCompras },
           { label: "Flex", value: totalFlexNet },
           { label: "Envio devoluciones", value: totalReturnShipCost },
         ].filter((d) => d.value > 0);
