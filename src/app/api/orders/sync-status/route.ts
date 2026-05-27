@@ -93,6 +93,24 @@ export async function POST() {
     }
   }
 
+  // Check for cancelled orders from ML API
+  try {
+    const cancelledData = await mlFetch<{ results: Array<{ id: number }>, paging: { total: number } }>(
+      `/orders/search`,
+      { params: { seller: "{userId}", "order.status": "cancelled", sort: "date_desc", limit: "50",
+        "order.date_created.from": thirtyDaysAgo.toISOString() } }
+    );
+    for (const co of cancelledData.results || []) {
+      const mlOrderId = BigInt(co.id);
+      try {
+        await prisma.mLOrder.updateMany({
+          where: { mlOrderId, shippingStatus: { not: "CANCELLED" } },
+          data: { shippingStatus: "CANCELLED" },
+        });
+      } catch { /* skip */ }
+    }
+  } catch { /* ML API error */ }
+
   // Also check ML claims API for returns/mediations
   let claimsFound = 0;
   try {

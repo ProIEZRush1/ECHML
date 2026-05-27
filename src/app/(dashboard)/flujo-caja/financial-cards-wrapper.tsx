@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -59,6 +59,14 @@ export function FinancialCardsWrapper({
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
   const packIds = searchParams.get("packIds") || searchParams.get("packId") || "";
+
+  const hasSynced = useRef(false);
+  useEffect(() => {
+    if (hasSynced.current) return;
+    hasSynced.current = true;
+    fetch("/api/orders/sync-status", { method: "POST" }).catch(() => {});
+    fetch("/api/mp/sync", { method: "POST" }).catch(() => {});
+  }, []);
 
   const adsCost = serverAdsCost;
   const totalNet = serverNet - adsCost;
