@@ -801,7 +801,7 @@ export default async function FlujoCajaPage({
       )}
 
       {/* Transaction Table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden max-w-full">
+      <div className="rounded-[9px] border border-border bg-card overflow-x-hidden max-w-full">
         {/* Table header */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2 text-[13px] font-semibold">
