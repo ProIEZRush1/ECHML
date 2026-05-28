@@ -107,14 +107,6 @@ export default async function FlujoCajaPage({
     await fetch(`${baseUrl}/api/mp/sync`, { method: "POST", cache: "no-store" }).catch(() => null);
   } catch { /* sync errors shouldn't block the page */ }
 
-  // Query unprocessed partial refunds for display
-  const partialRefunds = await prisma.mLOrder.findMany({
-    where: { partialRefundQty: { gt: 0 }, partialRefundProcessed: false },
-    select: { id: true, mlOrderId: true, mlItemId: true, quantity: true, partialRefundQty: true, unitPrice: true, dateCreated: true },
-    orderBy: { dateCreated: "desc" },
-    take: 20,
-  });
-
   // Parse multiple pack IDs (support both legacy packId and new packIds)
   const packIdList: string[] = [];
   if (params.packIds) {
@@ -169,6 +161,25 @@ export default async function FlujoCajaPage({
       ? packIdList.filter((id) => productFilteredPackIds!.includes(id))
       : productFilteredPackIds
     : packIdList;
+
+  // Query unprocessed partial refunds, filtered by active pack/product selection
+  const isFiltered = effectivePackIds.length > 0 || (productFilteredPackIds && productFilteredPackIds.length === 0);
+  let partialRefundWhere: Record<string, unknown> = { partialRefundQty: { gt: 0 }, partialRefundProcessed: false };
+  if (isFiltered && effectivePackIds.length > 0) {
+    const filteredListings = await prisma.mLListing.findMany({
+      where: { packId: { in: effectivePackIds } },
+      select: { mlItemId: true },
+    });
+    partialRefundWhere.mlItemId = { in: filteredListings.map((l) => l.mlItemId) };
+  } else if (isFiltered) {
+    partialRefundWhere.mlItemId = { in: [] };
+  }
+  const partialRefunds = await prisma.mLOrder.findMany({
+    where: partialRefundWhere,
+    select: { id: true, mlOrderId: true, mlItemId: true, quantity: true, partialRefundQty: true, unitPrice: true, dateCreated: true },
+    orderBy: { dateCreated: "desc" },
+    take: 20,
+  });
 
   if (effectivePackIds.length === 1) {
     where.packId = effectivePackIds[0];
