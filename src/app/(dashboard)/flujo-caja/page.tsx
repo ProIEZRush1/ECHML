@@ -295,12 +295,10 @@ export default async function FlujoCajaPage({
         ...(filteredGroupIds.length > 0
           ? { productGroupId: { in: filteredGroupIds } }
           : {}),
-        ...(params.dateFrom || params.dateTo ? {
-          fechaEmision: {
-            ...(params.dateFrom ? { gte: new Date(`${params.dateFrom}T00:00:00.000Z`) } : {}),
-            ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
-          },
-        } : {}),
+        fechaEmision: {
+          gte: new Date(`${effectiveDateFrom}T00:00:00.000Z`),
+          ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
+        },
       },
       select: { total: true, productGroupId: true },
     }),
