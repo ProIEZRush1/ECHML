@@ -164,18 +164,22 @@ export default async function FlujoCajaPage({
 
   // Query unprocessed partial refunds, filtered by active pack/product selection
   const isFiltered = effectivePackIds.length > 0 || (productFilteredPackIds && productFilteredPackIds.length === 0);
-  let partialRefundWhere: Record<string, unknown> = { partialRefundQty: { gt: 0 }, partialRefundProcessed: false };
+  let filteredMlItemIds: string[] | null = null;
   if (isFiltered && effectivePackIds.length > 0) {
     const filteredListings = await prisma.mLListing.findMany({
       where: { packId: { in: effectivePackIds } },
       select: { mlItemId: true },
     });
-    partialRefundWhere.mlItemId = { in: filteredListings.map((l) => l.mlItemId) };
+    filteredMlItemIds = filteredListings.map((l) => l.mlItemId);
   } else if (isFiltered) {
-    partialRefundWhere.mlItemId = { in: [] };
+    filteredMlItemIds = [];
   }
   const partialRefunds = await prisma.mLOrder.findMany({
-    where: partialRefundWhere,
+    where: {
+      partialRefundQty: { gt: 0 },
+      partialRefundProcessed: false,
+      ...(filteredMlItemIds !== null ? { mlItemId: { in: filteredMlItemIds } } : {}),
+    },
     select: { id: true, mlOrderId: true, mlItemId: true, quantity: true, partialRefundQty: true, unitPrice: true, dateCreated: true },
     orderBy: { dateCreated: "desc" },
     take: 20,
