@@ -613,9 +613,10 @@ export default async function FlujoCajaPage({
           { label: "Impuestos", value: totalImpuestos },
           { label: "Costo producto", value: totalProductCost },
           { label: "Gastos", value: totalGastosOp },
-          { label: "Flex", value: totalFlexNet },
+          { label: "Flex", value: totalFlexCost },
+          ...(totalFlexBonificacion > 0 ? [{ label: "Bonificaciones", value: -totalFlexBonificacion }] : []),
           { label: "Envio devoluciones", value: totalReturnShipCost },
-        ].filter((d) => d.value > 0);
+        ].filter((d) => d.value !== 0);
 
         return (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0 [&>*]:overflow-hidden">

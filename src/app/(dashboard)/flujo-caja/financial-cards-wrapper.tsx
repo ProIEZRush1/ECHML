@@ -121,7 +121,11 @@ export function FinancialCardsWrapper({
             {deductionItems.map((d) => (
               <div key={d.label} className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>{d.label}</span>
-                <span className="num">-{fmt(d.value)}</span>
+                {d.value < 0 ? (
+                  <span className="num text-green-600 dark:text-green-400">+{fmt(Math.abs(d.value))}</span>
+                ) : (
+                  <span className="num">-{fmt(d.value)}</span>
+                )}
               </div>
             ))}
             {adsCost !== null && adsCost > 0 && (
@@ -181,6 +185,7 @@ export function FinancialCardsWrapper({
           <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
             {adsCost !== null && adsCost > 0 && <p>Ads: -{fmt(adsCost)}</p>}
             {totalGastos > 0 && <p>Gastos: -{fmt(totalGastos)}</p>}
+            {totalCompras > 0 && <p>Compra productos: -{fmt(totalCompras)}</p>}
             {totalWithdrawn > 0 && <p>Retirado: {fmt(totalWithdrawn)}</p>}
           </div>
 
