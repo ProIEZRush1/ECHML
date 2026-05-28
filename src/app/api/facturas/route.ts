@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
+import { parseLocalDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
         folio: data.folio || null,
         rfcEmisor: data.rfcEmisor || null,
         rfcReceptor: data.rfcReceptor || null,
-        fechaEmision: data.fechaEmision ? new Date(data.fechaEmision) : null,
+        fechaEmision: data.fechaEmision ? parseLocalDate(data.fechaEmision) : null,
         subtotal: data.subtotal ?? null,
         iva: data.iva ?? null,
         conceptos: data.conceptos || null,

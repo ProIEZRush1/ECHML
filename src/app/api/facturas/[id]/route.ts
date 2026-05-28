@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
+import { parseLocalDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +72,7 @@ export async function PUT(
       ...(body.rfcEmisor !== undefined && { rfcEmisor: body.rfcEmisor || null }),
       ...(body.rfcReceptor !== undefined && { rfcReceptor: body.rfcReceptor || null }),
       ...(body.fechaEmision !== undefined && {
-        fechaEmision: body.fechaEmision ? new Date(body.fechaEmision) : null,
+        fechaEmision: body.fechaEmision ? parseLocalDate(body.fechaEmision) : null,
       }),
       ...(body.subtotal !== undefined && { subtotal: body.subtotal }),
       ...(body.iva !== undefined && { iva: body.iva }),

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
+import { parseLocalDate } from "@/lib/utils";
 
 const createSchema = z.object({
   fromAccountId: z.string().min(1),
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
       fromAccountId: result.data.fromAccountId,
       toAccountId: result.data.toAccountId,
       amount: result.data.amount,
-      date: new Date(result.data.date),
+      date: parseLocalDate(result.data.date),
       concept: result.data.concept,
       notes: result.data.notes,
       hasFactura: result.data.hasFactura || false,

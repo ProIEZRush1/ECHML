@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
+import { parseLocalDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export async function PUT(
       ...(body.concept !== undefined && { concept: body.concept }),
       ...(body.category !== undefined && { category: body.category }),
       ...(body.type !== undefined && { type: body.type }),
-      ...(body.date !== undefined && { date: new Date(body.date) }),
+      ...(body.date !== undefined && { date: parseLocalDate(body.date) }),
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.productId !== undefined && { productId: body.productId || null }),
       ...(body.packId !== undefined && { packId: body.packId || null }),

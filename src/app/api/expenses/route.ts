@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
+import { parseLocalDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       data: {
         type: type || "gasto",
         amount,
-        date: new Date(date),
+        date: parseLocalDate(date),
         category,
         concept,
         supplierId: supplierId || null,

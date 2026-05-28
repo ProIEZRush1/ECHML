@@ -36,6 +36,13 @@ export function formatDateTime(date: Date | string): string {
   }).format(d);
 }
 
+export function parseLocalDate(date: string): Date {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return new Date(`${date}T12:00:00.000Z`);
+  }
+  return new Date(date);
+}
+
 export const COLOR_MAP = {
   AZUL: { label: "Azul", hex: "#3b82f6", bg: "bg-blue-500", text: "text-blue-600" },
   VERDE: { label: "Verde", hex: "#22c55e", bg: "bg-green-500", text: "text-green-600" },

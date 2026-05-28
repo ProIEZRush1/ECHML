@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
+import { parseLocalDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -137,7 +138,7 @@ export async function PUT(
 
       const updateData: Record<string, unknown> = {};
       if (fields.amount !== undefined) updateData.amount = fields.amount;
-      if (fields.date !== undefined) updateData.date = new Date(fields.date);
+      if (fields.date !== undefined) updateData.date = parseLocalDate(fields.date);
       if (fields.concept !== undefined) updateData.concept = fields.concept;
       if (fields.method !== undefined) updateData.method = fields.method;
       if (fields.reference !== undefined) updateData.reference = fields.reference;
