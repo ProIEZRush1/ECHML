@@ -63,13 +63,8 @@ export function FinancialCardsWrapper({
   const packIds = searchParams.get("packIds") || searchParams.get("packId") || "";
   const hasProductFilter = !!(productIds || packIds);
 
-  const hasSynced = useRef(false);
-  useEffect(() => {
-    if (hasSynced.current) return;
-    hasSynced.current = true;
-    fetch("/api/orders/sync-status", { method: "POST" }).catch(() => {});
-    fetch("/api/mp/sync", { method: "POST" }).catch(() => {});
-  }, []);
+  // Removed auto-sync: it was adding transactions on every page load,
+  // causing numbers to change between reloads. Use "Sincronizar MP" button instead.
 
   const adsCost = serverAdsCost;
   const totalNet = serverNet - adsCost;
