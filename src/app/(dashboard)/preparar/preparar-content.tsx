@@ -576,7 +576,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
                     </button>
                   </div>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
                   {section.orders.map((order) => {
                     const listing = order.listing;
                     const pack = listing?.pack;
@@ -587,8 +587,8 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
                     return (
                       <div
                         key={order.id}
-                        className={`rounded-xl border bg-card glass px-3 py-2.5 space-y-2 ${
-                          isOverdue ? "border-red-400 dark:border-red-800" : isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border"
+                        className={`rounded-xl border bg-card glass px-3.5 py-3 flex flex-col gap-2 min-h-[180px] transition-all duration-200 hover:shadow-md ${
+                          isOverdue ? "border-red-400 dark:border-red-800" : isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border hover:border-accent/20"
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
