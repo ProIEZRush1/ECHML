@@ -321,9 +321,9 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
   }
 
   const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW" && o.shippingStatus !== "PENDING"), [filtered]);
-  const preparedOrders = useMemo(() => filtered.filter((o) => o.prepStatus !== "NEW"), [filtered]);
+  const preparingOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "PREPARING"), [filtered]);
   const newTotals = useMemo(() => computeVariantTotals(newOrders), [newOrders]);
-  const preparedTotals = useMemo(() => computeVariantTotals(preparedOrders), [preparedOrders]);
+  const preparingTotals = useMemo(() => computeVariantTotals(preparingOrders), [preparingOrders]);
 
   async function printLabel(shipmentId: string) {
     const res = await fetch(`/api/ml/shipping-label?shipmentId=${shipmentId}`);
@@ -529,13 +529,13 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
               </div>
             </div>
           )}
-          {preparedTotals.length > 0 && (
+          {preparingTotals.length > 0 && (
             <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.55 0.12 200)" }}>
-                Etiqueta impresa / Listos ({preparedOrders.length})
+              <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.60 0.14 78)" }}>
+                Etiqueta impresa ({preparingOrders.length})
               </p>
               <div className="space-y-0.5">
-                {preparedTotals.map((v) => {
+                {preparingTotals.map((v) => {
                   const key = `prep-${v.label}`;
                   const checked = checkedItems.has(key);
                   return (
