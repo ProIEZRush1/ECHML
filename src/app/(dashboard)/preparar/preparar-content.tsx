@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { PackageCheck, Printer, Filter } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -164,11 +165,38 @@ function itemLabel(item: PackItem): string {
 }
 
 export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props) {
-  const [activeGroups, setActiveGroups] = useState<string[]>([]);
-  const [activeStatuses, setActiveStatuses] = useState<string[]>([]);
-  const [activeVariants, setActiveVariants] = useState<string[]>([]);
-  const [activeUrgency, setActiveUrgency] = useState<string>("");
-  const [sortOrder, setSortOrder] = useState<string>("oldest");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const activeGroups = searchParams.get("groups")?.split(",").filter(Boolean) || [];
+  const activeStatuses = searchParams.get("status")?.split(",").filter(Boolean) || [];
+  const activeVariants = searchParams.get("variants")?.split(",").filter(Boolean) || [];
+  const activeUrgency = searchParams.get("urgency") || "";
+  const sortOrder = searchParams.get("sort") || "oldest";
+
+  function updateParam(key: string, value: string | string[]) {
+    const params = new URLSearchParams(searchParams.toString());
+    const v = Array.isArray(value) ? value.join(",") : value;
+    if (!v) params.delete(key);
+    else params.set(key, v);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
+
+  const setActiveGroups = (fn: string[] | ((prev: string[]) => string[])) => {
+    const val = typeof fn === "function" ? fn(activeGroups) : fn;
+    updateParam("groups", val);
+  };
+  const setActiveStatuses = (fn: string[] | ((prev: string[]) => string[])) => {
+    const val = typeof fn === "function" ? fn(activeStatuses) : fn;
+    updateParam("status", val);
+  };
+  const setActiveVariants = (fn: string[] | ((prev: string[]) => string[])) => {
+    const val = typeof fn === "function" ? fn(activeVariants) : fn;
+    updateParam("variants", val);
+  };
+  const setActiveUrgency = (v: string) => updateParam("urgency", v);
+  const setSortOrder = (v: string) => updateParam("sort", v === "oldest" ? "" : v);
+
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const printRef = useRef<HTMLDivElement>(null);
