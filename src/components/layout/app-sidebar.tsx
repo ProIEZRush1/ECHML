@@ -111,12 +111,12 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/dashboard" />}>
-              <div className="flex size-7 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-mono text-sm font-bold">
+              <div className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-[oklch(0.55_0.18_260)] to-[oklch(0.50_0.16_300)] text-white font-mono text-sm font-bold shadow-lg shadow-[oklch(0.55_0.18_260/0.3)]">
                 e
               </div>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="font-mono font-semibold text-sm tracking-tight">echml</span>
-                <span className="text-[10.5px] text-sidebar-foreground/50 tracking-wide">
+                <span className="font-semibold text-[13px] tracking-tight text-sidebar-primary">ECH CRM</span>
+                <span className="text-[10px] text-sidebar-foreground/40 tracking-wider uppercase">
                   Bluemango · MX
                 </span>
               </div>

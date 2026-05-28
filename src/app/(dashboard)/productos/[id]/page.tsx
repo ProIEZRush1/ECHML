@@ -72,7 +72,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       {/* Product info + Variant stock grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Info card */}
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
             <h3 className="text-[12.5px] font-semibold">Informacion del Producto</h3>
           </div>
@@ -131,7 +131,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
       {/* Packs that use this product */}
       {packItems.length > 0 && (
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
             <h3 className="text-[12.5px] font-semibold">Packs que incluyen este producto</h3>
             <span className="text-[11px] text-muted-foreground">{packItems.length} items</span>
@@ -179,7 +179,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       )}
 
       {/* Recent stock logs */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
           <h3 className="text-[12.5px] font-semibold">Movimientos Recientes de Stock</h3>
           {stockLogs.length > 0 && (

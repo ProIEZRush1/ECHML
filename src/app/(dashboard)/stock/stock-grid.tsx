@@ -199,7 +199,7 @@ export function StockGrid({
           { icon: Box, value: totalUnits, label: "Unidades", color: "oklch(0.55 0.12 155)" },
           { icon: AlertTriangle, value: lowStockAlerts, label: "Stock bajo", color: "oklch(0.55 0.14 60)" },
         ].map(({ icon: Icon, value, label, color }) => (
-          <div key={label} className="rounded-[9px] border border-border bg-card glass px-4 py-3 flex items-center gap-3">
+          <div key={label} className="rounded-xl border border-border bg-card glass px-4 py-3 flex items-center gap-3">
             <div className="rounded-md p-2" style={{ background: `color-mix(in oklch, ${color} 14%, transparent)` }}>
               <Icon className="h-4 w-4" style={{ color }} />
             </div>
@@ -277,7 +277,7 @@ export function StockGrid({
               <span className="text-[10px]">&#x25BC;</span>
             </button>
             {showPacks && (
-              <div className="absolute z-50 mt-1 rounded-[9px] border border-border bg-popover shadow-md max-h-48 overflow-y-auto w-56 right-0">
+              <div className="absolute z-50 mt-1 rounded-xl border border-border bg-popover shadow-md max-h-48 overflow-y-auto w-56 right-0">
                 <div className="p-2 sticky top-0 bg-popover border-b">
                   <div className="relative">
                     <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
@@ -350,7 +350,7 @@ export function StockGrid({
       ) : (
         <>
         {/* Desktop table */}
-        <div className="rounded-[9px] border border-border bg-card glass overflow-x-auto hidden sm:block">
+        <div className="rounded-xl border border-border bg-card glass overflow-x-auto hidden sm:block">
           <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b bg-muted/40">
@@ -426,7 +426,7 @@ export function StockGrid({
         {/* Mobile card layout */}
         <div className="sm:hidden space-y-2">
           {filtered.map((product) => (
-            <div key={product.id} className="rounded-[9px] border border-border bg-card glass p-3">
+            <div key={product.id} className="rounded-xl border border-border bg-card glass p-3">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <div className="font-medium text-[13px] leading-tight">{product.name}</div>

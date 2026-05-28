@@ -106,7 +106,7 @@ export function ProductTable({ products }: ProductTableProps) {
       </div>
 
       {/* Table card */}
-      <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
+      <div className="rounded-xl border border-border bg-card overflow-x-auto">
         <table className="w-full text-[12.5px] min-w-[500px]">
           <thead>
             <tr className="border-b border-border bg-muted/30">

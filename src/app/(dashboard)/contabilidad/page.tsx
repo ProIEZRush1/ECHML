@@ -325,7 +325,7 @@ export default async function ContabilidadPage({
       <ContabilidadFilters />
 
       {/* Explanation */}
-      <div className="rounded-[9px] border border-border bg-muted/30 p-4 text-[12px] text-muted-foreground space-y-1">
+      <div className="rounded-xl border border-border bg-muted/30 p-4 text-[12px] text-muted-foreground space-y-1">
         <p className="font-medium text-foreground text-[13px]">Como leer esta pagina</p>
         <p><strong>Utilidad</strong> = Ingresos - todas las deducciones (comisiones, envios, impuestos, costo de producto, gastos, flex, devoluciones)</p>
         <p><strong>Saldo</strong> = Utilidad - Retiros. Si es $0 o cercano, las cuentas estan cuadradas. Si es positivo, hay dinero por retirar. Si es negativo, se retiro de mas.</p>
@@ -334,26 +334,26 @@ export default async function ContabilidadPage({
 
       {/* KPI Summary Cards */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Total Vendido</p>
           <p className="text-xl font-bold num margin-good">{formatCurrency(totals.ingresos)}</p>
           <p className="text-[11px] text-muted-foreground mt-1">{totals.salesCount} ventas · {rows.length} grupos</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Total Deducciones</p>
           <p className="text-xl font-bold num margin-bad">-{formatCurrency(totalDeducciones)}</p>
           <p className="text-[11px] text-muted-foreground mt-1">
             Comisiones, envios, impuestos, costos, gastos, flex, devoluciones
           </p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">Ganancia Real</p>
           <p className={`text-xl font-bold num ${totals.utilidad >= 0 ? "margin-good" : "margin-bad"}`}>{formatCurrency(totals.utilidad)}</p>
           <p className="text-[11px] text-muted-foreground mt-1">
             Lo que queda despues de TODO (sin ads)
           </p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-1">
             {totals.saldo >= 0 ? "Falta Retirar" : "Retirado de Mas"}
           </p>
@@ -376,7 +376,7 @@ export default async function ContabilidadPage({
       />
 
       {/* Reconciliation Table */}
-      <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
+      <div className="rounded-xl border border-border bg-card glass overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <p className="text-[13px] font-semibold">Detalle por Grupo de Productos</p>
           <p className="text-[11px] text-muted-foreground">

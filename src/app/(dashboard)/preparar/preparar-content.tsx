@@ -328,7 +328,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
           { label: "Listos", value: kpis.totalReady, style: { color: "oklch(0.55 0.12 200)" } as React.CSSProperties },
           { label: "Enviados Hoy", value: kpis.todayShipped, cls: "margin-good" },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-[9px] border border-border bg-card glass px-3 py-2.5">
+          <div key={kpi.label} className="rounded-xl border border-border bg-card glass px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{kpi.label}</p>
             <p className={`text-xl font-bold mt-0.5 num ${kpi.cls || ""}`} style={kpi.style}>{kpi.value}</p>
           </div>
@@ -470,7 +470,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
       {filtered.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">
           {newTotals.length > 0 && (
-            <div className="rounded-[9px] border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-card p-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: "oklch(0.58 0.16 22)" }}>
                   Nuevos por preparar ({newOrders.length})
@@ -502,7 +502,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
             </div>
           )}
           {preparedTotals.length > 0 && (
-            <div className="rounded-[9px] border border-border bg-card p-3">
+            <div className="rounded-xl border border-border bg-card p-3">
               <p className="text-[10px] uppercase tracking-wider font-medium mb-2" style={{ color: "oklch(0.55 0.12 200)" }}>
                 Etiqueta impresa / Listos ({preparedOrders.length})
               </p>
@@ -587,7 +587,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
                     return (
                       <div
                         key={order.id}
-                        className={`rounded-[9px] border bg-card glass px-3 py-2.5 space-y-2 ${
+                        className={`rounded-xl border bg-card glass px-3 py-2.5 space-y-2 ${
                           isOverdue ? "border-red-400 dark:border-red-800" : isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border"
                         }`}
                       >
@@ -692,7 +692,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
             {cancelledOrders.map((co) => {
               const pack = co.listing?.pack;
               return (
-                <div key={co.id} className="rounded-[9px] border border-red-300 dark:border-red-800/50 bg-card glass px-3 py-2.5 space-y-2 opacity-70">
+                <div key={co.id} className="rounded-xl border border-red-300 dark:border-red-800/50 bg-card glass px-3 py-2.5 space-y-2 opacity-70">
                   <div className="flex items-center gap-2.5 min-w-0">
                     {pack?.imageUrl && (
                       <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">

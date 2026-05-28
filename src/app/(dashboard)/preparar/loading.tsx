@@ -12,7 +12,7 @@ export default function PrepararLoading() {
 
       <div className="grid grid-cols-4 gap-2">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="rounded-[9px] border border-border bg-card px-3 py-2.5">
+          <div key={i} className="rounded-xl border border-border bg-card px-3 py-2.5">
             <div className="h-3 w-16 bg-muted rounded animate-pulse" />
             <div className="h-6 w-8 bg-muted rounded animate-pulse mt-2" />
           </div>

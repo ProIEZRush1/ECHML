@@ -57,7 +57,7 @@ export default async function ApiKeysPage() {
       </div>
 
       {/* Keys table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <ApiKeysTable apiKeys={maskedKeys} />
       </div>
     </div>

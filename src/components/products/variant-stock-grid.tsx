@@ -15,7 +15,7 @@ export function VariantStockGrid({ variants }: VariantStockGridProps) {
         return (
           <div
             key={variant.id}
-            className="rounded-[9px] border border-border bg-card overflow-hidden border-l-4 flex flex-col items-center gap-2 py-6"
+            className="rounded-xl border border-border bg-card overflow-hidden border-l-4 flex flex-col items-center gap-2 py-6"
             style={{ borderLeftColor: display.hex }}
           >
             <ColorBadge color={variant.color} variantLabel={variant.variantLabel} />

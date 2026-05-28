@@ -33,19 +33,19 @@ export function KpiCards({ stats }: KpiCardsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-[9px] border border-border bg-card glass p-3.5 sm:p-4 flex flex-col gap-1.5 transition-all duration-200 hover:border-accent/30"
+          className="rounded-xl border border-border bg-card glass p-5 flex flex-col gap-2 transition-all duration-200 hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5"
         >
-          <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.08em]">
             {card.label}
           </div>
-          <div className={`mono num text-2xl font-semibold tracking-tight ${card.valueColor || ""}`}>
+          <div className={`mono num text-3xl font-bold tracking-tight ${card.valueColor || ""}`}>
             {card.value}
           </div>
-          <div className="text-[11.5px] text-muted-foreground">
+          <div className="text-[12px] text-muted-foreground">
             {card.desc}
           </div>
         </div>

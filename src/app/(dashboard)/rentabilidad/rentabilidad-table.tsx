@@ -68,19 +68,19 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
     <div className="space-y-5">
       {/* KPI Summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Utilidad Total</p>
           <p className={`text-2xl font-bold mt-1 num ${totals.totalProfit >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(totals.totalProfit)}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Margen Promedio</p>
           <p className={`text-2xl font-bold mt-1 num ${totals.avgMargin > 20 ? "margin-good" : totals.avgMargin > 0 ? "margin-warn" : "margin-bad"}`}>{totals.avgMargin.toFixed(1)}%</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
           <p className="text-2xl font-bold mt-1 num">{fmt(totals.totalRevenue)}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ventas</p>
           <p className="text-2xl font-bold mt-1 num">{totals.totalSales}</p>
         </div>
@@ -109,7 +109,7 @@ export function RentabilidadTable({ data }: RentabilidadTableProps) {
       </div>
 
       {/* Table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead>

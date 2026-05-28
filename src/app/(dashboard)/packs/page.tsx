@@ -95,7 +95,7 @@ export default async function PacksPage({
         {kpiCards.map((card) => (
           <div
             key={card.label}
-            className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1"
+            className="rounded-xl border border-border bg-card p-3.5 flex flex-col gap-1"
           >
             <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
               {card.label}
@@ -120,7 +120,7 @@ export default async function PacksPage({
       </div>
 
       {/* Table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-[12.5px]">
             <thead>

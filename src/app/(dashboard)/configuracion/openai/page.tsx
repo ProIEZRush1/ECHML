@@ -78,7 +78,7 @@ export default async function OpenAIConfigPage() {
       <div className="conn-card">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-[9px] bg-accent/15">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-accent/15">
               <Sparkles className="size-5 text-accent" />
             </div>
             <div>
@@ -102,7 +102,7 @@ export default async function OpenAIConfigPage() {
       </div>
 
       {/* Capabilities */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-[14px] font-semibold">Capacidades Disponibles</h2>
         </div>

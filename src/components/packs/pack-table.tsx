@@ -37,7 +37,7 @@ export function PackTable({ packs }: PackTableProps) {
 
   return (
     <>
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <table className="w-full text-[12.5px]">
           <thead>
             <tr className="border-b border-border bg-muted/30">

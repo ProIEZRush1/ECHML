@@ -46,7 +46,7 @@ export default async function MLConfigPage() {
       <div className="conn-card">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-[9px] bg-accent/15">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-accent/15">
               <ExternalLink className="size-5 text-accent" />
             </div>
             <div>
@@ -74,7 +74,7 @@ export default async function MLConfigPage() {
         {credential ? (
           <>
             {/* Info grid */}
-            <div className="grid gap-px rounded-[9px] border border-border bg-border overflow-hidden sm:grid-cols-3">
+            <div className="grid gap-px rounded-xl border border-border bg-border overflow-hidden sm:grid-cols-3">
               <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 <KeyRound className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
@@ -167,7 +167,7 @@ export default async function MLConfigPage() {
       </div>
 
       {/* Webhook card */}
-      <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
+      <div className="rounded-xl border border-border bg-card glass overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-3">
           <Webhook className="size-4 text-muted-foreground" />
           <h2 className="text-[14px] font-semibold">Webhook</h2>

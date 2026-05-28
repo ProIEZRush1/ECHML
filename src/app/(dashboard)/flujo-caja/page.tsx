@@ -601,8 +601,8 @@ export default async function FlujoCajaPage({
 
       {/* Product filter indicator */}
       {filteredProductName && (
-        <div className="filt-bar" style={{ borderColor: "oklch(0.55 0.12 200 / 0.3)" }}>
-          <Package className="h-4 w-4" style={{ color: "oklch(0.55 0.12 200)" }} />
+        <div className="filt-bar" style={{ borderColor: "oklch(0.55 0.18 260 / 0.3)" }}>
+          <Package className="h-4 w-4" style={{ color: "oklch(0.55 0.18 260)" }} />
           <span className="text-[12px]">
             Filtrando por producto: <strong>{filteredProductName}</strong>
             {productFilteredPackIds && (
@@ -661,7 +661,7 @@ export default async function FlujoCajaPage({
       {filteredReturnCount > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
           {/* Ventas Devueltas — informational only, ML refunds everything */}
-          <div className="rounded-[9px] border border-border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ventas Devueltas</p>
               <span className="sw" style={{ background: "oklch(0.55 0.18 25)" }} />
@@ -793,12 +793,12 @@ export default async function FlujoCajaPage({
 
                     {/* Progress bar */}
                     <div>
-                      <div className="h-[5px] w-full rounded-full overflow-hidden" style={{ background: "oklch(0.58 0.10 155 / 0.12)" }}>
+                      <div className="h-[5px] w-full rounded-full overflow-hidden" style={{ background: "oklch(0.60 0.16 155 / 0.12)" }}>
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
                             width: `${Math.max(0, 100 - feeRatio)}%`,
-                            background: "oklch(0.58 0.10 155)",
+                            background: "oklch(0.60 0.16 155)",
                           }}
                         />
                       </div>
@@ -815,7 +815,7 @@ export default async function FlujoCajaPage({
       )}
 
       {/* Transaction Table */}
-      <div className="rounded-[9px] border border-border bg-card max-w-full">
+      <div className="rounded-xl border border-border bg-card max-w-full">
         {/* Table header */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
           <div className="flex items-center gap-2 text-[13px] font-semibold">

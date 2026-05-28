@@ -64,7 +64,7 @@ export default async function GastosPage({
           description="Los gastos operativos apareceran aqui cuando los registres."
         />
       ) : (
-        <div className="rounded-[9px] border border-border bg-card glass overflow-x-auto">
+        <div className="rounded-xl border border-border bg-card glass overflow-x-auto">
           <Table className="min-w-[700px]">
             <TableHeader>
               <TableRow className="bg-muted/50">

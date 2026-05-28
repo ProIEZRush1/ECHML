@@ -39,7 +39,7 @@ export function DineroRetirarCard({ serverAmount, totalWithdrawn }: { serverAmou
   const available = serverAmount - adsCost;
 
   return (
-    <div className="rounded-[9px] border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
         <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />

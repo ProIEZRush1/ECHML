@@ -123,17 +123,17 @@ export default async function VentasPage({
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Total Ventas</p>
           <p className="text-2xl font-bold mt-1 num">{totalCount}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos Brutos</p>
           <p className="text-2xl font-bold mt-1 num truncate margin-good">
             {formatCurrency(revenue)}
           </p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Packs con Ventas</p>
           <p className="text-2xl font-bold mt-1 num">{allPacks.length}</p>
         </div>
@@ -179,7 +179,7 @@ export default async function VentasPage({
           description="Sincroniza con MP desde Flujo de Caja para ver las ventas aqui."
         />
       ) : (
-        <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
+        <div className="rounded-xl border border-border bg-card glass overflow-hidden">
           <div className="overflow-x-auto">
             <Table className="min-w-[540px]">
               <TableHeader>

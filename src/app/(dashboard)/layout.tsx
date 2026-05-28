@@ -23,7 +23,7 @@ export default async function DashboardLayout({
       <AppSidebar />
       <SidebarInset>
         <Header />
-        <div className="p-4 sm:p-6 min-w-0 glass-bg min-h-screen">{children}</div>
+        <div className="p-5 sm:p-8 min-w-0 glass-bg min-h-screen">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );

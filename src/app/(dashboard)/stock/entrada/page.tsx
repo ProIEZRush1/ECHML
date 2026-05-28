@@ -161,7 +161,7 @@ export default function StockEntryPage() {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         {/* General Info Card */}
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
             <h2 className="text-[13px] font-semibold">Informacion General</h2>
           </div>
@@ -213,7 +213,7 @@ export default function StockEntryPage() {
         </div>
 
         {/* Items Card */}
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h2 className="text-[13px] font-semibold">Articulos</h2>
             <Button type="button" variant="outline" size="sm" onClick={addRow} className="h-7 text-xs gap-1">

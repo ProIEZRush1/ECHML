@@ -155,7 +155,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
     <div className="grid gap-6 xl:grid-cols-2">
       {/* Form */}
       <div className="space-y-5 min-w-0">
-        <div className="rounded-[9px] border border-border bg-card p-5 space-y-4">
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h3 className="text-[13px] font-semibold">Datos del Gasto</h3>
 
           <div className="space-y-1.5">
@@ -230,7 +230,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
           )}
         </div>
 
-        <div className="rounded-[9px] border border-border bg-card p-5 space-y-4">
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <h3 className="text-[13px] font-semibold">Asignar a (opcional)</h3>
 
           <div className="grid grid-cols-2 gap-3">
@@ -297,7 +297,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
 
       {/* Sales Picker */}
       <div className="space-y-3 min-w-0">
-        <div className="rounded-[9px] border border-border bg-card p-4 space-y-3">
+        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-[13px] font-semibold">
               Asignar a Ventas
@@ -362,7 +362,7 @@ export function NuevoGastoForm({ suppliers, products, packs, groups, sales, acco
         </div>
 
         {/* Sales List */}
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="max-h-[calc(100vh-280px)] overflow-y-auto divide-y">
             {filteredSales.length === 0 ? (
               <p className="text-center text-muted-foreground text-sm py-8">No hay ventas que coincidan</p>

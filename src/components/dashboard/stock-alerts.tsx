@@ -15,7 +15,7 @@ interface StockAlertsProps {
 export function StockAlerts({ alerts }: StockAlertsProps) {
   if (alerts.length === 0) {
     return (
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
           <h3 className="text-[12.5px] font-semibold">Alertas de stock</h3>
         </div>
@@ -27,7 +27,7 @@ export function StockAlerts({ alerts }: StockAlertsProps) {
   }
 
   return (
-    <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+    <div className="rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
         <h3 className="text-[12.5px] font-semibold">Alertas de stock</h3>
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[oklch(0.72_0.14_78/0.16)] text-[oklch(0.48_0.13_70)]">

@@ -57,7 +57,7 @@ export function ContabilidadAds({ dateFrom, dateTo, productToGroupMap, groups }:
   if (totalAds === 0) return null;
 
   return (
-    <div className="rounded-[9px] border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-4">
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium mb-3">Publicidad por Grupo</p>
       <div className="space-y-1.5">
         {groups.map((g) => {

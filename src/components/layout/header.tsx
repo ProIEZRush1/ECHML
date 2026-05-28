@@ -35,7 +35,7 @@ export function Header() {
   const crumb = matchedPath ? breadcrumbMap[matchedPath] : { page: "Pagina" };
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background/95 px-4 sm:px-7 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/50 bg-background/80 px-4 sm:px-7 backdrop-blur-xl supports-[backdrop-filter]:bg-background/50 sticky top-0 z-10">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-1 h-4!" />
 

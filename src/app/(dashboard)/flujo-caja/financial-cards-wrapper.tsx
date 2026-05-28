@@ -94,10 +94,10 @@ export function FinancialCardsWrapper({
     <>
       {/* Ingresos */}
       {loading ? null : (
-        <div className="rounded-[9px] border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
+        <div className="rounded-xl border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
-            <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
+            <span className="sw" style={{ background: "oklch(0.60 0.16 155)" }} />
           </div>
           <p className="text-xl font-bold num margin-good truncate">{fmt(totalIncome)}</p>
           <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
@@ -106,10 +106,10 @@ export function FinancialCardsWrapper({
 
       {/* Costos y Deducciones */}
       {loading ? null : (
-        <div className="rounded-[9px] border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
+        <div className="rounded-xl border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
-            <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
+            <span className="sw" style={{ background: "oklch(0.55 0.22 25)" }} />
           </div>
           <p className="text-xl font-bold num margin-bad truncate">-{fmt(totalDeducciones + (adsCost || 0))}</p>
           <div className="mt-1.5 space-y-0.5">
@@ -139,10 +139,10 @@ export function FinancialCardsWrapper({
       )}
 
       {/* Utilidad Neta */}
-      <div className="rounded-[9px] border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
+      <div className="rounded-xl border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Utilidad Neta</p>
-          <span className="sw" style={{ background: "oklch(0.55 0.14 250)" }} />
+          <span className="sw" style={{ background: "oklch(0.55 0.18 260)" }} />
         </div>
         {loading ? (
           <div className="flex items-center gap-2 h-7"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>
@@ -167,10 +167,10 @@ export function FinancialCardsWrapper({
 
       {/* Dinero a Retirar + Per-Account Breakdown */}
       {showWithdraw && (
-        <div className="rounded-[9px] border border-border bg-card glass p-4 overflow-hidden transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
+        <div className="rounded-xl border border-border bg-card glass p-4 overflow-hidden transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
-            <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />
+            <span className="sw" style={{ background: "oklch(0.55 0.18 260)" }} />
           </div>
           {loading ? (
             <div className="flex items-center gap-2 h-7"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>

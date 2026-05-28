@@ -136,19 +136,19 @@ export default async function PublicacionesPage({
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Total</p>
           <p className="text-2xl font-bold mt-1 num">{totalListings}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Activas</p>
           <p className="text-2xl font-bold mt-1 num margin-good">{activeCount}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Pausadas</p>
           <p className="text-2xl font-bold mt-1 num margin-warn">{pausedCount}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Cerradas</p>
           <p className="text-2xl font-bold mt-1 num margin-bad">{closedCount}</p>
         </div>
@@ -172,7 +172,7 @@ export default async function PublicacionesPage({
       </div>
 
       {/* Table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[800px]">
             <TableHeader>

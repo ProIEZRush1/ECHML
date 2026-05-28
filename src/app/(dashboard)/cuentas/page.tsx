@@ -167,7 +167,7 @@ export default async function CuentasPage({
               const totalEntradas = retirosRecibido + tIn + mlEntry;
 
               return (
-                <div key={account.id} className="rounded-[9px] border border-border bg-card glass overflow-hidden">
+                <div key={account.id} className="rounded-xl border border-border bg-card glass overflow-hidden">
                   <div className="px-4 py-3 border-b border-border flex items-center gap-2">
                     <span className="h-3.5 w-3.5 rounded-full" style={{ background: account.color }} />
                     <p className="text-[14px] font-semibold flex-1">{account.name}</p>
@@ -241,7 +241,7 @@ export default async function CuentasPage({
 
           {/* All Movements Table */}
           {movements.length > 0 && (
-            <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
+            <div className="rounded-xl border border-border bg-card glass overflow-hidden">
               <div className="px-4 py-3 border-b border-border flex items-center justify-between">
                 <p className="text-[13px] font-semibold">Todos los Movimientos</p>
                 <p className="text-[11px] text-muted-foreground">

@@ -45,7 +45,7 @@ export default async function StockHistoryPage() {
         description="Registro de todos los movimientos de inventario"
       />
 
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-xl border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/40">

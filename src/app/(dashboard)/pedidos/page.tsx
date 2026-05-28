@@ -148,19 +148,19 @@ export default async function PedidosPage({
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Total Pedidos</p>
           <p className="text-2xl font-bold mt-1 num">{totalOrders}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Entregados</p>
           <p className="text-2xl font-bold mt-1 num margin-good">{deliveredCount}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">En Camino</p>
           <p className="text-2xl font-bold mt-1 num margin-warn">{shippedCount}</p>
         </div>
-        <div className="rounded-[9px] border border-border bg-card glass p-4">
+        <div className="rounded-xl border border-border bg-card glass p-4">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Devoluciones</p>
           <p className="text-2xl font-bold mt-1 num margin-bad">{returnedCount + notDeliveredCount}</p>
         </div>
@@ -187,7 +187,7 @@ export default async function PedidosPage({
         const fullCount = orders.filter((o) => o.logisticType === "fulfillment").length;
         const flexCount = orders.filter((o) => o.logisticType !== "fulfillment").length;
         return (
-          <div className="rounded-[9px] border border-red-200 dark:border-red-900/30 bg-card glass p-4 space-y-3">
+          <div className="rounded-xl border border-red-200 dark:border-red-900/30 bg-card glass p-4 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Resumen Devoluciones</p>
@@ -287,7 +287,7 @@ export default async function PedidosPage({
       {orders.length === 0 ? (
         <EmptyState icon={Truck} title="Sin pedidos" description="Sincroniza ordenes desde Flujo de Caja y luego actualiza estados aqui." />
       ) : (
-        <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
+        <div className="rounded-xl border border-border bg-card glass overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
