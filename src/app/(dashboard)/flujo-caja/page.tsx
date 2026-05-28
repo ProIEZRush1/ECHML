@@ -21,6 +21,7 @@ import { FlexCostEditor } from "./flex-cost-editor";
 import { CashflowFilters } from "./cashflow-filters";
 import { AdsCostCard } from "./ads-cost-card";
 import { FinancialCardsWrapper } from "./financial-cards-wrapper";
+import { RefundButton } from "./refund-button";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -710,31 +711,7 @@ export default async function FlujoCajaPage({
                   </span>
                   <span className="ml-2 text-muted-foreground">(-{formatCurrency(Number(pr.unitPrice) * pr.partialRefundQty)})</span>
                 </div>
-                <form action={`/api/orders/process-partial-refund`} method="POST">
-                  <button
-                    type="button"
-                    className="text-[11px] font-medium px-2 py-1 rounded-md bg-amber-600 text-white hover:bg-amber-700"
-                    onClick={async (e) => {
-                      const btn = e.currentTarget;
-                      btn.disabled = true;
-                      btn.textContent = "...";
-                      const res = await fetch("/api/orders/process-partial-refund", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ orderId: pr.id }),
-                      });
-                      if (res.ok) {
-                        btn.textContent = "Hecho";
-                        btn.className = "text-[11px] font-medium px-2 py-1 rounded-md bg-green-600 text-white";
-                      } else {
-                        btn.textContent = "Error";
-                        btn.disabled = false;
-                      }
-                    }}
-                  >
-                    Ajustar stock
-                  </button>
-                </form>
+                <RefundButton orderId={pr.id} />
               </div>
             ))}
           </div>
