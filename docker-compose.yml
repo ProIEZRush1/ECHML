@@ -1,7 +1,8 @@
 services:
   app:
-    image: ghcr.io/proiezrush1/echml:latest
-    pull_policy: always
+    build:
+      context: .
+      dockerfile: Dockerfile
     environment:
       - DATABASE_URL=postgresql://echml:${DB_PASSWORD:-echml_password}@db:5432/echml?schema=public
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production-32chars-min}
