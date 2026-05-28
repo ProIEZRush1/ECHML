@@ -36,6 +36,7 @@ import {
   Upload,
   Trash2,
   Eye,
+  Pencil,
   Building2,
   Loader2,
 } from "lucide-react";
@@ -97,6 +98,7 @@ export function FacturasClient({
   const searchParams = useSearchParams();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -120,7 +122,24 @@ export function FacturasClient({
 
   function resetForm() {
     setForm(EMPTY_FORM);
+    setEditingId(null);
     setExtractedData(null);
+  }
+
+  function handleEdit(factura: Factura) {
+    setForm({
+      folio: factura.folio || "",
+      rfcEmisor: factura.rfcEmisor || "",
+      rfcReceptor: factura.rfcReceptor || "",
+      fechaEmision: factura.fechaEmision ? factura.fechaEmision.split("T")[0] : "",
+      subtotal: factura.subtotal != null ? String(factura.subtotal) : "",
+      iva: factura.iva != null ? String(factura.iva) : "",
+      total: String(factura.total),
+      productGroupId: factura.productGroupId || "",
+      notes: factura.notes || "",
+    });
+    setEditingId(factura.id);
+    setDialogOpen(true);
   }
 
   async function handleSave() {
@@ -144,8 +163,11 @@ export function FacturasClient({
         notes: form.notes || undefined,
       };
 
-      const res = await fetch("/api/facturas", {
-        method: "POST",
+      const url = editingId ? `/api/facturas/${editingId}` : "/api/facturas";
+      const method = editingId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -156,7 +178,7 @@ export function FacturasClient({
         return;
       }
 
-      toast.success("Factura registrada");
+      toast.success(editingId ? "Factura actualizada" : "Factura registrada");
       setDialogOpen(false);
       resetForm();
       router.refresh();
@@ -370,6 +392,14 @@ export function FacturasClient({
                         <Button
                           variant="ghost"
                           size="icon-sm"
+                          onClick={() => handleEdit(factura)}
+                          title="Editar"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
                           onClick={() => setViewTarget(factura)}
                           title="Ver detalle"
                         >
@@ -403,7 +433,7 @@ export function FacturasClient({
       >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nueva Factura</DialogTitle>
+            <DialogTitle>{editingId ? "Editar Factura" : "Nueva Factura"}</DialogTitle>
           </DialogHeader>
 
           <Tabs defaultValue={0}>
@@ -432,7 +462,7 @@ export function FacturasClient({
                   disabled={saving || !form.total}
                 >
                   {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                  Guardar Factura
+                  {editingId ? "Actualizar Factura" : "Guardar Factura"}
                 </Button>
               </div>
             </TabsContent>
