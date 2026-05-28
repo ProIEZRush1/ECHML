@@ -28,6 +28,7 @@ export default async function GruposPage() {
     id: g.id,
     name: g.name,
     color: g.color,
+    facturaSobreMercancia: g.facturaSobreMercancia,
     createdAt: g.createdAt.toISOString(),
     products: g.items.map((i) => i.product),
   }));

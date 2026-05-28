@@ -44,6 +44,7 @@ export async function GET(
     id: group.id,
     name: group.name,
     color: group.color,
+    facturaSobreMercancia: group.facturaSobreMercancia,
     createdAt: group.createdAt,
     products: group.items.map((i) => i.product),
   });
@@ -107,6 +108,7 @@ export async function PUT(
       id: group.id,
       name: group.name,
       color: group.color,
+      facturaSobreMercancia: group.facturaSobreMercancia,
       productCount: group.items.length,
       products: group.items.map((i) => i.product),
     });

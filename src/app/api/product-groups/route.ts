@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     id: g.id,
     name: g.name,
     color: g.color,
+    facturaSobreMercancia: g.facturaSobreMercancia,
     createdAt: g.createdAt,
     productCount: g.items.length,
     products: g.items.map((i) => i.product),

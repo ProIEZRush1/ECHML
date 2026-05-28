@@ -269,14 +269,37 @@ export default async function FlujoCajaPage({
     }),
   ]);
 
-  const [accounts, flexPayments] = await Promise.all([
+  const [accounts, flexPayments, facturas, activeGroups] = await Promise.all([
     prisma.account.findMany({ select: { id: true, name: true, color: true }, orderBy: { name: "asc" } }),
     prisma.expense.aggregate({
       where: { type: "registro", category: "envios" },
       _sum: { amount: true },
     }),
+    prisma.factura.findMany({
+      where: {
+        status: { not: "cancelada" },
+        ...(filteredGroupIds.length > 0
+          ? { productGroupId: { in: filteredGroupIds } }
+          : {}),
+        ...(params.dateFrom || params.dateTo ? {
+          fechaEmision: {
+            ...(params.dateFrom ? { gte: new Date(`${params.dateFrom}T00:00:00.000Z`) } : {}),
+            ...(params.dateTo ? { lte: new Date(`${params.dateTo}T23:59:59.999Z`) } : {}),
+          },
+        } : {}),
+      },
+      select: { total: true, productGroupId: true },
+    }),
+    filteredGroupIds.length > 0
+      ? prisma.productGroup.findMany({
+          where: { id: { in: filteredGroupIds } },
+          select: { id: true, facturaSobreMercancia: true },
+        })
+      : Promise.resolve([]),
   ]);
   const totalFlexPaid = Number(flexPayments._sum?.amount || 0);
+  const totalFacturasEmitidas = facturas.reduce((s, f) => s + Number(f.total), 0);
+  const hasFacturaSobreMercancia = activeGroups.some((g) => g.facturaSobreMercancia);
 
   // Fetch ads cost server-side using the DB snapshot (or ML API fallback)
   let serverAdsCost = 0;
@@ -470,7 +493,9 @@ export default async function FlujoCajaPage({
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
   const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastosOp - totalFlexNet - totalReturnShipCost;
   const totalWithdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
-  const totalFacturaCost = withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
+  const totalFacturaCost = hasFacturaSobreMercancia
+    ? Math.max(0, (totalIncome - totalFees - totalShipping - totalImpuestos - totalGastosOp - totalFlexNet - totalReturnShipCost - totalFacturasEmitidas)) * 0.03
+    : withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
   const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
 
   // Calculate balance per pack -- apply same pack filter as KPI cards
@@ -660,6 +685,8 @@ export default async function FlujoCajaPage({
               gastosByAccount={gastosByAccount}
               accounts={accounts}
               showWithdraw={true}
+              totalFacturasEmitidas={totalFacturasEmitidas}
+              hasFacturaSobreMercancia={hasFacturaSobreMercancia}
             />
           </div>
         );

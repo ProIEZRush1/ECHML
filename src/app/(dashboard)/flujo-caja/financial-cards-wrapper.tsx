@@ -42,12 +42,15 @@ interface Props {
   gastosByAccount: Record<string, number>;
   accounts: AccountInfo[];
   showWithdraw: boolean;
+  totalFacturasEmitidas?: number;
+  hasFacturaSobreMercancia?: boolean;
 }
 
 export function FinancialCardsWrapper({
   totalIncome, salesCount, totalUnits, totalDeducciones, deductionItems,
   serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, totalCompras, gastosByAccount, accounts, showWithdraw,
+  totalFacturasEmitidas = 0, hasFacturaSobreMercancia = false,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -142,16 +145,26 @@ export function FinancialCardsWrapper({
         <p className={`text-3xl font-bold num tracking-tight pl-3 ${totalNet! >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(totalNet!)}</p>
         <p className="text-[12px] text-muted-foreground mt-2 pl-3">Incluye todos los costos</p>
         {adsCost !== null && adsCost > 0 && <p className="text-[11px] text-pink-500 mt-1 pl-3">Ads: {fmt(adsCost)}</p>}
-        {netAfterFactura !== null && (
+        {(netAfterFactura !== null || (hasFacturaSobreMercancia && totalFacturasEmitidas > 0)) && (
           <div className="mt-3 pt-3 border-t border-border/50 pl-3 space-y-1">
-            <div className="flex items-center justify-between text-[12px]">
-              <span className="text-muted-foreground">Factura (3%)</span>
-              <span className="num font-medium margin-bad">-{fmt(totalFacturaCost)}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px] font-bold">
-              <span className="text-muted-foreground">Despues de factura</span>
-              <span className={`num ${netAfterFactura >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(netAfterFactura)}</span>
-            </div>
+            {hasFacturaSobreMercancia && totalFacturasEmitidas > 0 && (
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="text-muted-foreground">Facturas emitidas</span>
+                <span className="num font-medium text-blue-500">{fmt(totalFacturasEmitidas)}</span>
+              </div>
+            )}
+            {totalFacturaCost > 0 && (
+              <div className="flex items-center justify-between text-[12px]">
+                <span className="text-muted-foreground">Factura (3%){hasFacturaSobreMercancia ? " s/mercancia" : ""}</span>
+                <span className="num font-medium margin-bad">-{fmt(totalFacturaCost)}</span>
+              </div>
+            )}
+            {netAfterFactura !== null && (
+              <div className="flex items-center justify-between text-[13px] font-bold">
+                <span className="text-muted-foreground">Despues de factura</span>
+                <span className={`num ${netAfterFactura >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(netAfterFactura)}</span>
+              </div>
+            )}
           </div>
         )}
       </div>

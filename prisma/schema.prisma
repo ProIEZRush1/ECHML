@@ -424,6 +424,31 @@ model ProductGroup {
   items       ProductGroupItem[]
   expenses    Expense[]
   withdrawals Withdrawal[]
+  facturas    Factura[]
+}
+
+model Factura {
+  id              String    @id @default(cuid())
+  folio           String?
+  rfcEmisor       String?
+  rfcReceptor     String?
+  fechaEmision    DateTime?
+  subtotal        Decimal?  @db.Decimal(10, 2)
+  iva             Decimal?  @db.Decimal(10, 2)
+  total           Decimal   @db.Decimal(10, 2)
+  conceptos       String?
+  pdfData         String?
+  status          String    @default("pendiente")
+  productGroupId  String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  productGroup ProductGroup? @relation(fields: [productGroupId], references: [id])
+
+  @@index([productGroupId])
+  @@index([fechaEmision])
+  @@index([status])
 }
 
 model ProductGroupItem {

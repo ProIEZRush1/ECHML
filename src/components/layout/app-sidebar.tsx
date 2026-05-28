@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Key,
   Sparkles,
+  FileText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -78,6 +79,7 @@ const navItems = [
       { title: "Rentabilidad", href: "/rentabilidad", icon: BarChart3 },
       { title: "Gastos", href: "/gastos", icon: Receipt },
       { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
+      { title: "Facturas", href: "/facturas", icon: FileText },
       { title: "Cuentas", href: "/cuentas", icon: Landmark },
       { title: "Contabilidad", href: "/contabilidad", icon: BookOpen },
     ],

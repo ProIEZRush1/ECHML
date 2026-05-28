@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, Loader2, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Sparkles, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { GroupFormDialog } from "./group-form-dialog";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -20,6 +20,7 @@ interface GroupData {
   id: string;
   name: string;
   color: string;
+  facturaSobreMercancia: boolean;
   createdAt: string;
   products: ProductInfo[];
 }
@@ -159,6 +160,30 @@ export function GroupList({ groups }: GroupListProps) {
                       +{group.products.length - 6} mas
                     </Badge>
                   )}
+                </div>
+                <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                  <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+                    <FileText className="h-3 w-3" />
+                    Factura sobre mercancia
+                  </label>
+                  <button
+                    onClick={async () => {
+                      const newVal = !group.facturaSobreMercancia;
+                      try {
+                        const res = await fetch(`/api/product-groups/${group.id}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ facturaSobreMercancia: newVal }),
+                        });
+                        if (!res.ok) { toast.error("Error al actualizar"); return; }
+                        toast.success(`Factura sobre mercancia ${newVal ? "activada" : "desactivada"}`);
+                        router.refresh();
+                      } catch { toast.error("Error de conexion"); }
+                    }}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${group.facturaSobreMercancia ? "bg-emerald-500" : "bg-muted"}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${group.facturaSobreMercancia ? "translate-x-4" : "translate-x-0.5"}`} />
+                  </button>
                 </div>
               </CardContent>
             </Card>
