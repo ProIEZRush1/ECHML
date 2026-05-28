@@ -11,7 +11,13 @@ assets
 generated-images
 scripts/add-xl-variants.ts
 scripts/raise-prices-xl.js
+scripts/delete-timis*.js
+scripts/link-xl-packs.js
 .claude
 .mcp.json
 .playwright-mcp
 *.output
+*.jsonl
+*.mp4
+Thumbs.db
+docs
