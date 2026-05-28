@@ -540,7 +540,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
           {sections.map((section) => {
             if (section.orders.length === 0) return null;
             return (
-              <div key={section.status} className="space-y-3 mb-6">
+              <div key={section.title} className="space-y-3 mb-6">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: section.color }} />
                   <h2 className="text-[14px] font-semibold">{section.title} ({section.orders.length})</h2>
