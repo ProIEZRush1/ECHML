@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 const updateGroupSchema = z.object({
   name: z.string().min(1, "El nombre es obligatorio").optional(),
   color: z.string().optional(),
+  facturaSobreMercancia: z.boolean().optional(),
   productIds: z.array(z.string()).min(1, "Debe incluir al menos un producto").optional(),
 });
 
@@ -70,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const { name, color, productIds } = result.data;
+    const { name, color, facturaSobreMercancia, productIds } = result.data;
 
     const existing = await prisma.productGroup.findUnique({ where: { id } });
     if (!existing) {
@@ -90,6 +91,7 @@ export async function PUT(
         data: {
           ...(name !== undefined && { name }),
           ...(color !== undefined && { color }),
+          ...(facturaSobreMercancia !== undefined && { facturaSobreMercancia }),
         },
         include: {
           items: {
