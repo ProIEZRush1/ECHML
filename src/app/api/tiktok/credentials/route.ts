@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifySession } from "@/lib/auth";
+import { verifyAnyAuth } from "@/lib/api-auth";
 import { buildTikTokAuthURL } from "@/lib/tiktok/client";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const session = await verifySession();
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -59,8 +59,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 }
 
-export async function GET(): Promise<NextResponse> {
-  const session = await verifySession();
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
@@ -94,8 +94,8 @@ export async function GET(): Promise<NextResponse> {
   }
 }
 
-export async function DELETE(): Promise<NextResponse> {
-  const session = await verifySession();
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  const session = await verifyAnyAuth(request);
   if (!session) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
