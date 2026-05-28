@@ -1,10 +1,11 @@
+# syntax=docker/dockerfile:1
 FROM node:20-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM base AS builder
 RUN apk add --no-cache libc6-compat
@@ -12,14 +13,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 FROM base AS runner
 RUN apk add --no-cache libc6-compat
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
@@ -32,8 +33,8 @@ COPY --from=builder /app/node_modules/jose ./node_modules/jose
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
 
-RUN chmod +x ./scripts/docker-entrypoint.sh
-RUN chown -R nextjs:nodejs /app
+RUN chmod +x ./scripts/docker-entrypoint.sh && \
+    chown -R nextjs:nodejs /app
 USER nextjs
 
 EXPOSE 3000
