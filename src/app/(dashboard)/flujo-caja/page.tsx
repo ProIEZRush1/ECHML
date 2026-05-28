@@ -619,7 +619,7 @@ export default async function FlujoCajaPage({
         ].filter((d) => d.value !== 0);
 
         return (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0 [&>*]:overflow-hidden">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
             <FinancialCardsWrapper
               totalIncome={totalIncome}
               salesCount={salesCount}
