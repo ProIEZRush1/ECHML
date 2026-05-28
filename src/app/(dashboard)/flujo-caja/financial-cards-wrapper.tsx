@@ -92,72 +92,63 @@ export function FinancialCardsWrapper({
 
   return (
     <>
-      {/* Ingresos */}
-      {loading ? null : (
-        <div className="rounded-xl border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
-            <span className="sw" style={{ background: "oklch(0.60 0.16 155)" }} />
-          </div>
-          <p className="text-xl font-bold num margin-good truncate">{fmt(totalIncome)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
-        </div>
-      )}
+      {/* Ingresos — Hero card with left accent */}
+      <div className="rounded-xl border border-border bg-card glass p-5 transition-all duration-300 hover:shadow-lg hover:shadow-accent/5 relative overflow-hidden group">
+        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-emerald-400 to-emerald-600" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 pl-3">Ingresos</p>
+        <p className="text-3xl font-bold num margin-good tracking-tight pl-3">{fmt(totalIncome)}</p>
+        <p className="text-[12px] text-muted-foreground mt-2 pl-3">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
+      </div>
 
-      {/* Costos y Deducciones */}
-      {loading ? null : (
-        <div className="rounded-xl border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
-            <span className="sw" style={{ background: "oklch(0.55 0.22 25)" }} />
-          </div>
-          <p className="text-xl font-bold num margin-bad truncate">-{fmt(totalDeducciones + (adsCost || 0))}</p>
-          <div className="mt-1.5 space-y-0.5">
-            {deductionItems.map((d) => (
-              <div key={d.label} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>{d.label}</span>
-                {d.value < 0 ? (
-                  <span className="num text-green-600 dark:text-green-400">+{fmt(Math.abs(d.value))}</span>
-                ) : (
-                  <span className="num">-{fmt(d.value)}</span>
-                )}
-              </div>
-            ))}
-            {adsCost !== null && adsCost > 0 && (
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Publicidad</span>
-                <span className="num">-{fmt(adsCost)}</span>
-              </div>
-            )}
-          </div>
-          {totalIncome > 0 && (
-            <p className="text-[10.5px] text-muted-foreground mt-1.5 pt-1.5 border-t border-border">
-              {(((totalDeducciones + (adsCost || 0)) / totalIncome) * 100).toFixed(1)}% de ingresos
-            </p>
+      {/* Costos y Deducciones — Expandable breakdown */}
+      <div className="rounded-xl border border-border bg-card glass p-5 transition-all duration-300 hover:shadow-lg hover:shadow-accent/5 relative overflow-hidden">
+        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-rose-400 to-rose-600" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 pl-3">Costos y Deducciones</p>
+        <p className="text-3xl font-bold num margin-bad tracking-tight pl-3">-{fmt(totalDeducciones + (adsCost || 0))}</p>
+        <div className="mt-4 pl-3 space-y-1.5">
+          {deductionItems.map((d) => (
+            <div key={d.label} className="flex items-center justify-between text-[12px]">
+              <span className="text-muted-foreground">{d.label}</span>
+              {d.value < 0 ? (
+                <span className="num font-medium text-emerald-500">+{fmt(Math.abs(d.value))}</span>
+              ) : (
+                <span className="num font-medium text-muted-foreground">-{fmt(d.value)}</span>
+              )}
+            </div>
+          ))}
+          {adsCost !== null && adsCost > 0 && (
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="text-muted-foreground">Publicidad</span>
+              <span className="num font-medium text-muted-foreground">-{fmt(adsCost)}</span>
+            </div>
           )}
         </div>
-      )}
-
-      {/* Utilidad Neta */}
-      <div className="rounded-xl border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Utilidad Neta</p>
-          <span className="sw" style={{ background: "oklch(0.55 0.18 260)" }} />
-        </div>
-        {loading ? (
-          <div className="flex items-center gap-2 h-7"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>
-        ) : (
-          <p className={`text-xl font-bold num truncate ${totalNet! >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(totalNet!)}</p>
-        )}
-        <p className="text-[11px] text-muted-foreground mt-1">Todo: comisiones, envios, impuestos, costo, gastos, ads, flex</p>
-        {adsCost !== null && adsCost > 0 && <p className="text-[11px] text-pink-600 dark:text-pink-400 mt-0.5">Incluye {fmt(adsCost)} en publicidad</p>}
-        {netAfterFactura !== null && (
-          <div className="mt-2 pt-2 border-t border-border">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground">Factura (3% de retiros)</span>
-              <span className="num margin-bad">-{fmt(totalFacturaCost)}</span>
+        {totalIncome > 0 && (
+          <div className="mt-3 pt-3 border-t border-border/50 pl-3">
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-rose-400 to-rose-600" style={{ width: `${Math.min(((totalDeducciones + (adsCost || 0)) / totalIncome) * 100, 100)}%` }} />
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground">{(((totalDeducciones + (adsCost || 0)) / totalIncome) * 100).toFixed(0)}%</span>
             </div>
-            <div className="flex items-center justify-between text-[12px] font-semibold mt-1">
+          </div>
+        )}
+      </div>
+
+      {/* Utilidad Neta — Highlighted card */}
+      <div className={`rounded-xl border bg-card glass p-5 transition-all duration-300 hover:shadow-lg relative overflow-hidden ${totalNet! >= 0 ? "border-emerald-500/20 hover:shadow-emerald-500/5" : "border-rose-500/20 hover:shadow-rose-500/5"}`}>
+        <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${totalNet! >= 0 ? "bg-gradient-to-b from-emerald-400 to-blue-500" : "bg-gradient-to-b from-rose-400 to-orange-500"}`} />
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 pl-3">Utilidad Neta</p>
+        <p className={`text-3xl font-bold num tracking-tight pl-3 ${totalNet! >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(totalNet!)}</p>
+        <p className="text-[12px] text-muted-foreground mt-2 pl-3">Incluye todos los costos</p>
+        {adsCost !== null && adsCost > 0 && <p className="text-[11px] text-pink-500 mt-1 pl-3">Ads: {fmt(adsCost)}</p>}
+        {netAfterFactura !== null && (
+          <div className="mt-3 pt-3 border-t border-border/50 pl-3 space-y-1">
+            <div className="flex items-center justify-between text-[12px]">
+              <span className="text-muted-foreground">Factura (3%)</span>
+              <span className="num font-medium margin-bad">-{fmt(totalFacturaCost)}</span>
+            </div>
+            <div className="flex items-center justify-between text-[13px] font-bold">
               <span className="text-muted-foreground">Despues de factura</span>
               <span className={`num ${netAfterFactura >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(netAfterFactura)}</span>
             </div>
@@ -167,17 +158,18 @@ export function FinancialCardsWrapper({
 
       {/* Dinero a Retirar + Per-Account Breakdown */}
       {showWithdraw && (
-        <div className="rounded-xl border border-border bg-card glass p-4 overflow-hidden transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
+        <div className="rounded-xl border border-border bg-card glass p-5 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-accent/5 relative">
+          <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-blue-400 to-indigo-600" />
+          <div className="flex items-center justify-between mb-3 pl-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Dinero a Retirar</p>
             <span className="sw" style={{ background: "oklch(0.55 0.18 260)" }} />
           </div>
           {loading ? (
             <div className="flex items-center gap-2 h-7"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>
           ) : (
-            <p className={`text-xl font-bold num truncate ${available! >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(available!)}</p>
+            <p className={`text-3xl font-bold num tracking-tight pl-3 ${available! >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(available!)}</p>
           )}
-          <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+          <div className="text-[12px] text-muted-foreground mt-3 pl-3 space-y-1">
             {adsCost !== null && adsCost > 0 && <p>Ads: -{fmt(adsCost)}</p>}
             {totalGastos > 0 && <p>Gastos: -{fmt(totalGastos)}</p>}
             {totalCompras > 0 && <p>Compra productos: -{fmt(totalCompras)}</p>}
