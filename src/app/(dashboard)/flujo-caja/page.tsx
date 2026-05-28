@@ -98,14 +98,12 @@ export default async function FlujoCajaPage({
   const currentPage = Math.max(1, parseInt(params.page || "1", 10));
   const pageSize = 50;
 
-  // Sync MP transactions + order statuses server-side BEFORE querying
-  // This ensures the page always shows the latest data, consistently
+  // Sync MP transactions server-side BEFORE querying (fast, just fetches new txns)
+  // Order status sync is NOT done here — it's too slow (individual ML API calls per order)
+  // and should only run from the sync button
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    await Promise.all([
-      fetch(`${baseUrl}/api/mp/sync`, { method: "POST", cache: "no-store" }).catch(() => null),
-      fetch(`${baseUrl}/api/orders/sync-status`, { method: "POST", cache: "no-store" }).catch(() => null),
-    ]);
+    await fetch(`${baseUrl}/api/mp/sync`, { method: "POST", cache: "no-store" }).catch(() => null);
   } catch { /* sync errors shouldn't block the page */ }
 
   // Query unprocessed partial refunds for display

@@ -13,6 +13,8 @@ export function MPSyncButton() {
     setResult(null);
 
     try {
+      // Also trigger order status sync in background (partial refunds, shipping updates)
+      fetch("/api/orders/sync-status", { method: "POST" }).catch(() => {});
       const res = await fetch("/api/mp/sync", { method: "POST" });
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {

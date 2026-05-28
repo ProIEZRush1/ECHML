@@ -41,45 +41,42 @@ export async function POST() {
   for (const order of orders) {
     let shipmentId = order.shipmentId;
 
-    // If no shipmentId, try to get it from the order
-    if (!shipmentId) {
+    // Fetch ML order data once — used for shipmentId + partial refund check
+    let mlOrderData: {
+      shipping?: { id: number };
+      status?: string;
+      order_items?: Array<{ unit_price: number }>;
+      payments?: Array<{ transaction_amount_refunded: number }>;
+    } | null = null;
+
+    if (!shipmentId || order.partialRefundQty === 0) {
       try {
-        const mlOrder = await mlFetch<{ shipping?: { id: number } }>(`/orders/${order.mlOrderId}`);
-        if (mlOrder.shipping?.id) {
-          shipmentId = BigInt(mlOrder.shipping.id);
-          await prisma.mLOrder.update({
-            where: { id: order.id },
-            data: { shipmentId },
-          });
-          shipmentsFetched++;
-        }
+        mlOrderData = await mlFetch(`/orders/${order.mlOrderId}`);
       } catch {
         continue;
       }
     }
 
-    // Check for partial refunds on this order (regardless of shipmentId)
-    if (order.partialRefundQty === 0) {
-      try {
-        const mlOrd = await mlFetch<{
-          status?: string;
-          order_items?: Array<{ unit_price: number }>;
-          payments?: Array<{ transaction_amount_refunded: number }>;
-        }>(`/orders/${order.mlOrderId}`);
+    if (!shipmentId && mlOrderData?.shipping?.id) {
+      shipmentId = BigInt(mlOrderData.shipping.id);
+      await prisma.mLOrder.update({
+        where: { id: order.id },
+        data: { shipmentId },
+      });
+      shipmentsFetched++;
+    }
 
-        if (mlOrd.status === "partially_refunded") {
-          const unitPrice = mlOrd.order_items?.[0]?.unit_price || 0;
-          const refunded = mlOrd.payments?.[0]?.transaction_amount_refunded || 0;
-          const refundedQty = unitPrice > 0 ? Math.round(refunded / unitPrice) : 0;
-          if (refundedQty > 0) {
-            await prisma.mLOrder.update({
-              where: { id: order.id },
-              data: { partialRefundQty: refundedQty, status: "partially_refunded" },
-            });
-            updated++;
-          }
-        }
-      } catch { /* skip */ }
+    if (order.partialRefundQty === 0 && mlOrderData?.status === "partially_refunded") {
+      const unitPrice = mlOrderData.order_items?.[0]?.unit_price || 0;
+      const refunded = mlOrderData.payments?.[0]?.transaction_amount_refunded || 0;
+      const refundedQty = unitPrice > 0 ? Math.round(refunded / unitPrice) : 0;
+      if (refundedQty > 0) {
+        await prisma.mLOrder.update({
+          where: { id: order.id },
+          data: { partialRefundQty: refundedQty, status: "partially_refunded" },
+        });
+        updated++;
+      }
     }
 
     if (!shipmentId) continue;
