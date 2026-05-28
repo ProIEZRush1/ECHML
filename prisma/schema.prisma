@@ -98,6 +98,24 @@ model MLCredential {
   @@index([tokenExpiresAt])
 }
 
+model TikTokCredential {
+  id              String   @id @default(cuid())
+  appKey          String
+  appSecret       String
+  accessToken     String   @default("")
+  refreshToken    String   @default("")
+  tokenExpiresAt  DateTime @default("1970-01-01T00:00:00Z")
+  shopId          String   @default("")
+  shopCipher      String   @default("")
+  shopName        String   @default("")
+  openId          String   @default("")
+  sellerRegion    String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tokenExpiresAt])
+}
+
 model Supplier {
   id        String   @id @default(cuid())
   name      String   @unique
