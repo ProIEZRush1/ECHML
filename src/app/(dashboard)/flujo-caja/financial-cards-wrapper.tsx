@@ -153,7 +153,7 @@ export function FinancialCardsWrapper({
                 <span className="num font-medium text-blue-500">{fmt(totalFacturasEmitidas)}</span>
               </div>
             )}
-            {hasFacturaSobreMercancia && totalFacturaCost > 0 && (
+            {totalFacturaCost > 0 && (
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-muted-foreground">Base para factura</span>
                 <span className="num font-medium text-muted-foreground">{fmt(Math.round(totalFacturaCost / 0.03 * 100) / 100)}</span>
