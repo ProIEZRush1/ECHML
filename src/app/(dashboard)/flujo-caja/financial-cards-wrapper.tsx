@@ -94,7 +94,7 @@ export function FinancialCardsWrapper({
     <>
       {/* Ingresos */}
       {loading ? null : (
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-[9px] border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Ingresos</p>
             <span className="sw" style={{ background: "oklch(0.58 0.10 155)" }} />
@@ -106,7 +106,7 @@ export function FinancialCardsWrapper({
 
       {/* Costos y Deducciones */}
       {loading ? null : (
-        <div className="rounded-[9px] border border-border bg-card p-4">
+        <div className="rounded-[9px] border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Costos y Deducciones</p>
             <span className="sw" style={{ background: "oklch(0.58 0.16 22)" }} />
@@ -139,7 +139,7 @@ export function FinancialCardsWrapper({
       )}
 
       {/* Utilidad Neta */}
-      <div className="rounded-[9px] border border-border bg-card p-4">
+      <div className="rounded-[9px] border border-border bg-card glass p-4 transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
         <div className="flex items-center justify-between mb-2">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Utilidad Neta</p>
           <span className="sw" style={{ background: "oklch(0.55 0.14 250)" }} />
@@ -167,7 +167,7 @@ export function FinancialCardsWrapper({
 
       {/* Dinero a Retirar + Per-Account Breakdown */}
       {showWithdraw && (
-        <div className="rounded-[9px] border border-border bg-card p-4 overflow-hidden">
+        <div className="rounded-[9px] border border-border bg-card glass p-4 overflow-hidden transition-all duration-200 hover:border-accent/30 hover:shadow-[0_0_20px_oklch(0.55_0.12_200/0.08)]">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Dinero a Retirar</p>
             <span className="sw" style={{ background: "oklch(0.55 0.16 160)" }} />

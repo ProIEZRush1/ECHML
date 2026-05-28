@@ -75,14 +75,14 @@ export default async function MLConfigPage() {
           <>
             {/* Info grid */}
             <div className="grid gap-px rounded-[9px] border border-border bg-border overflow-hidden sm:grid-cols-3">
-              <div className="bg-card px-4 py-3 flex items-start gap-3">
+              <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 <KeyRound className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10.5px] uppercase tracking-[0.05em] text-muted-foreground font-medium">App ID</p>
                   <p className="text-[13px] font-mono font-medium truncate">{maskedAppId}</p>
                 </div>
               </div>
-              <div className="bg-card px-4 py-3 flex items-start gap-3">
+              <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 <User className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10.5px] uppercase tracking-[0.05em] text-muted-foreground font-medium">ML User ID</p>
@@ -93,7 +93,7 @@ export default async function MLConfigPage() {
                   </p>
                 </div>
               </div>
-              <div className="bg-card px-4 py-3 flex items-start gap-3">
+              <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 {hasValidToken ? (
                   <CircleCheck className="size-4 text-green-600 mt-0.5 shrink-0" />
                 ) : (
@@ -110,7 +110,7 @@ export default async function MLConfigPage() {
                   </p>
                 </div>
               </div>
-              <div className="bg-card px-4 py-3 flex items-start gap-3">
+              <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 <Clock className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10.5px] uppercase tracking-[0.05em] text-muted-foreground font-medium">Token Expira</p>
@@ -121,14 +121,14 @@ export default async function MLConfigPage() {
                   </p>
                 </div>
               </div>
-              <div className="bg-card px-4 py-3 flex items-start gap-3">
+              <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 <Shield className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10.5px] uppercase tracking-[0.05em] text-muted-foreground font-medium">Scope</p>
                   <p className="text-[13px] font-medium truncate">{credential.scope}</p>
                 </div>
               </div>
-              <div className="bg-card px-4 py-3 flex items-start gap-3">
+              <div className="bg-card glass px-4 py-3 flex items-start gap-3">
                 <RefreshCw className="size-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-[10.5px] uppercase tracking-[0.05em] text-muted-foreground font-medium">Ultima Actualizacion</p>
@@ -167,7 +167,7 @@ export default async function MLConfigPage() {
       </div>
 
       {/* Webhook card */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
         <div className="px-5 py-4 border-b border-border flex items-center gap-3">
           <Webhook className="size-4 text-muted-foreground" />
           <h2 className="text-[14px] font-semibold">Webhook</h2>

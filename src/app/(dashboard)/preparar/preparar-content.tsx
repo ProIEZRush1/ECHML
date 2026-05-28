@@ -328,7 +328,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
           { label: "Listos", value: kpis.totalReady, style: { color: "oklch(0.55 0.12 200)" } as React.CSSProperties },
           { label: "Enviados Hoy", value: kpis.todayShipped, cls: "margin-good" },
         ].map((kpi) => (
-          <div key={kpi.label} className="rounded-[9px] border border-border bg-card px-3 py-2.5">
+          <div key={kpi.label} className="rounded-[9px] border border-border bg-card glass px-3 py-2.5">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{kpi.label}</p>
             <p className={`text-xl font-bold mt-0.5 num ${kpi.cls || ""}`} style={kpi.style}>{kpi.value}</p>
           </div>
@@ -587,7 +587,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
                     return (
                       <div
                         key={order.id}
-                        className={`rounded-[9px] border bg-card px-3 py-2.5 space-y-2 ${
+                        className={`rounded-[9px] border bg-card glass px-3 py-2.5 space-y-2 ${
                           isOverdue ? "border-red-400 dark:border-red-800" : isMulti ? "border-blue-400/50 dark:border-blue-700/50" : "border-border"
                         }`}
                       >
@@ -692,7 +692,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
             {cancelledOrders.map((co) => {
               const pack = co.listing?.pack;
               return (
-                <div key={co.id} className="rounded-[9px] border border-red-300 dark:border-red-800/50 bg-card px-3 py-2.5 space-y-2 opacity-70">
+                <div key={co.id} className="rounded-[9px] border border-red-300 dark:border-red-800/50 bg-card glass px-3 py-2.5 space-y-2 opacity-70">
                   <div className="flex items-center gap-2.5 min-w-0">
                     {pack?.imageUrl && (
                       <div className="shrink-0 h-10 w-10 rounded-md overflow-hidden border bg-muted">

@@ -94,7 +94,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
 
       {/* Info cells: Precio / Stock / Publicaciones */}
       <div className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1">
+        <div className="rounded-[9px] border border-border bg-card glass p-3.5 flex flex-col gap-1">
           <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
             Precio de Venta
           </div>
@@ -102,7 +102,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
             {formatCurrency(pack.salePrice.toString())}
           </div>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1">
+        <div className="rounded-[9px] border border-border bg-card glass p-3.5 flex flex-col gap-1">
           <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
             Stock Calculado
           </div>
@@ -118,7 +118,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
             {pack.stock}
           </div>
         </div>
-        <div className="rounded-[9px] border border-border bg-card p-3.5 flex flex-col gap-1">
+        <div className="rounded-[9px] border border-border bg-card glass p-3.5 flex flex-col gap-1">
           <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
             Publicaciones
           </div>
@@ -129,7 +129,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
       </div>
 
       {/* Stock sync status */}
-      <div className="rounded-[9px] border border-border bg-card px-4 py-3 flex items-center gap-3">
+      <div className="rounded-[9px] border border-border bg-card glass px-4 py-3 flex items-center gap-3">
         <span className="text-[12.5px] font-medium text-muted-foreground">Sincronizacion de stock:</span>
         {pack.stockSyncEnabled ? (
           <Badge variant="default">Sincronizado automaticamente</Badge>
@@ -140,7 +140,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
 
       {/* Description */}
       {pack.description && (
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
             <h3 className="text-[12.5px] font-semibold">Descripcion</h3>
           </div>
@@ -151,7 +151,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
       )}
 
       {/* Composition table */}
-      <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
+      <div className="rounded-[9px] border border-border bg-card glass overflow-x-auto">
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
           <h3 className="text-[12.5px] font-semibold">Composicion</h3>
           <span className="text-[11px] text-muted-foreground">{pack.items.length} items</span>
@@ -212,7 +212,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
       </div>
 
       {/* Stock calculation */}
-      <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+      <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
           <h3 className="text-[12.5px] font-semibold">Calculo de Stock</h3>
         </div>
@@ -255,7 +255,7 @@ export default async function PackDetailPage({ params }: PackDetailPageProps) {
 
       {/* Linked ML Listings */}
       {pack.mlListings.length > 0 && (
-        <div className="rounded-[9px] border border-border bg-card overflow-x-auto">
+        <div className="rounded-[9px] border border-border bg-card glass overflow-x-auto">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
             <h3 className="text-[12.5px] font-semibold">Publicaciones Vinculadas</h3>
             <span className="text-[11px] text-muted-foreground">{pack.mlListings.length} publicaciones</span>

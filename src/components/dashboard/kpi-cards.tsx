@@ -37,7 +37,7 @@ export function KpiCards({ stats }: KpiCardsProps) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="rounded-[9px] border border-border bg-card p-3.5 sm:p-4 flex flex-col gap-1.5"
+          className="rounded-[9px] border border-border bg-card glass p-3.5 sm:p-4 flex flex-col gap-1.5 transition-all duration-200 hover:border-accent/30"
         >
           <div className="text-[10.5px] font-medium text-muted-foreground uppercase tracking-[0.06em]">
             {card.label}

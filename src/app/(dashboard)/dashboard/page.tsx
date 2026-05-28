@@ -86,7 +86,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <StockAlerts alerts={alerts} />
 
-        <div className="rounded-[9px] border border-border bg-card overflow-hidden">
+        <div className="rounded-[9px] border border-border bg-card glass overflow-hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border">
             <h3 className="text-[12.5px] font-semibold">Movimientos Recientes</h3>
             <span className="text-[11px] text-muted-foreground">
