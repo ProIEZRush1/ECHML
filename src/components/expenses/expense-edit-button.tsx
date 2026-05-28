@@ -36,7 +36,10 @@ export function ExpenseEditButton({ expense, accounts }: ExpenseEditButtonProps)
   const [saving, setSaving] = useState(false);
   const [amount, setAmount] = useState(String(expense.amount));
   const [concept, setConcept] = useState(expense.concept);
-  const [date, setDate] = useState(expense.date.split("T")[0]);
+  const [date, setDate] = useState(() => {
+    const d = new Date(expense.date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
   const [category, setCategory] = useState(expense.category);
   const [type, setType] = useState(expense.type);
   const [accountId, setAccountId] = useState(expense.accountId || "");
