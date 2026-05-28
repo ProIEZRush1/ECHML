@@ -300,6 +300,8 @@ model MLOrder {
   logisticType    String?
   returnShipCost  Decimal?        @db.Decimal(10, 2)
   buyerNickname   String?
+  partialRefundQty      Int       @default(0)
+  partialRefundProcessed Boolean  @default(false)
   dateCreated     DateTime
   dateClosed      DateTime?
   processedAt     DateTime?

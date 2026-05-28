@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "MLOrder" ADD COLUMN "partialRefundQty" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "MLOrder" ADD COLUMN "partialRefundProcessed" BOOLEAN NOT NULL DEFAULT false;

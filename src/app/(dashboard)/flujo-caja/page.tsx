@@ -108,6 +108,14 @@ export default async function FlujoCajaPage({
     ]);
   } catch { /* sync errors shouldn't block the page */ }
 
+  // Query unprocessed partial refunds for display
+  const partialRefunds = await prisma.mLOrder.findMany({
+    where: { partialRefundQty: { gt: 0 }, partialRefundProcessed: false },
+    select: { id: true, mlOrderId: true, mlItemId: true, quantity: true, partialRefundQty: true, unitPrice: true, dateCreated: true },
+    orderBy: { dateCreated: "desc" },
+    take: 20,
+  });
+
   // Parse multiple pack IDs (support both legacy packId and new packIds)
   const packIdList: string[] = [];
   if (params.packIds) {
@@ -656,6 +664,57 @@ export default async function FlujoCajaPage({
           </div>
         );
       })()}
+
+      {/* Partial Refunds — unprocessed */}
+      {partialRefunds.length > 0 && (
+        <div className="rounded-[9px] border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400 font-medium">
+              Reembolsos Parciales ({partialRefunds.length})
+            </p>
+            <span className="text-[10px] text-amber-600 dark:text-amber-500">Stock pendiente de ajustar</span>
+          </div>
+          <div className="space-y-2">
+            {partialRefunds.map((pr) => (
+              <div key={pr.id} className="flex items-center justify-between text-[12px] bg-card rounded-md p-2 border border-border">
+                <div>
+                  <span className="font-mono text-muted-foreground text-[11px]">#{String(pr.mlOrderId)}</span>
+                  <span className="ml-2">{pr.mlItemId}</span>
+                  <span className="ml-2 text-amber-700 dark:text-amber-400 font-medium">
+                    {pr.partialRefundQty} unidad{pr.partialRefundQty > 1 ? "es" : ""} reembolsada{pr.partialRefundQty > 1 ? "s" : ""}
+                  </span>
+                  <span className="ml-2 text-muted-foreground">(-{formatCurrency(Number(pr.unitPrice) * pr.partialRefundQty)})</span>
+                </div>
+                <form action={`/api/orders/process-partial-refund`} method="POST">
+                  <button
+                    type="button"
+                    className="text-[11px] font-medium px-2 py-1 rounded-md bg-amber-600 text-white hover:bg-amber-700"
+                    onClick={async (e) => {
+                      const btn = e.currentTarget;
+                      btn.disabled = true;
+                      btn.textContent = "...";
+                      const res = await fetch("/api/orders/process-partial-refund", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ orderId: pr.id }),
+                      });
+                      if (res.ok) {
+                        btn.textContent = "Hecho";
+                        btn.className = "text-[11px] font-medium px-2 py-1 rounded-md bg-green-600 text-white";
+                      } else {
+                        btn.textContent = "Error";
+                        btn.disabled = false;
+                      }
+                    }}
+                  >
+                    Ajustar stock
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Devoluciones Detail - Split into two cards */}
       {filteredReturnCount > 0 && (
