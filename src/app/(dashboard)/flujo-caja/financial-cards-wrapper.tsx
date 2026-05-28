@@ -31,6 +31,7 @@ interface Props {
   serverAdsCost: number;
   totalWithdrawn: number;
   totalGastos: number;
+  totalCompras: number;
   totalFacturaCost: number;
   totalFlexCost: number;
   totalFlexBonif: number;
@@ -46,7 +47,7 @@ interface Props {
 export function FinancialCardsWrapper({
   totalIncome, salesCount, totalUnits, totalDeducciones, deductionItems,
   serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
-  totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, gastosByAccount, accounts, showWithdraw,
+  totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, totalCompras, gastosByAccount, accounts, showWithdraw,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();

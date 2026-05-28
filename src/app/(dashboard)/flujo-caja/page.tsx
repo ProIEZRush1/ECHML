@@ -450,7 +450,7 @@ export default async function FlujoCajaPage({
   const flexPaidCount = flexTxs.filter((t) => t.paidAt !== null).length;
   const flexUnpaidCost = flexTxs.filter((t) => t.paidAt === null).reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
   const totalFlexNet = totalFlexCost - totalFlexBonificacion;
-  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastos - totalFlexNet - totalReturnShipCost;
+  const totalNet = totalIncome - totalFees - totalShipping - totalImpuestos - totalProductCost - totalGastosOp - totalFlexNet - totalReturnShipCost;
   const totalWithdrawn = withdrawals.reduce((s, w) => s + Number(w.amount), 0);
   const totalFacturaCost = withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
   const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
@@ -606,14 +606,13 @@ export default async function FlujoCajaPage({
 
       {/* KPI Cards */}
       {(() => {
-        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastos + totalFlexNet + totalReturnShipCost;
+        const totalDeducciones = totalFees + totalShipping + totalImpuestos + totalProductCost + totalGastosOp + totalFlexNet + totalReturnShipCost;
         const deductionItems: { label: string; value: number }[] = [
           { label: "Comisiones", value: totalFees },
           { label: "Envios", value: totalShipping },
           { label: "Impuestos", value: totalImpuestos },
           { label: "Costo producto", value: totalProductCost },
           { label: "Gastos", value: totalGastosOp },
-          { label: "Compra productos", value: totalCompras },
           { label: "Flex", value: totalFlexNet },
           { label: "Envio devoluciones", value: totalReturnShipCost },
         ].filter((d) => d.value > 0);
@@ -630,7 +629,8 @@ export default async function FlujoCajaPage({
               serverAvailable={availableToWithdraw}
               serverAdsCost={serverAdsCost}
               totalWithdrawn={totalWithdrawn}
-              totalGastos={totalGastos}
+              totalGastos={totalGastosOp}
+              totalCompras={totalCompras}
               totalFacturaCost={totalFacturaCost}
               totalFlexCost={totalFlexCost}
               totalFlexBonif={totalFlexBonificacion}
