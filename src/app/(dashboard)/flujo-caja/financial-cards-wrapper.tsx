@@ -58,7 +58,9 @@ export function FinancialCardsWrapper({
 
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
+  const productIds = searchParams.get("productIds") || searchParams.get("productId") || "";
   const packIds = searchParams.get("packIds") || searchParams.get("packId") || "";
+  const hasProductFilter = !!(productIds || packIds);
 
   const hasSynced = useRef(false);
   useEffect(() => {
@@ -212,31 +214,36 @@ export function FinancialCardsWrapper({
 
           {/* Flex shipping costs — only show when there are flex orders in current filter */}
           {flexCount > 0 && (() => {
-            const flexBalance = totalFlexPaid - totalFlexCost;
+            const showPayments = !hasProductFilter;
+            const flexBalance = showPayments ? totalFlexPaid - totalFlexCost : -totalFlexCost;
             return (
               <div className="mt-3 pt-3 border-t border-border">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="text-muted-foreground">Costo Flex ({flexCount})</span>
                   <span className="num margin-bad font-medium">-{fmt(totalFlexCost)}</span>
                 </div>
-                {totalFlexPaid > 0 && (
+                {showPayments && totalFlexPaid > 0 && (
                   <div className="flex items-center justify-between text-[11px] mt-0.5">
                     <span className="text-muted-foreground">Pagado</span>
                     <span className="num text-green-600 dark:text-green-400 font-medium">+{fmt(totalFlexPaid)}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-[12px] font-semibold mt-1 pt-1 border-t border-border/50">
-                  <span className="text-muted-foreground">Saldo Flex</span>
-                  <span className={`num ${flexBalance >= 0 ? "margin-good" : "margin-bad"}`}>
-                    {flexBalance >= 0 ? "+" : ""}{fmt(flexBalance)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => { setFlexPayAmount(""); setShowFlexModal(true); setTimeout(() => flexInputRef.current?.focus(), 100); }}
-                  className="mt-1.5 w-full text-[11px] font-medium py-1 px-2 rounded-md border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 flex items-center justify-center gap-1.5"
-                >
-                  Pagar Flex
-                </button>
+                {showPayments && (
+                  <div className="flex items-center justify-between text-[12px] font-semibold mt-1 pt-1 border-t border-border/50">
+                    <span className="text-muted-foreground">Saldo Flex</span>
+                    <span className={`num ${flexBalance >= 0 ? "margin-good" : "margin-bad"}`}>
+                      {flexBalance >= 0 ? "+" : ""}{fmt(flexBalance)}
+                    </span>
+                  </div>
+                )}
+                {showPayments && (
+                  <button
+                    onClick={() => { setFlexPayAmount(""); setShowFlexModal(true); setTimeout(() => flexInputRef.current?.focus(), 100); }}
+                    className="mt-1.5 w-full text-[11px] font-medium py-1 px-2 rounded-md border border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 flex items-center justify-center gap-1.5"
+                  >
+                    Pagar Flex
+                  </button>
+                )}
               </div>
             );
           })()}
