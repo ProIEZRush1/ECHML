@@ -96,19 +96,26 @@ export function AdsCostCard() {
 
   if (!data) return null;
 
+  const acosColor = (acos: number) => {
+    if (acos === 0) return "text-muted-foreground";
+    if (acos <= 15) return "text-emerald-500";
+    if (acos <= 25) return "text-amber-500";
+    return "text-rose-500";
+  };
+
   return (
-    <div className="space-y-4">
-      {/* KPI Card */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Publicidad (Ads)</CardTitle>
+    <div className="space-y-5">
+      {/* Hero Ads KPI */}
+      <div className="rounded-xl border border-border bg-card glass p-6 relative overflow-hidden">
+        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-pink-400 to-purple-600" />
+        <div className="flex items-center justify-between mb-4 pl-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Publicidad (Ads)</p>
+          </div>
           <button
             onClick={async () => {
               setSyncing(true);
               try {
-                const params = new URLSearchParams();
-                if (dateFrom) params.set("dateFrom", dateFrom);
-                if (dateTo) params.set("dateTo", dateTo);
                 await fetch(`/api/ads-costs`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -119,79 +126,82 @@ export function AdsCostCard() {
               } finally { setSyncing(false); }
             }}
             disabled={syncing}
-            className="rounded-md p-2 bg-pink-100 dark:bg-pink-900/30 hover:bg-pink-200 dark:hover:bg-pink-900/50 transition-colors"
+            className="rounded-lg p-2 bg-pink-500/10 hover:bg-pink-500/20 transition-colors"
             title="Sincronizar publicidad desde ML"
           >
-            {syncing ? <Loader2 className="h-4 w-4 text-pink-600 animate-spin" /> : <RefreshCw className="h-4 w-4 text-pink-600 dark:text-pink-400" />}
+            {syncing ? <Loader2 className="h-4 w-4 text-pink-500 animate-spin" /> : <RefreshCw className="h-4 w-4 text-pink-500" />}
           </button>
-        </CardHeader>
-        <CardContent>
-          <div className="text-xl font-bold text-pink-600 dark:text-pink-400 truncate">
-            -{fmt(data.totalAdsCost)}
+        </div>
+        <div className="pl-4">
+          <p className="text-3xl font-bold text-pink-500 tracking-tight">-{fmt(data.totalAdsCost)}</p>
+          <div className="flex items-center gap-4 mt-3 text-[13px]">
+            <span className="text-muted-foreground">{data.totalClicks.toLocaleString()} clicks</span>
+            <span className={`font-semibold ${acosColor(data.overallAcos)}`}>ACOS {data.overallAcos}%</span>
+            <span className="text-emerald-500 font-medium">Ventas {fmt(data.totalSalesFromAds)}</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {data.totalClicks} clicks · ACOS {data.overallAcos}% · Ventas por ads {fmt(data.totalSalesFromAds)}
-          </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Per-product breakdown */}
+      {/* Per-product breakdown — Card grid */}
       {data.byProduct.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium">Gasto en Ads por Producto</CardTitle>
-              <button
-                onClick={() => setExpanded(!expanded)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                {expanded ? "Ocultar" : `Ver ${data.byProduct.length} productos`}
-              </button>
-            </div>
-          </CardHeader>
-          {(expanded || data.byProduct.length <= 5) && (
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                {data.byProduct.slice(0, expanded ? 50 : 5).map((p) => (
-                  <div key={p.productId} className="border-b pb-2 last:border-0">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-xs">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.clicks} clicks · ACOS {p.acos}% · {p.items.length} listing{p.items.length > 1 ? "s" : ""}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0 ml-3">
-                        <p className="font-semibold text-pink-600 dark:text-pink-400 text-xs">{fmt(p.cost)}</p>
-                        {p.salesAmount > 0 && (
-                          <p className="text-xs text-green-600 dark:text-green-400">+{fmt(p.salesAmount)}</p>
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold">Rendimiento por Producto</h3>
+            <button onClick={() => setExpanded(!expanded)} className="text-xs text-accent hover:underline font-medium">
+              {expanded ? "Colapsar" : `Ver ${data.byProduct.length} productos`}
+            </button>
+          </div>
+          <div className="space-y-3">
+            {data.byProduct.slice(0, expanded ? 50 : 3).map((p) => (
+              <div key={p.productId} className="rounded-xl border border-border bg-card glass p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-[13px] truncate">{p.name}</p>
+                    <p className="text-[12px] text-muted-foreground mt-0.5">
+                      {p.clicks.toLocaleString()} clicks · {p.items.length} listing{p.items.length > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0 ml-4">
+                    <p className="font-bold text-pink-500 text-sm">{fmt(p.cost)}</p>
+                    {p.salesAmount > 0 && <p className="text-[12px] text-emerald-500 font-medium">+{fmt(p.salesAmount)}</p>}
+                  </div>
+                </div>
+                {/* ACOS bar */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                    <div className={`h-full rounded-full ${p.acos <= 15 ? "bg-emerald-500" : p.acos <= 25 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.min(p.acos, 100)}%` }} />
+                  </div>
+                  <span className={`text-xs font-bold mono ${acosColor(p.acos)}`}>ACOS {p.acos}%</span>
+                </div>
+                {/* Item grid */}
+                {p.items.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {p.items.sort((a, b) => b.clicks - a.clicks).slice(0, 9).map((item) => (
+                      <div key={item.id} className="rounded-lg bg-muted/50 p-2.5 text-[11px]">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-mono text-muted-foreground truncate">{item.id.replace("MLM", "")}</span>
+                          <span className={`font-bold ${acosColor(item.salesAmount > 0 ? Math.round((item.cost / item.salesAmount) * 100) : 0)}`}>
+                            {item.salesAmount > 0 ? `${Math.round((item.cost / item.salesAmount) * 100)}%` : "-"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">{item.clicks} clicks</span>
+                          <span className="font-medium text-pink-500">{fmt(item.cost)}</span>
+                        </div>
+                        {item.units > 0 && (
+                          <div className="flex items-center justify-between mt-0.5">
+                            <span className="text-emerald-500">{item.units} ventas</span>
+                            <span className="text-emerald-500">+{fmt(item.salesAmount)}</span>
+                          </div>
                         )}
                       </div>
-                    </div>
-                    {p.items.length > 0 && (
-                      <div className="mt-1.5 ml-2 space-y-1">
-                        {p.items.sort((a, b) => b.clicks - a.clicks || b.cost - a.cost).map((item) => (
-                          <div key={item.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                            <div className="min-w-0 flex-1">
-                              <span className="font-mono">{item.id}</span>
-                              <span className="ml-1.5">{item.clicks} clicks</span>
-                              {item.salesAmount > 0 && <span className="ml-1 text-amber-600">ACOS {Math.round((item.cost / item.salesAmount) * 100)}%</span>}
-                              {item.units > 0 && <span className="ml-1 text-green-600">· {item.units} ventas</span>}
-                            </div>
-                            <div className="text-right shrink-0 ml-2">
-                              <span className="text-pink-600 dark:text-pink-400">{fmt(item.cost)}</span>
-                              {item.salesAmount > 0 && <span className="ml-1 text-green-600">+{fmt(item.salesAmount)}</span>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            </CardContent>
-          )}
-        </Card>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
