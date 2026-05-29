@@ -23,7 +23,14 @@ const HANDED_OFF = ["dropped_off", "picked_up", "in_hub", "in_transit", "waiting
 // status (oldest-first), so delivered ones leave the Preparar list and genuine
 // pending ones (e.g. ready_to_ship) surface correctly. Call until remaining=0.
 export async function POST(request: NextRequest) {
-  const batch = parseInt(new URL(request.url).searchParams.get("batch") || "200", 10);
+  const url = new URL(request.url);
+  const check = url.searchParams.get("check");
+  if (check) {
+    const ord = await prisma.mLOrder.findUnique({ where: { mlOrderId: BigInt(check) } });
+    const listing = ord ? await prisma.mLListing.findUnique({ where: { mlItemId: ord.mlItemId }, select: { mlItemId: true, packId: true } }) : null;
+    return NextResponse.json({ exists: !!ord, order: ord ? { mlOrderId: String(ord.mlOrderId), mlItemId: ord.mlItemId, status: ord.status, shippingStatus: ord.shippingStatus, prepStatus: ord.prepStatus, logisticType: ord.logisticType, shipmentId: ord.shipmentId ? String(ord.shipmentId) : null, dateCreated: ord.dateCreated } : null, listingLinked: !!listing });
+  }
+  const batch = parseInt(url.searchParams.get("batch") || "200", 10);
 
   const pending = await prisma.mLOrder.findMany({
     where: { shippingStatus: "PENDING" },
