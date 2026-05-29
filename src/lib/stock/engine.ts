@@ -39,7 +39,27 @@ export async function processSale(
     },
   });
   if (!listing) {
-    console.error(`Publicacion ML desconocida: ${mlItemId}`);
+    // SAFETY: never drop a sale. A closed/unknown listing (not in MLListing)
+    // must still produce an MLOrder so it surfaces in "Preparar" — otherwise
+    // the seller silently misses the venta. Stock deduction is skipped (no pack
+    // to resolve) and the order is flagged for manual attention; sync-status
+    // will enrich shipment/dates afterwards.
+    console.error(`Publicacion ML desconocida: ${mlItemId} — creando MLOrder sin descuento de stock`);
+    await prisma.mLOrder.upsert({
+      where: { mlOrderId },
+      create: {
+        mlOrderId,
+        mlItemId,
+        quantity: quantitySold,
+        unitPrice: 0,
+        totalAmount: 0,
+        status: "paid",
+        prepStatus: "NEW",
+        shippingStatus: "PENDING",
+        dateCreated: new Date(),
+      },
+      update: {},
+    });
     return;
   }
 

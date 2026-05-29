@@ -3,8 +3,65 @@ export const maxDuration = 120;
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { mlFetch } from "@/lib/ml/client";
+import { mlFetch, getMLCredentials } from "@/lib/ml/client";
 import type { ShippingStatus } from "@prisma/client";
+
+interface MLOrderSearchResult {
+  id: number;
+  status?: string;
+  date_created?: string;
+  order_items?: Array<{ item?: { id?: string }; quantity?: number; unit_price?: number }>;
+  shipping?: { id?: number };
+}
+
+// SAFETY-CRITICAL: pull recent orders straight from ML and create any MLOrder
+// that's missing locally — so a venta can never be absent from Preparar, even
+// if its listing is closed/unknown or a webhook/MP-sync was missed.
+async function backfillMissingOrders(): Promise<number> {
+  const creds = await getMLCredentials();
+  if (!creds) return 0;
+  const sellerId = creds.mlUserId.toString();
+  const from = new Date();
+  from.setDate(from.getDate() - 60);
+  const fromISO = from.toISOString();
+  let created = 0;
+  let offset = 0;
+  for (let page = 0; page < 12; page++) {
+    const res = await mlFetch<{ results: MLOrderSearchResult[]; paging: { total: number } }>(
+      `/orders/search?seller=${sellerId}&order.date_created.from=${encodeURIComponent(fromISO)}&sort=date_desc&offset=${offset}&limit=50`
+    ).catch(() => null);
+    if (!res?.results?.length) break;
+    const valid = res.results.filter((o) => o.id && o.order_items?.[0]?.item?.id);
+    const ids = valid.map((o) => BigInt(o.id));
+    const present = new Set(
+      (await prisma.mLOrder.findMany({ where: { mlOrderId: { in: ids } }, select: { mlOrderId: true } })).map((r) => r.mlOrderId.toString())
+    );
+    for (const o of valid) {
+      if (present.has(String(o.id))) continue; // never clobber existing prep progress
+      const item = o.order_items![0];
+      try {
+        await prisma.mLOrder.create({
+          data: {
+            mlOrderId: BigInt(o.id),
+            mlItemId: item.item!.id!,
+            quantity: item.quantity || 1,
+            unitPrice: item.unit_price || 0,
+            totalAmount: (item.unit_price || 0) * (item.quantity || 1),
+            status: o.status || "paid",
+            shippingStatus: "PENDING",
+            prepStatus: "NEW",
+            shipmentId: o.shipping?.id ? BigInt(o.shipping.id) : null,
+            dateCreated: o.date_created ? new Date(o.date_created) : new Date(),
+          },
+        });
+        created++;
+      } catch { /* unique race or bad row — skip */ }
+    }
+    offset += 50;
+    if (offset >= (res.paging?.total || 0)) break;
+  }
+  return created;
+}
 
 function mapShipmentStatus(status?: string, substatus?: string): ShippingStatus {
   if (status === "not_delivered" && substatus === "returned") return "RETURNED";
@@ -21,6 +78,10 @@ function mapShipmentStatus(status?: string, substatus?: string): ShippingStatus 
 export async function POST() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  // STEP 0: backfill any orders missing locally (closed listings, missed webhooks)
+  let backfilled = 0;
+  try { backfilled = await backfillMissingOrders(); } catch { /* don't block status sync */ }
 
   // Check non-delivered orders + recently delivered ones (to catch returns after delivery)
   const orders = await prisma.mLOrder.findMany({
@@ -173,5 +234,5 @@ export async function POST() {
     // claims API not available
   }
 
-  return NextResponse.json({ checked: orders.length, updated, shipmentsFetched, claimsFound });
+  return NextResponse.json({ checked: orders.length, backfilled, updated, shipmentsFetched, claimsFound });
 }

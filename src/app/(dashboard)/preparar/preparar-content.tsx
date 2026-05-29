@@ -210,16 +210,23 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
     return [{ items: o.listing?.pack?.items || [], qty: o.quantity }];
   }
 
+  // An order matches a group if any item's product is in the group. SAFETY:
+  // orders with NO classifiable items (unlinked/closed listing) are ALWAYS
+  // shown so a venta is never silently hidden by a group filter.
+  const orderMatchesGroups = (o: Order, allProductIds: Set<string>) => {
+    let hasAnyItem = false;
+    for (const { items } of getAllItems(o)) {
+      if (items.length) hasAnyItem = true;
+      if (items.some((item) => allProductIds.has(item.productVariant.product.id))) return true;
+    }
+    return !hasAnyItem; // unclassified → always visible
+  };
+
   const groupFilteredOrders = useMemo(() => {
     if (activeGroups.length === 0) return orders;
     const selectedGroups = groups.filter((g) => activeGroups.includes(g.id));
     const allProductIds = new Set(selectedGroups.flatMap((g) => g.productIds));
-    return orders.filter((o) => {
-      for (const { items } of getAllItems(o)) {
-        if (items.some((item) => allProductIds.has(item.productVariant.product.id))) return true;
-      }
-      return false;
-    });
+    return orders.filter((o) => orderMatchesGroups(o, allProductIds));
   }, [orders, groups, activeGroups]);
 
   const allVariants = useMemo(() => {
@@ -245,12 +252,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
     if (activeGroups.length > 0) {
       const selectedGroups = groups.filter((g) => activeGroups.includes(g.id));
       const allProductIds = new Set(selectedGroups.flatMap((g) => g.productIds));
-      result = result.filter((o) => {
-        for (const { items } of getAllItems(o)) {
-          if (items.some((item) => allProductIds.has(item.productVariant.product.id))) return true;
-        }
-        return false;
-      });
+      result = result.filter((o) => orderMatchesGroups(o, allProductIds));
     }
     if (activeStatuses.length > 0) {
       result = result.filter((o) => activeStatuses.includes(o.prepStatus));
