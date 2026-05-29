@@ -26,15 +26,19 @@ function attr(item: MLItem, id: string): string | null {
 }
 
 // Build the variant->quantity list for a playera clone based on color/size/units.
+// No-oversize clones link to the "Playera Normal" product (pv-norm-*).
+// Multicolor packs split units exactly across Negro/Blanco/Gris (e.g. 12->4/4/4, 10->4/3/3).
 function buildItems(color: string, size: string, units: number): { variantId: string; qty: number }[] | { error: string } {
   const s = size.toLowerCase();
   if (color === "Multicolor") {
-    const per = Math.max(1, Math.round(units / 3));
-    return ["negro", "blanco", "gris"].map((c) => ({ variantId: `pv-play-${c}-${s}`, qty: per }));
+    const base = Math.floor(units / 3);
+    const rem = units - base * 3; // 0,1,2
+    const qtys = [base + (rem > 0 ? 1 : 0), base + (rem > 1 ? 1 : 0), base];
+    return ["negro", "blanco", "gris"].map((c, i) => ({ variantId: `pv-norm-${c}-${s}`, qty: qtys[i] })).filter((x) => x.qty > 0);
   }
   const ck = COLOR_KEY[color];
   if (!ck) return { error: `unknown color ${color}` };
-  return [{ variantId: `pv-play-${ck}-${s}`, qty: units }];
+  return [{ variantId: `pv-norm-${ck}-${s}`, qty: units }];
 }
 
 export async function POST(request: NextRequest) {
