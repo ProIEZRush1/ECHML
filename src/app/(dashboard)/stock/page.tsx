@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/shared/page-header";
 import { getVariantDisplay, getStockStatus } from "@/lib/utils";
+import { compareVariantLabel } from "@/lib/size-order";
 import { StockGrid } from "./stock-grid";
 
 export interface StockProduct {
@@ -59,7 +60,7 @@ export default async function StockPage() {
         hex: display.hex,
         stock: v.stock,
       };
-    });
+    }).sort((a, b) => compareVariantLabel(a.label, b.label));
 
     return {
       id: product.id,

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { calculatePackStock, calculatePackStockWithFicticio } from "./calculator";
+import { syncLinkedVariants } from "./sync";
 import { mlFetch } from "@/lib/ml/client";
 
 const MAX_RETRIES = 3;
@@ -110,7 +111,8 @@ export async function processSale(
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
 
-      await recalculateAffectedPacks(affectedVariantIds);
+      const mirrored = await syncLinkedVariants(affectedVariantIds);
+      await recalculateAffectedPacks([...affectedVariantIds, ...mirrored]);
       return;
     } catch (error) {
       if (
@@ -203,7 +205,8 @@ export async function addStock(
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
 
-  await recalculateAffectedPacks(affectedVariantIds);
+  const mirrored = await syncLinkedVariants(affectedVariantIds);
+  await recalculateAffectedPacks([...affectedVariantIds, ...mirrored]);
 }
 
 export async function adjustStock(
@@ -237,7 +240,8 @@ export async function adjustStock(
     });
   });
 
-  await recalculateAffectedPacks([productVariantId]);
+  const mirrored = await syncLinkedVariants([productVariantId]);
+  await recalculateAffectedPacks([productVariantId, ...mirrored]);
 }
 
 export async function recalculateAffectedPacks(

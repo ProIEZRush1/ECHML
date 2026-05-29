@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { PackageCheck, Printer, Filter } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
+import { compareVariantLabel } from "@/lib/size-order";
 import { PrepActions } from "./prep-actions";
 import type { PrepStatus } from "@prisma/client";
 
@@ -230,7 +231,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
         }
       }
     }
-    return [...set].sort();
+    return [...set].sort(compareVariantLabel);
   }, [groupFilteredOrders]);
 
   useEffect(() => {
@@ -277,14 +278,21 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
         return da - db;
       });
     } else if (sortOrder === "type") {
+      // Group by pack TYPE (same listing/pack together), not by exact size/color
+      // composition. Ordered by pack name, then SKU; urgent orders first within a group.
+      const typeKey = (o: Order) => {
+        const listings = o.subOrders && o.subOrders.length > 0 ? o.subOrders.map((s) => s.listing) : [o.listing];
+        return listings
+          .map((l) => (l?.pack ? `${l.pack.name} ${l.pack.sku}` : l?.mlItemId || l?.title || "~"))
+          .sort()
+          .join("|");
+      };
       result = [...result].sort((a, b) => {
-        const keyFor = (o: Order) => {
-          const allItems = getAllItems(o);
-          return allItems.map(({ items, qty }) =>
-            items.map((i) => `${qty}x${itemLabel(i)}`).sort().join("+")
-          ).sort().join("|");
-        };
-        return keyFor(a).localeCompare(keyFor(b));
+        const byType = typeKey(a).localeCompare(typeKey(b));
+        if (byType !== 0) return byType;
+        const da = a.shippingDeadline ? new Date(a.shippingDeadline).getTime() : Infinity;
+        const db = b.shippingDeadline ? new Date(b.shippingDeadline).getTime() : Infinity;
+        return da - db;
       });
     }
     return result;
@@ -317,7 +325,7 @@ export function PrepararContent({ orders, cancelledOrders, groups, kpis }: Props
         }
       }
     }
-    return [...map.values()].sort((a, b) => a.label.localeCompare(b.label));
+    return [...map.values()].sort((a, b) => compareVariantLabel(a.label, b.label));
   }
 
   const newOrders = useMemo(() => filtered.filter((o) => o.prepStatus === "NEW" && o.shippingStatus !== "PENDING"), [filtered]);

@@ -14,6 +14,8 @@ import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { ContabilidadAds } from "./contabilidad-ads";
 import { ContabilidadFilters } from "./contabilidad-filters";
+import { ReconciliationCard } from "./reconciliation-card";
+import { computeReconciliation } from "@/lib/finance/reconciliation";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface GroupAccounting {
@@ -315,6 +317,9 @@ export default async function ContabilidadPage({
     retiros: r.retiros,
   }));
 
+  // All-time cash reconciliation (MP balance is point-in-time, not date-scoped).
+  const recon = await computeReconciliation();
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -323,6 +328,9 @@ export default async function ContabilidadPage({
       />
 
       <ContabilidadFilters />
+
+      {/* Cash reconciliation: books vs real MP balance (all-time) */}
+      <ReconciliationCard recon={recon} />
 
       {/* Explanation */}
       <div className="rounded-xl border border-border bg-muted/30 p-4 text-[12px] text-muted-foreground space-y-1">
