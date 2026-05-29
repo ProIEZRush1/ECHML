@@ -155,8 +155,11 @@ export async function POST() {
         changed = true;
       }
 
-      const handedOff = ["dropped_off", "picked_up", "in_hub", "in_transit", "waiting_for_withdrawal", "out_for_delivery", "at_sender", "at_agency"].includes(shipment.substatus || "");
-      if ((newStatus === "SHIPPED" || newStatus === "DELIVERED" || handedOff) && order.prepStatus !== "SHIPPED") {
+      // Only auto-mark SHIPPED when genuinely shipped/delivered. The old
+      // "handedOff substatus" heuristic could mark a still-ready_to_ship order
+      // as SHIPPED on a transient state, permanently hiding it from Preparar
+      // (= missed venta). Once truly shipped, status becomes SHIPPED anyway.
+      if ((newStatus === "SHIPPED" || newStatus === "DELIVERED") && order.prepStatus !== "SHIPPED") {
         data.prepStatus = "SHIPPED";
         changed = true;
       }

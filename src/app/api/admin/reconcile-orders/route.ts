@@ -30,6 +30,17 @@ export async function POST(request: NextRequest) {
     const listing = ord ? await prisma.mLListing.findUnique({ where: { mlItemId: ord.mlItemId }, select: { mlItemId: true, packId: true } }) : null;
     return NextResponse.json({ exists: !!ord, order: ord ? { mlOrderId: String(ord.mlOrderId), mlItemId: ord.mlItemId, status: ord.status, shippingStatus: ord.shippingStatus, prepStatus: ord.prepStatus, logisticType: ord.logisticType, shipmentId: ord.shipmentId ? String(ord.shipmentId) : null, dateCreated: ord.dateCreated } : null, listingLinked: !!listing });
   }
+  // One-time remediation: orders that are ready_to_ship / pending but flagged
+  // SHIPPED were mis-marked by the old auto-ship heuristic and are hidden from
+  // Preparar (= missed venta). Bring them back to NEW so the seller sees them.
+  if (url.searchParams.get("healMismarked") === "true") {
+    const r = await prisma.mLOrder.updateMany({
+      where: { prepStatus: "SHIPPED", shippingStatus: { in: ["READY_TO_SHIP", "PENDING"] } },
+      data: { prepStatus: "NEW" },
+    });
+    return NextResponse.json({ healed: r.count });
+  }
+
   const batch = parseInt(url.searchParams.get("batch") || "200", 10);
 
   const pending = await prisma.mLOrder.findMany({
@@ -54,8 +65,7 @@ export async function POST(request: NextRequest) {
       const newStatus = mapShipmentStatus(sh.status, sh.substatus);
       const data: Record<string, unknown> = { shippingStatus: newStatus, shipmentId };
       if (sh.logistic_type) data.logisticType = sh.logistic_type;
-      const handedOff = HANDED_OFF.includes(sh.substatus || "");
-      if ((newStatus === "SHIPPED" || newStatus === "DELIVERED" || handedOff) && o.prepStatus !== "SHIPPED") {
+      if ((newStatus === "SHIPPED" || newStatus === "DELIVERED") && o.prepStatus !== "SHIPPED") {
         data.prepStatus = "SHIPPED";
       }
       if (unitPrice != null) data.unitPrice = unitPrice;
