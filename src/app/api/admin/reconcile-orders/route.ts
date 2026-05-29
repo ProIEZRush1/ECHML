@@ -4,7 +4,7 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { mlFetch } from "@/lib/ml/client";
-import type { ShippingStatus } from "@prisma/client";
+import { Prisma, type ShippingStatus } from "@prisma/client";
 
 function mapShipmentStatus(status?: string, substatus?: string): ShippingStatus {
   if (status === "not_delivered" && substatus === "returned") return "RETURNED";
@@ -46,9 +46,9 @@ export async function POST(request: NextRequest) {
   // ML's real shipment status (so already-shipped orders that were resurfaced
   // get marked SHIPPED and leave). scope=pending (default) only drains PENDING.
   const eligible = url.searchParams.get("scope") === "eligible";
-  const whereClause = eligible
-    ? { shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "NOT_DELIVERED"] as const }, prepStatus: { in: ["NEW", "PREPARING", "READY"] as const } }
-    : { shippingStatus: "PENDING" as const };
+  const whereClause: Prisma.MLOrderWhereInput = eligible
+    ? { shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "NOT_DELIVERED"] }, prepStatus: { in: ["NEW", "PREPARING", "READY"] } }
+    : { shippingStatus: "PENDING" };
 
   const pending = await prisma.mLOrder.findMany({
     where: whereClause,
