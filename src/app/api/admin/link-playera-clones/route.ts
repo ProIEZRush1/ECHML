@@ -81,9 +81,6 @@ export async function POST(request: NextRequest) {
 
   for (const id of itemIds) {
     try {
-      const existing = await prisma.mLListing.findUnique({ where: { mlItemId: id } });
-      if (existing) { skipped++; continue; }
-
       const item = await mlFetch<MLItem>(`/items/${id}`);
       const color = attr(item, "COLOR") || "";
       const size = attr(item, "SIZE") || "";
@@ -100,37 +97,56 @@ export async function POST(request: NextRequest) {
       const missing = variantIds.filter((v) => !foundSet.has(v));
       if (missing.length) { log.push(`ERR ${id}: missing variants ${missing.join(",")}`); errors++; continue; }
 
-      const sku = `ML-${id.replace("MLM", "")}`;
-      const pack = await prisma.pack.create({
-        data: {
-          sku,
-          name: item.title.length > 80 ? item.title.slice(0, 77) + "..." : item.title,
-          salePrice: item.price || 0,
-          stock: item.available_quantity || 0,
-          imageUrl: item.thumbnail || null,
-          description: `No-oversize clone: ${id}`,
-        },
-      });
-
-      await prisma.mLListing.create({
-        data: {
-          mlItemId: id,
-          packId: pack.id,
-          title: item.title,
-          permalink: item.permalink,
-          status: "ACTIVE",
-          currentStock: item.available_quantity,
-          currentPrice: item.price,
-          lastSyncedAt: new Date(),
-        },
-      });
-
-      for (const b of built) {
-        await prisma.packItem.create({ data: { packId: pack.id, productVariantId: b.variantId, quantity: b.qty } });
+      // Resolve pack: reuse existing listing's pack, or create pack + listing
+      const existing = await prisma.mLListing.findUnique({ where: { mlItemId: id } });
+      let packId: string;
+      let wasNew = false;
+      if (existing) {
+        packId = existing.packId;
+      } else {
+        const sku = `ML-${id.replace("MLM", "")}`;
+        const pack = await prisma.pack.upsert({
+          where: { sku },
+          create: {
+            sku,
+            name: item.title.length > 80 ? item.title.slice(0, 77) + "..." : item.title,
+            salePrice: item.price || 0,
+            stock: item.available_quantity || 0,
+            imageUrl: item.thumbnail || null,
+            description: `No-oversize clone: ${id}`,
+          },
+          update: {},
+        });
+        packId = pack.id;
+        await prisma.mLListing.create({
+          data: {
+            mlItemId: id,
+            packId,
+            title: item.title,
+            permalink: item.permalink,
+            status: "ACTIVE",
+            currentStock: item.available_quantity,
+            currentPrice: item.price,
+            lastSyncedAt: new Date(),
+          },
+        });
+        wasNew = true;
       }
 
-      linked++;
-      log.push(`OK ${id}: ${color}/${size} x${units} -> ${built.map((b) => `${b.variantId}:${b.qty}`).join(", ")}`);
+      // Ensure PackItems exist (idempotent — fixes packs created without items)
+      let itemsAdded = 0;
+      for (const b of built) {
+        const existingItem = await prisma.packItem.findUnique({
+          where: { packId_productVariantId: { packId, productVariantId: b.variantId } },
+        });
+        if (!existingItem) {
+          await prisma.packItem.create({ data: { packId, productVariantId: b.variantId, quantity: b.qty } });
+          itemsAdded++;
+        }
+      }
+
+      if (wasNew) linked++; else skipped++;
+      log.push(`${wasNew ? "OK" : "FIX"} ${id}: ${color}/${size} x${units} | +${itemsAdded} items -> ${built.map((b) => `${b.variantId}:${b.qty}`).join(", ")}`);
     } catch (e) {
       errors++;
       log.push(`ERR ${id}: ${String(e).slice(0, 150)}`);
