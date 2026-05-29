@@ -42,15 +42,22 @@ export async function POST(request: NextRequest) {
   }
 
   const batch = parseInt(url.searchParams.get("batch") || "200", 10);
+  // scope=eligible re-verifies EVERY order currently shown in Preparar against
+  // ML's real shipment status (so already-shipped orders that were resurfaced
+  // get marked SHIPPED and leave). scope=pending (default) only drains PENDING.
+  const eligible = url.searchParams.get("scope") === "eligible";
+  const whereClause = eligible
+    ? { shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "NOT_DELIVERED"] as const }, prepStatus: { in: ["NEW", "PREPARING", "READY"] as const } }
+    : { shippingStatus: "PENDING" as const };
 
   const pending = await prisma.mLOrder.findMany({
-    where: { shippingStatus: "PENDING" },
+    where: whereClause,
     select: { id: true, mlOrderId: true, shipmentId: true, prepStatus: true },
     orderBy: { dateCreated: "asc" },
     take: batch,
   });
 
-  let updated = 0, noShipment = 0, errors = 0;
+  let updated = 0, noShipment = 0, errors = 0, markedShipped = 0;
   for (const o of pending) {
     try {
       let shipmentId = o.shipmentId;
@@ -67,6 +74,7 @@ export async function POST(request: NextRequest) {
       if (sh.logistic_type) data.logisticType = sh.logistic_type;
       if ((newStatus === "SHIPPED" || newStatus === "DELIVERED") && o.prepStatus !== "SHIPPED") {
         data.prepStatus = "SHIPPED";
+        markedShipped++;
       }
       if (unitPrice != null) data.unitPrice = unitPrice;
       await prisma.mLOrder.update({ where: { id: o.id }, data });
@@ -75,5 +83,5 @@ export async function POST(request: NextRequest) {
   }
 
   const remaining = await prisma.mLOrder.count({ where: { shippingStatus: "PENDING" } });
-  return NextResponse.json({ processed: pending.length, updated, noShipment, errors, remainingPending: remaining });
+  return NextResponse.json({ processed: pending.length, updated, markedShipped, noShipment, errors, remainingPending: remaining });
 }
