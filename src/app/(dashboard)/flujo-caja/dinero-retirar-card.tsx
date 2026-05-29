@@ -15,26 +15,22 @@ export function DineroRetirarCard({ serverAmount, totalWithdrawn }: { serverAmou
   const dateFrom = searchParams.get("dateFrom") || "";
   const dateTo = searchParams.get("dateTo") || "";
   const productIds = searchParams.get("productIds") || searchParams.get("productId") || "";
+  const packIds = searchParams.get("packIds") || searchParams.get("packId") || "";
 
   useEffect(() => {
     const params = new URLSearchParams();
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    if (productIds) params.set("productIds", productIds);
+    if (packIds) params.set("packIds", packIds);
 
-    fetch(`/api/ads-costs?${params}`)
+    // Use the server-side filtered total so every card shows the same publicidad amount.
+    fetch(`/api/ads-costs?${params.toString()}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (productIds) {
-          const pIds = productIds.split(",").filter(Boolean);
-          const filtered = (data.byProduct || []).filter((p: { productId: string }) => pIds.includes(p.productId));
-          setAdsCost(filtered.reduce((s: number, p: { cost: number }) => s + p.cost, 0));
-        } else {
-          setAdsCost(data.totalAdsCost || 0);
-        }
-      })
+      .then((data) => setAdsCost(data.totalAdsCost || 0))
       .catch(() => setAdsCost(0))
       .finally(() => setLoading(false));
-  }, [dateFrom, dateTo, productIds]);
+  }, [dateFrom, dateTo, productIds, packIds]);
 
   const available = serverAmount - adsCost;
 

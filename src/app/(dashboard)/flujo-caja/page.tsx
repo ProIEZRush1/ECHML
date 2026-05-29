@@ -20,6 +20,7 @@ import { MPSyncButton } from "./mp-sync-button";
 import { FlexCostEditor } from "./flex-cost-editor";
 import { CashflowFilters } from "./cashflow-filters";
 import { AdsCostCard } from "./ads-cost-card";
+import { refreshAdsSnapshotIfStale } from "@/lib/ml/ads";
 import { FinancialCardsWrapper } from "./financial-cards-wrapper";
 import { RefundButton } from "./refund-button";
 import Link from "next/link";
@@ -313,6 +314,12 @@ export default async function FlujoCajaPage({
   const totalFacturasEmitidas = facturas.reduce((s, f) => s + Number(f.total), 0);
   const hasFacturaSobreMercancia = activeGroups.some((g) => g.facturaSobreMercancia);
 
+  // Refresh ads snapshot from ML on reload (stale-guarded so we don't hit ML on every load),
+  // so Publicidad reflects the latest spend for the current date range.
+  const adsDateFrom = params.dateFrom || new Date(Date.now() - 30 * 86400000).toISOString().split("T")[0];
+  const adsDateTo = params.dateTo || new Date().toISOString().split("T")[0];
+  await refreshAdsSnapshotIfStale(adsDateFrom, adsDateTo);
+
   // Fetch ads cost server-side using the DB snapshot (or ML API fallback)
   let serverAdsCost = 0;
   try {
@@ -331,7 +338,13 @@ export default async function FlujoCajaPage({
         adsAllowedIds = new Set(adsListings.map((l) => l.mlItemId));
       }
 
-      const filteredAds = adsAllowedIds ? adsItems.filter((i) => adsAllowedIds!.has(i.item_id)) : adsItems;
+      // If a product/pack filter is active but matched no packs, ads must be 0 —
+      // never fall back to the global total under an active filter.
+      const filteredAds = adsAllowedIds
+        ? adsItems.filter((i) => adsAllowedIds!.has(i.item_id))
+        : isFiltered
+          ? []
+          : adsItems;
       serverAdsCost = Math.round(filteredAds.reduce((s, i) => s + (i.metrics?.cost || 0), 0) * 100) / 100;
     }
   } catch { /* ignore ads errors — will show 0 */ }

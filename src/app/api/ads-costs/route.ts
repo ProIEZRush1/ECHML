@@ -3,69 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAnyAuth } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { mlFetch } from "@/lib/ml/client";
-
-interface AdsItem {
-  item_id: string;
-  title: string;
-  campaign_id: number;
-  status: string;
-  metrics: {
-    cost: number;
-    clicks: number;
-    prints: number;
-    total_amount: number;
-    acos: number;
-    roas: number;
-    direct_amount: number;
-    indirect_amount: number;
-    units_quantity: number;
-  };
-}
-
-interface AdsSearchResponse {
-  paging: { total: number; offset: number; limit: number };
-  results: AdsItem[];
-}
-
-async function fetchAdsFromML(dateFrom: string, dateTo: string): Promise<AdsItem[]> {
-  const advertiserId = 853025;
-  const allItems: AdsItem[] = [];
-  let offset = 0;
-  const limit = 50;
-  let total = Infinity;
-
-  while (offset < total) {
-    const data = await mlFetch<AdsSearchResponse>(
-      `/advertising/MLM/advertisers/${advertiserId}/product_ads/ads/search?limit=${limit}&offset=${offset}&date_from=${dateFrom}&date_to=${dateTo}&filters[statuses]=active,paused,hold,idle&metrics=cost,clicks,prints,total_amount,acos,roas,direct_amount,indirect_amount,units_quantity&metrics_summary=true`,
-      { headers: { "api-version": "2" } }
-    );
-    total = data.paging.total;
-    allItems.push(...data.results);
-    offset += limit;
-    if (offset >= total) break;
-  }
-  return allItems;
-}
-
-async function getAdsSnapshot(): Promise<{ items: AdsItem[]; syncedAt: string } | null> {
-  const config = await prisma.systemConfig.findUnique({ where: { key: "ads_snapshot" } });
-  if (!config) return null;
-  try {
-    return JSON.parse(config.value);
-  } catch {
-    return null;
-  }
-}
-
-async function saveAdsSnapshot(items: AdsItem[]): Promise<void> {
-  const value = JSON.stringify({ items, syncedAt: new Date().toISOString() });
-  await prisma.systemConfig.upsert({
-    where: { key: "ads_snapshot" },
-    update: { value },
-    create: { key: "ads_snapshot", value },
-  });
-}
+import { fetchAdsFromML, getAdsSnapshot, saveAdsSnapshot } from "@/lib/ml/ads";
 
 // GET: Read from DB snapshot (consistent, never changes until sync)
 export async function GET(request: NextRequest) {
@@ -190,6 +128,8 @@ export async function GET(request: NextRequest) {
       totalSalesFromAds: Math.round(totalSales * 100) / 100,
       overallAcos: totalSales > 0 ? Math.round((totalCost / totalSales) * 10000) / 100 : 0,
       itemCount: filteredItems.length,
+      // ML's own authoritative account-wide total for this date range (cross-check; not filtered).
+      mlAccountTotalCost: snapshot.summary ? Math.round(snapshot.summary.cost * 100) / 100 : null,
       byProduct: Object.entries(productCosts)
         .map(([id, data]) => ({
           productId: id,
@@ -216,12 +156,13 @@ export async function POST(request: NextRequest) {
   const dateTo = (body as Record<string, string>).dateTo || new Date().toISOString().split("T")[0];
 
   try {
-    const items = await fetchAdsFromML(dateFrom, dateTo);
-    await saveAdsSnapshot(items);
+    const { items, summary } = await fetchAdsFromML(dateFrom, dateTo);
+    await saveAdsSnapshot(items, summary, dateFrom, dateTo);
     const totalCost = items.reduce((s, i) => s + (i.metrics.cost || 0), 0);
     return NextResponse.json({
       synced: items.length,
       totalAdsCost: Math.round(totalCost * 100) / 100,
+      mlAccountTotalCost: summary ? Math.round(summary.cost * 100) / 100 : null,
       syncedAt: new Date().toISOString(),
     });
   } catch (error) {
