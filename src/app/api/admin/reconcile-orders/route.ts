@@ -41,6 +41,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ healed: r.count });
   }
 
+  // Diagnostic: list the orders currently eligible for Preparar (with dates),
+  // to distinguish genuinely-new ventas from stale ones long since handled.
+  if (url.searchParams.get("listEligible") === "true") {
+    const rows = await prisma.mLOrder.findMany({
+      where: { shippingStatus: { in: ["PENDING", "READY_TO_SHIP", "NOT_DELIVERED"] }, prepStatus: { in: ["NEW", "PREPARING", "READY"] } },
+      select: { mlOrderId: true, mlItemId: true, shippingStatus: true, prepStatus: true, dateCreated: true },
+      orderBy: { dateCreated: "asc" },
+    });
+    const now = Date.now();
+    return NextResponse.json({
+      total: rows.length,
+      orders: rows.map((r) => ({ mlOrderId: String(r.mlOrderId), mlItemId: r.mlItemId, shippingStatus: r.shippingStatus, prepStatus: r.prepStatus, date: r.dateCreated.toISOString().split("T")[0], ageDays: Math.floor((now - r.dateCreated.getTime()) / 86400000) })),
+    });
+  }
+
   const batch = parseInt(url.searchParams.get("batch") || "200", 10);
   // scope=eligible re-verifies EVERY order currently shown in Preparar against
   // ML's real shipment status (so already-shipped orders that were resurfaced
