@@ -13,6 +13,19 @@ interface RealMpBalance {
   asOf: string | null;
 }
 interface ReconFlag { level: "warn" | "info"; label: string; detail: string; amount?: number }
+interface GroupReconciliation {
+  groupId: string | null;
+  groupName: string;
+  groupColor: string;
+  ventasNetas: number;
+  flexNeto: number;
+  retiros: number;
+  gastosDesdeMP: number;
+  saldoLibros: number;
+  ventasBrutas: number;
+  devolucionesParciales: number;
+  salesCount: number;
+}
 export interface ReconProps {
   ventasNetas: number;
   flexNeto: number;
@@ -29,6 +42,7 @@ export interface ReconProps {
   devolucionesParciales: number;
   hasMpAccount: boolean;
   flags: ReconFlag[];
+  byGroup: GroupReconciliation[];
 }
 
 const fmt = (n: number) => formatCurrency(n);
@@ -78,7 +92,8 @@ export function ReconciliationCard({ recon }: { recon: ReconProps }) {
         {/* Books waterfall */}
         <div className="rounded-lg border border-border bg-muted/20 p-3 text-[12px] space-y-1">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Según tus libros</p>
-          <Row label="Ventas netas (− comis. − envío)" value={recon.ventasNetas} sign="+" />
+          {/* show ventas BEFORE the partial-refund deduction so the waterfall foots to Saldo esperado */}
+          <Row label="Ventas netas (− comis. − envío)" value={recon.ventasNetas + recon.devolucionesParciales} sign="+" />
           {recon.devolucionesParciales > 0 && <Row label="Reembolsos parciales" value={-recon.devolucionesParciales} sign="" raw />}
           <Row label="Flex neto" value={recon.flexNeto} sign={recon.flexNeto >= 0 ? "+" : ""} raw />
           <Row label="Retiros" value={-recon.retiros} sign="" raw />
@@ -153,6 +168,66 @@ export function ReconciliationCard({ recon }: { recon: ReconProps }) {
           ))}
         </div>
       )}
+
+      {recon.byGroup.length > 0 && <GroupBreakdown recon={recon} />}
+    </div>
+  );
+}
+
+function GroupBreakdown({ recon }: { recon: ReconProps }) {
+  return (
+    <div className="px-4 pb-4">
+      <div className="rounded-lg border border-border bg-muted/10 overflow-hidden">
+        <div className="px-3 py-2 border-b border-border">
+          <p className="text-[12px] font-semibold">Por grupo · ¿de quién es el dinero en MP?</p>
+          <p className="text-[11px] text-muted-foreground">
+            La bolsa de MP es una sola, pero la alimentan varios grupos. Cada fila = cuánto de ese grupo <strong>debería seguir en MP</strong> (ventas netas + flex − retiros − gastos MP).
+            La suma da el <strong>Saldo esperado</strong>. El descuadre vive en los grupos cuyo “Saldo en MP” es irreal — normalmente <strong>retiros del dueño no registrados</strong>.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[11px]">
+            <thead>
+              <tr className="text-muted-foreground border-b border-border">
+                <th className="text-left font-medium px-3 py-1.5">Grupo</th>
+                <th className="text-right font-medium px-2 py-1.5">Ventas netas</th>
+                <th className="text-right font-medium px-2 py-1.5">Flex</th>
+                <th className="text-right font-medium px-2 py-1.5">Retiros</th>
+                <th className="text-right font-medium px-2 py-1.5">Gastos MP</th>
+                <th className="text-right font-medium px-3 py-1.5">Saldo en MP (libros)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recon.byGroup.map((g) => (
+                <tr key={g.groupId ?? "none"} className="border-b border-border/50 last:border-0">
+                  <td className="px-3 py-1.5">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: g.groupColor }} />
+                      <span className="font-medium">{g.groupName}</span>
+                      <span className="text-muted-foreground">· {g.salesCount}</span>
+                    </span>
+                  </td>
+                  <td className="px-2 py-1.5 text-right num">{fmt(g.ventasNetas)}</td>
+                  <td className="px-2 py-1.5 text-right num">{g.flexNeto !== 0 ? fmt(g.flexNeto) : "—"}</td>
+                  <td className="px-2 py-1.5 text-right num">{g.retiros !== 0 ? `-${fmt(g.retiros)}` : "—"}</td>
+                  <td className="px-2 py-1.5 text-right num">{g.gastosDesdeMP !== 0 ? `-${fmt(g.gastosDesdeMP)}` : "—"}</td>
+                  <td className="px-3 py-1.5 text-right num font-semibold">{fmt(g.saldoLibros)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-border font-semibold">
+                <td className="px-3 py-1.5">Total (= Saldo esperado)</td>
+                <td className="px-2 py-1.5 text-right num">{fmt(recon.ventasNetas)}</td>
+                <td className="px-2 py-1.5 text-right num">{fmt(recon.flexNeto)}</td>
+                <td className="px-2 py-1.5 text-right num">-{fmt(recon.retiros)}</td>
+                <td className="px-2 py-1.5 text-right num">-{fmt(recon.gastosDesdeMP)}</td>
+                <td className="px-3 py-1.5 text-right num">{fmt(recon.saldoLibros)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
