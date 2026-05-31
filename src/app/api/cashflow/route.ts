@@ -41,9 +41,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Date filter (optional): ?from=YYYY-MM-DD&to=YYYY-MM-DD (also accepts dateFrom/dateTo).
+    const sp = request.nextUrl.searchParams;
+    const fromStr = sp.get("from") || sp.get("dateFrom");
+    const toStr = sp.get("to") || sp.get("dateTo");
+    const gte = /^\d{4}-\d{2}-\d{2}$/.test(fromStr || "") ? new Date(`${fromStr}T00:00:00.000Z`) : undefined;
+    const lte = /^\d{4}-\d{2}-\d{2}$/.test(toStr || "") ? new Date(`${toStr}T23:59:59.999Z`) : undefined;
+    const dateRange = gte || lte ? { ...(gte ? { gte } : {}), ...(lte ? { lte } : {}) } : undefined;
+
     const [orders, withdrawals, expenses, listings, allocations, mpTransactions] =
       await Promise.all([
         prisma.mLOrder.findMany({
+          where: dateRange ? { dateCreated: dateRange } : undefined,
           select: {
             mlItemId: true,
             totalAmount: true,
@@ -52,12 +61,14 @@ export async function GET(request: NextRequest) {
           },
         }),
         prisma.withdrawal.findMany({
+          where: dateRange ? { date: dateRange } : undefined,
           include: {
             allocations: true,
           },
           orderBy: { date: "desc" },
         }),
         prisma.expense.findMany({
+          where: dateRange ? { date: dateRange } : undefined,
           orderBy: { date: "desc" },
         }),
         prisma.mLListing.findMany({
@@ -75,6 +86,7 @@ export async function GET(request: NextRequest) {
           },
         }),
         prisma.mPTransaction.findMany({
+          where: dateRange ? { dateCreated: dateRange } : undefined,
           orderBy: { dateCreated: "desc" },
         }),
       ]);
@@ -83,7 +95,10 @@ export async function GET(request: NextRequest) {
 
     // Calculate devoluciones impact
     const returnedOrders = await prisma.mLOrder.findMany({
-      where: { shippingStatus: { in: ["RETURNED", "NOT_DELIVERED"] } },
+      where: {
+        shippingStatus: { in: ["RETURNED", "NOT_DELIVERED"] },
+        ...(dateRange ? { dateCreated: dateRange } : {}),
+      },
       select: {
         mlOrderId: true,
         mlItemId: true,
