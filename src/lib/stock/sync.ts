@@ -7,6 +7,15 @@ import { prisma } from "@/lib/prisma";
  */
 export const STOCK_SYNC_GROUPS: string[][] = [
   ["prod-playera-normal", "prod-playera-bm"],
+  // DL360p: 5 listings of the SAME physical HP DL360p Gen8 server (different
+  // titles) = single shared inventory. All variants are "Default" (matched 1:1).
+  [
+    "cmowguxpa00hypb019gb8d2yo",
+    "cmp2sxu1l001vqv01e3zzkgyy",
+    "cmp2sxu2k0024qv01wx4ascnb",
+    "cmp2sxu3c002dqv016hc2xk06",
+    "cmp2sxu53002mqv010v86botq",
+  ],
 ];
 
 const productToGroup = new Map<string, string[]>();
