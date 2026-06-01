@@ -182,11 +182,14 @@ export default async function FlujoCajaPage({
     where: scopeProdIds
       ? { productId: { in: scopeProdIds.filter((id) => !mirrorSkip.has(id)) }, stock: { gt: 0 } }
       : { productId: { notIn: [...mirrorSkip] }, stock: { gt: 0 } },
-    select: { stock: true, product: { select: { unitCost: true } } },
+    select: { stock: true, product: { select: { unitCost: true, supplierCode: true } } },
   });
   let unsoldStockValue = 0;
   let unsoldUnits = 0;
   for (const v of stockVariants) {
+    // Solo inventario FÍSICO real. Los productos-listing auto-generados (supplierCode
+    // "AUTO-…") tienen stock virtual inflado para ML — no es mercancía real.
+    if (v.product.supplierCode.startsWith("AUTO-")) continue;
     unsoldStockValue += v.stock * Number(v.product.unitCost);
     unsoldUnits += v.stock;
   }
@@ -459,13 +462,17 @@ export default async function FlujoCajaPage({
   const allFilteredTransactions = allTransactions;
 
   // Build pack cost map: packId -> cost per unit sold
+  // y pack units map: packId -> # unidades de producto que contiene 1 pack (ej. 6-pack = 6)
   const packCostMap = new Map<string, number>();
+  const packUnitsMap = new Map<string, number>();
   for (const pack of packsWithCosts) {
     const cost = pack.items.reduce(
       (sum, item) => sum + item.quantity * Number(item.productVariant.product.unitCost),
       0
     );
     if (cost > 0) packCostMap.set(pack.id, cost);
+    const units = pack.items.reduce((sum, item) => sum + item.quantity, 0);
+    if (units > 0) packUnitsMap.set(pack.id, units);
   }
 
   let totalIncome = 0;
@@ -475,6 +482,7 @@ export default async function FlujoCajaPage({
   let totalFlexCost = 0;
   let totalFlexBonificacion = 0;
   let totalUnits = 0;
+  let productUnitsSold = 0;
   const salesPerPack = new Map<string, number>();
 
   let totalReturns = 0;
@@ -492,6 +500,10 @@ export default async function FlujoCajaPage({
     if (tx.label === "sale") {
       totalIncome += amount;
       totalUnits += tx.quantity;
+      // Unidades de producto reales = expandir el pack a sus componentes
+      // (ej. 1 venta de "6 Playeras" = 6 unidades). Fallback 1 si no se mapea a pack.
+      const unitsPerPack = tx.packId ? (packUnitsMap.get(tx.packId) ?? 1) : 1;
+      productUnitsSold += tx.quantity * unitsPerPack;
       if (tx.packId) {
         salesPerPack.set(tx.packId, (salesPerPack.get(tx.packId) || 0) + tx.quantity);
       }
@@ -722,6 +734,7 @@ export default async function FlujoCajaPage({
               totalIncome={totalIncome}
               salesCount={salesCount}
               totalUnits={totalUnits}
+              productUnitsSold={productUnitsSold}
               totalDeducciones={totalDeducciones}
               deductionItems={deductionItems}
               serverNet={totalNet}

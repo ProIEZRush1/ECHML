@@ -26,6 +26,7 @@ interface Props {
   totalIncome: number;
   salesCount: number;
   totalUnits: number;
+  productUnitsSold: number;
   totalDeducciones: number;
   deductionItems: DeductionItem[];
   serverNet: number;
@@ -50,7 +51,7 @@ interface Props {
 
 export function FinancialCardsWrapper({
   unsoldStockValue, unsoldUnits,
-  totalIncome, salesCount, totalUnits, totalDeducciones, deductionItems,
+  totalIncome, salesCount, totalUnits, productUnitsSold, totalDeducciones, deductionItems,
   serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, totalCompras, gastosByAccount, accounts, showWithdraw,
   totalFacturasEmitidas = 0, hasFacturaSobreMercancia = false,
@@ -103,7 +104,14 @@ export function FinancialCardsWrapper({
         <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-emerald-400 to-emerald-600" />
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 pl-3">Ingresos</p>
         <p className="text-3xl font-bold num margin-good tracking-tight pl-3">{fmt(totalIncome)}</p>
-        <p className="text-[12px] text-muted-foreground mt-2 pl-3">{salesCount} ventas{totalUnits !== salesCount ? ` · ${totalUnits} unidades` : ""}</p>
+        <p className="text-[12px] text-muted-foreground mt-2 pl-3">{(() => {
+          const nf = (n: number) => n.toLocaleString("es-MX");
+          const expanded = productUnitsSold !== totalUnits; // hay packs que expanden (ej. 6-pack)
+          const parts = [`${nf(salesCount)} ventas`];
+          if (totalUnits !== salesCount || expanded) parts.push(`${nf(totalUnits)} ${expanded ? "paquetes" : "unidades"}`);
+          if (expanded) parts.push(`${nf(productUnitsSold)} unidades`);
+          return parts.join(" · ");
+        })()}</p>
       </div>
 
       {/* Costos y Deducciones — Expandable breakdown */}
