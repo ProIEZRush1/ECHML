@@ -483,6 +483,8 @@ export default async function FlujoCajaPage({
   let totalFlexBonificacion = 0;
   let totalUnits = 0;
   let productUnitsSold = 0;
+  let manualIncome = 0; // ingreso de ventas manuales (subconjunto de totalIncome)
+  let manualProductCost = 0; // costo de mercancía de ventas manuales (subconjunto de totalProductCost)
   const salesPerPack = new Map<string, number>();
   // Ventas manuales ligadas a una variante (sin pack): su costo = unitCost × cantidad.
   const manualVariantQty = new Map<string, number>();
@@ -501,6 +503,7 @@ export default async function FlujoCajaPage({
     const amount = Number(tx.amount);
     if (tx.label === "sale") {
       totalIncome += amount;
+      if (tx.source === "manual") manualIncome += amount;
       totalUnits += tx.quantity;
       // Unidades de producto reales = expandir el pack a sus componentes
       // (ej. 1 venta de "6 Playeras" = 6 unidades). Fallback 1 si no se mapea a pack.
@@ -537,7 +540,9 @@ export default async function FlujoCajaPage({
     });
     const mvCost = new Map(mvVariants.map((v) => [v.id, Number(v.product.unitCost)]));
     for (const [vid, qty] of manualVariantQty) {
-      totalProductCost += (mvCost.get(vid) || 0) * qty;
+      const c = (mvCost.get(vid) || 0) * qty;
+      totalProductCost += c;
+      manualProductCost += c;
     }
   }
 
@@ -737,7 +742,13 @@ export default async function FlujoCajaPage({
           { label: "Comisiones", value: totalFees },
           { label: "Envios", value: totalShipping },
           { label: "Impuestos", value: totalImpuestos },
-          { label: "Costo producto", value: totalProductCost },
+          // Costo de producto: separa ML vs manual cuando hay ventas manuales con costo.
+          ...(manualProductCost > 0
+            ? [
+                { label: "Costo producto ML", value: totalProductCost - manualProductCost },
+                { label: "Costo producto manual", value: manualProductCost },
+              ]
+            : [{ label: "Costo producto", value: totalProductCost }]),
           { label: "Gastos", value: totalGastosOp },
           { label: "Flex", value: totalFlexCost },
           ...(totalFlexBonificacion > 0 ? [{ label: "Bonificaciones", value: -totalFlexBonificacion }] : []),
@@ -750,6 +761,7 @@ export default async function FlujoCajaPage({
               unsoldStockValue={unsoldStockValue}
               unsoldUnits={unsoldUnits}
               totalIncome={totalIncome}
+              manualIncome={manualIncome}
               salesCount={salesCount}
               totalUnits={totalUnits}
               productUnitsSold={productUnitsSold}

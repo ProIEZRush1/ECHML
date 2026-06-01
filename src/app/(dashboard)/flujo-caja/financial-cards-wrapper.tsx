@@ -24,6 +24,7 @@ interface Props {
   unsoldStockValue: number;
   unsoldUnits: number;
   totalIncome: number;
+  manualIncome: number;
   salesCount: number;
   totalUnits: number;
   productUnitsSold: number;
@@ -51,7 +52,7 @@ interface Props {
 
 export function FinancialCardsWrapper({
   unsoldStockValue, unsoldUnits,
-  totalIncome, salesCount, totalUnits, productUnitsSold, totalDeducciones, deductionItems,
+  totalIncome, manualIncome, salesCount, totalUnits, productUnitsSold, totalDeducciones, deductionItems,
   serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, totalCompras, gastosByAccount, accounts, showWithdraw,
   totalFacturasEmitidas = 0, hasFacturaSobreMercancia = false,
@@ -112,6 +113,12 @@ export function FinancialCardsWrapper({
           if (expanded) parts.push(`${nf(productUnitsSold)} unidades`);
           return parts.join(" · ");
         })()}</p>
+        {manualIncome > 0 && (
+          <p className="text-[11px] text-muted-foreground/80 mt-1 pl-3 flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/70" />
+            incluye {fmt(manualIncome)} de ventas manuales
+          </p>
+        )}
       </div>
 
       {/* Costos y Deducciones — Expandable breakdown */}
