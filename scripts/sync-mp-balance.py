@@ -35,7 +35,7 @@ def mp_text(path):
         return r.read().decode("utf-8", "replace")
 
 
-def gen_and_wait(kind, begin, end, max_wait=240):
+def gen_and_wait(kind, begin, end, max_wait=300):
     """Generate a release/settlement report and wait for THAT id, return CSV text."""
     posted = mp("POST", f"/v1/account/{kind}", {"begin_date": begin, "end_date": end})
     rid = str(posted.get("id"))
@@ -82,23 +82,37 @@ def parse_a_liberar(csv_text):
     return round(total, 2)
 
 
+def get_existing_futuro():
+    """Conserva el 'a liberar' actual del CRM por si el settlement report falla."""
+    try:
+        req = urllib.request.Request(f"{BASE}/api/mp/real-balance",
+            headers={"Authorization": f"Bearer {KEY}", "User-Agent": "curl/8"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return float(json.loads(r.read()).get("futuro") or 0)
+    except Exception:
+        return 0.0
+
+
 def main():
-    # MP report API rechaza milisegundos en las fechas: usar T..:..:..Z sin .000
+    # MP report API rechaza milisegundos; usar T..:..:..Z sin .000. End <= ahora.
     now = datetime.datetime.now(datetime.timezone.utc)
-    begin = (now - datetime.timedelta(days=40)).strftime("%Y-%m-%dT00:00:00Z")
     end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # Disponible: rango corto (rápido) — solo importa el último BALANCE_AMOUNT.
+    rel_begin = (now - datetime.timedelta(days=5)).strftime("%Y-%m-%dT00:00:00Z")
+    # A liberar: 30 días para capturar todo lo pendiente de liberar.
+    set_begin = (now - datetime.timedelta(days=30)).strftime("%Y-%m-%dT00:00:00Z")
 
     print("Release report (disponible)...")
-    disp = parse_disponible(gen_and_wait("release_report", begin, end))
+    disp = parse_disponible(gen_and_wait("release_report", rel_begin, end))
     print(f"  DISPONIBLE = {disp}")
 
-    futuro = 0.0
+    futuro = get_existing_futuro()  # fallback: conserva el actual
     try:
         print("Settlement report (a liberar)...")
-        futuro = parse_a_liberar(gen_and_wait("settlement_report", begin, end))
+        futuro = parse_a_liberar(gen_and_wait("settlement_report", set_begin, end))
         print(f"  A LIBERAR = {futuro}")
     except Exception as e:
-        print(f"  (a liberar no disponible: {e}; se deja en 0)")
+        print(f"  (a liberar no se pudo; se conserva el actual {futuro}: {e})")
 
     if disp is None:
         print("No se pudo leer el disponible; aborto sin escribir.")
