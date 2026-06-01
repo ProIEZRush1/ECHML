@@ -25,6 +25,7 @@ import {
   Key,
   Sparkles,
   FileText,
+  HandCoins,
 } from "lucide-react";
 import {
   Sidebar,
@@ -66,6 +67,7 @@ const navItems = [
     icon: ShoppingCart,
     children: [
       { title: "Ventas", href: "/ventas", icon: ShoppingCart },
+      { title: "Ventas Manuales", href: "/ventas-manuales", icon: HandCoins },
       { title: "Pedidos", href: "/pedidos", icon: Truck },
       { title: "Preparar", href: "/preparar", icon: PackageCheck },
       { title: "Publicaciones", href: "/publicaciones", icon: Store },

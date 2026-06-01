@@ -66,7 +66,11 @@ interface GroupAcc {
 
 export async function computeReconciliation(): Promise<Reconciliation> {
   const [txns, withdrawals, returnedOrders, partialOrders, accounts, groups] = await Promise.all([
+    // Solo transacciones reales de la billetera MP. Las ventas MANUALES (efectivo/banco
+    // fuera de ML) NO entraron a MercadoPago, asi que se excluyen de la conciliacion del
+    // saldo MP para no crear un descuadre fantasma (si SI cuentan en flujo-caja/utilidad).
     prisma.mPTransaction.findMany({
+      where: { NOT: { source: "manual" } },
       select: { id: true, amount: true, balanceChange: true, label: true, type: true, mlOrderId: true, quantity: true, packId: true },
     }),
     prisma.withdrawal.findMany({

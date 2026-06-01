@@ -405,12 +405,14 @@ model MPTransaction {
   dateCreated   DateTime
   syncedAt      DateTime @default(now())
   paidAt        DateTime?
+  source        String   @default("ml") // "ml" = sincronizado de MercadoLibre/MP | "manual" = venta registrada fuera de ML
 
   pack Pack? @relation(fields: [packId], references: [id])
 
   @@index([dateCreated])
   @@index([label])
   @@index([packId])
+  @@index([source])
 }
 
 model ProductGroup {

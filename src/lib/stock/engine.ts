@@ -148,6 +148,155 @@ export async function processSale(
   }
 }
 
+// Descuenta stock por una venta MANUAL (fuera de ML) de un pack. Mismo patron que
+// processSale: valida stock, descuenta los componentes del pack, registra StockLog,
+// espeja a hermanos (STOCK_SYNC_GROUPS) y recalcula el stock del pack + lo empuja a ML.
+export async function processManualSale(
+  packId: string,
+  quantity: number,
+  userId?: string,
+  reason?: string
+): Promise<void> {
+  const pack = await prisma.pack.findUnique({
+    where: { id: packId },
+    include: { items: { include: { productVariant: true } } },
+  });
+  if (!pack || pack.items.length === 0) return;
+
+  const affectedVariantIds = pack.items.map((i) => i.productVariantId);
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const variants = await tx.$queryRaw<
+            Array<{ id: string; stock: number }>
+          >`SELECT id, stock FROM "ProductVariant" WHERE id = ANY(${affectedVariantIds}::text[]) FOR UPDATE`;
+
+          const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+          for (const item of pack.items) {
+            const variant = variantMap.get(item.productVariantId);
+            if (!variant) continue;
+            const needed = item.quantity * quantity;
+            if (variant.stock < needed) {
+              throw new InsufficientStockError(variant.id, needed, variant.stock);
+            }
+          }
+
+          for (const item of pack.items) {
+            const variant = variantMap.get(item.productVariantId)!;
+            const deduction = item.quantity * quantity;
+            const newStock = variant.stock - deduction;
+
+            await tx.productVariant.update({
+              where: { id: variant.id },
+              data: { stock: newStock },
+            });
+
+            await tx.stockLog.create({
+              data: {
+                productVariantId: variant.id,
+                changeType: "SALE",
+                quantityChange: -deduction,
+                previousStock: variant.stock,
+                newStock,
+                reason: reason ?? `Venta manual (pack ${pack.sku})`,
+                userId: userId ?? null,
+              },
+            });
+          }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+
+      const mirrored = await syncLinkedVariants(affectedVariantIds);
+      await recalculateAffectedPacks([...affectedVariantIds, ...mirrored]);
+      return;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
+// Reversa el descuento de una venta manual (al borrarla): re-incrementa los
+// componentes del pack, registra StockLog, espeja y recalcula.
+export async function reverseManualSale(
+  packId: string,
+  quantity: number,
+  userId?: string,
+  reason?: string
+): Promise<void> {
+  const pack = await prisma.pack.findUnique({
+    where: { id: packId },
+    include: { items: { include: { productVariant: true } } },
+  });
+  if (!pack || pack.items.length === 0) return;
+
+  const affectedVariantIds = pack.items.map((i) => i.productVariantId);
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          // FOR UPDATE lock evita lost-update si otra venta/reverso toca las mismas variantes.
+          const variants = await tx.$queryRaw<
+            Array<{ id: string; stock: number }>
+          >`SELECT id, stock FROM "ProductVariant" WHERE id = ANY(${affectedVariantIds}::text[]) FOR UPDATE`;
+          const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+          for (const item of pack.items) {
+            const variant = variantMap.get(item.productVariantId);
+            if (!variant) continue;
+            const addBack = item.quantity * quantity;
+            const newStock = variant.stock + addBack;
+
+            await tx.productVariant.update({
+              where: { id: item.productVariantId },
+              data: { stock: newStock },
+            });
+
+            await tx.stockLog.create({
+              data: {
+                productVariantId: item.productVariantId,
+                changeType: "MANUAL_ADD",
+                quantityChange: addBack,
+                previousStock: variant.stock,
+                newStock,
+                reason: reason ?? `Reverso venta manual (pack ${pack.sku})`,
+                userId: userId ?? null,
+              },
+            });
+          }
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+
+      const mirrored = await syncLinkedVariants(affectedVariantIds);
+      await recalculateAffectedPacks([...affectedVariantIds, ...mirrored]);
+      return;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 export async function addStock(
   items: Array<{
     productVariantId: string;
