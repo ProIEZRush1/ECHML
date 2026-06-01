@@ -269,7 +269,7 @@ export default async function ContabilidadPage({
 
   // Calculate derived fields
   for (const acc of accs.values()) {
-    acc.impuestos = (acc.ingresos / 1.16) * 0.105;
+    acc.impuestos = 0; // ML ya incluye su impuesto en la comisión; no modelamos retención extra (cuenta empresa, no RESICO)
     acc.utilidad = acc.ingresos - acc.comisiones - acc.envios - acc.impuestos - acc.costoProducto - acc.gastos - acc.compras - acc.flex - acc.devoluciones;
     acc.saldo = acc.utilidad - acc.retiros;
   }

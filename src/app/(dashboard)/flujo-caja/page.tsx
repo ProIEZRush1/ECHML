@@ -492,11 +492,10 @@ export default async function FlujoCajaPage({
     }
   }
 
-  // Tax calculation (Mexico RESICO regime)
-  const totalBase = totalIncome / 1.16;
-  const totalRetencionIVA = totalBase * 0.08;
-  const totalRetencionISR = totalBase * 0.025;
-  const totalImpuestos = totalRetencionIVA + totalRetencionISR;
+  // No modelamos impuestos extra: ML ya cobra su impuesto dentro de la comisión y
+  // esta cuenta es empresa (no RESICO) — el taxes_amount real de los pagos de ML es 0.
+  // Solo contamos lo que ML realmente cobra (comisión + envío).
+  const totalImpuestos = 0;
 
   const totalGastos = relevantExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const totalGastosOp = relevantExpenses.filter((e) => e.type === "gasto").reduce((sum, e) => sum + Number(e.amount), 0);
