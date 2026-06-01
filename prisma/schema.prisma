@@ -167,6 +167,7 @@ model ProductVariant {
   packItems       PackItem[]
   stockLogs       StockLog[]
   stockEntryItems StockEntryItem[]
+  mpTransactions  MPTransaction[]
 
   @@unique([productId, color])
   @@index([stock])
@@ -398,21 +399,24 @@ model MPTransaction {
   label         String
   description   String?
   referenceId   String?
-  mlOrderId     BigInt?
-  mlPackId      BigInt?
-  packId        String?
-  quantity      Int      @default(1)
-  dateCreated   DateTime
-  syncedAt      DateTime @default(now())
-  paidAt        DateTime?
-  source        String   @default("ml") // "ml" = sincronizado de MercadoLibre/MP | "manual" = venta registrada fuera de ML
+  mlOrderId        BigInt?
+  mlPackId         BigInt?
+  packId           String?
+  productVariantId String?  // venta manual ligada a una variante específica (producto+color/talla)
+  quantity         Int      @default(1)
+  dateCreated      DateTime
+  syncedAt         DateTime @default(now())
+  paidAt           DateTime?
+  source           String   @default("ml") // "ml" = sincronizado de MercadoLibre/MP | "manual" = venta registrada fuera de ML
 
-  pack Pack? @relation(fields: [packId], references: [id])
+  pack           Pack?           @relation(fields: [packId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
 
   @@index([dateCreated])
   @@index([label])
   @@index([packId])
   @@index([source])
+  @@index([productVariantId])
 }
 
 model ProductGroup {

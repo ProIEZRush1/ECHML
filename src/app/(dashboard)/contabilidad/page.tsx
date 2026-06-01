@@ -77,7 +77,7 @@ export default async function ContabilidadPage({
     }),
     prisma.mPTransaction.findMany({
       where: { dateCreated: { gte: dateGte, lte: dateLte } },
-      select: { amount: true, label: true, packId: true, quantity: true, mlOrderId: true },
+      select: { amount: true, label: true, packId: true, quantity: true, mlOrderId: true, productVariantId: true, source: true, type: true },
     }),
     prisma.expense.findMany({
       where: { date: { gte: dateGte, lte: dateLte } },
@@ -137,6 +137,24 @@ export default async function ContabilidadPage({
     if (cost > 0) packCostMap.set(pack.id, cost);
   }
 
+  // Ventas manuales por variante: mapear variante → grupo (del producto) + unitCost, para
+  // atribuir el ingreso al grupo correcto y sumar su COGS (igual que flujo-caja).
+  const manualVarIds = [
+    ...new Set(
+      allTransactions.filter((t) => t.source === "manual" && t.productVariantId).map((t) => t.productVariantId!)
+    ),
+  ];
+  const variantInfo = new Map<string, { groupId: string | null; unitCost: number }>();
+  if (manualVarIds.length > 0) {
+    const mvs = await prisma.productVariant.findMany({
+      where: { id: { in: manualVarIds } },
+      select: { id: true, productId: true, product: { select: { unitCost: true } } },
+    });
+    for (const v of mvs) {
+      variantInfo.set(v.id, { groupId: productToGroupMap.get(v.productId) ?? null, unitCost: Number(v.product.unitCost) });
+    }
+  }
+
   // Resolve expense transactionIds → packIds
   const allTxIdsFromExpenses = new Set<string>();
   for (const exp of expenses) {
@@ -183,7 +201,9 @@ export default async function ContabilidadPage({
   for (const tx of allTransactions) {
     if (tx.mlOrderId && returnedOrderIds.has(tx.mlOrderId)) continue;
 
-    const groupId = tx.packId ? (packToGroupMap.get(tx.packId) || null) : null;
+    const groupId = tx.packId
+      ? (packToGroupMap.get(tx.packId) || null)
+      : (tx.productVariantId ? (variantInfo.get(tx.productVariantId)?.groupId ?? null) : null);
     const acc = getAcc(groupId);
     const amount = Number(tx.amount);
 
@@ -195,6 +215,10 @@ export default async function ContabilidadPage({
         if (!salesPerPackPerGroup.has(key)) salesPerPackPerGroup.set(key, new Map());
         const packSales = salesPerPackPerGroup.get(key)!;
         packSales.set(tx.packId, (packSales.get(tx.packId) || 0) + tx.quantity);
+      } else if (tx.source === "manual" && tx.productVariantId && tx.type === "manual_sale") {
+        // COGS de venta manual por variante (solo si descontó stock), en el grupo del producto.
+        const vi = variantInfo.get(tx.productVariantId);
+        if (vi) acc.costoProducto += vi.unitCost * tx.quantity;
       }
     } else if (tx.label === "fee" || tx.label === "commission") {
       acc.comisiones += Math.abs(amount);

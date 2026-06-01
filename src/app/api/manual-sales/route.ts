@@ -3,14 +3,16 @@ import { z } from "zod/v4";
 import { prisma } from "@/lib/prisma";
 import { verifyAnyAuth } from "@/lib/api-auth";
 import { parseLocalDate } from "@/lib/utils";
-import { processManualSale, InsufficientStockError } from "@/lib/stock/engine";
+import { InsufficientStockError } from "@/lib/stock/engine";
+import { resolveItem, itemDisplayName, precheckStock, applyStock } from "@/lib/finance/manual-sale";
 
 export const dynamic = "force-dynamic";
 
 const createManualSaleSchema = z
   .object({
-    packId: z.string().optional(),
-    concept: z.string().max(300).optional(), // descripcion libre si no hay pack
+    productVariantId: z.string().optional(), // venta de una variante específica (producto+talla)
+    packId: z.string().optional(), // o de un pack del catálogo
+    concept: z.string().max(300).optional(), // o descripción libre (sin stock)
     quantity: z.number().int().positive("La cantidad debe ser mayor a 0").max(100000).default(1),
     amount: z.number().positive("El monto debe ser mayor a 0").max(99999999.99, "Monto demasiado grande"),
     date: z.string().min(1, "La fecha es obligatoria"),
@@ -18,8 +20,8 @@ const createManualSaleSchema = z
     notes: z.string().max(500).optional(),
     deductStock: z.boolean().optional().default(true),
   })
-  .refine((d) => !!d.packId || !!(d.concept && d.concept.trim()), {
-    message: "Elige un pack del catalogo o escribe un concepto",
+  .refine((d) => !!d.productVariantId || !!d.packId || !!(d.concept && d.concept.trim()), {
+    message: "Elige un producto/variante, un pack, o escribe un concepto",
   });
 
 // Las ventas manuales son filas en MPTransaction con source='manual'. Asi flujo-caja,
@@ -42,8 +44,12 @@ export async function GET(request: NextRequest) {
       description: true,
       referenceId: true,
       packId: true,
+      productVariantId: true,
       dateCreated: true,
       pack: { select: { id: true, sku: true, name: true } },
+      productVariant: {
+        select: { id: true, variantLabel: true, product: { select: { id: true, name: true, unitCost: true } } },
+      },
     },
     orderBy: { dateCreated: "desc" },
   });
@@ -52,6 +58,7 @@ export async function GET(request: NextRequest) {
     sales.map((s) => ({
       ...s,
       amount: Number(s.amount),
+      unitCost: s.productVariant ? Number(s.productVariant.product.unitCost) : null,
       deductedStock: s.type === "manual_sale",
       dateCreated: s.dateCreated.toISOString(),
     }))
@@ -67,59 +74,33 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const result = createManualSaleSchema.safeParse(body);
-
     if (!result.success) {
-      return NextResponse.json(
-        { error: "Datos invalidos", details: result.error.issues },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Datos invalidos", details: result.error.issues }, { status: 400 });
     }
 
-    const { packId, concept, quantity, amount, date, channel, notes, deductStock } = result.data;
+    const { productVariantId, packId, concept, quantity, amount, date, channel, notes, deductStock } = result.data;
+    const item = resolveItem({ productVariantId, packId });
+    const willDeduct = item.kind !== "free" && deductStock;
 
-    // El descuento de stock solo aplica si hay pack ligado y el toggle esta encendido.
-    const willDeduct = !!packId && deductStock;
-
-    let packName: string | null = null;
-    if (packId) {
-      // Si vamos a descontar stock, traemos los componentes para un pre-chequeo de
-      // disponibilidad y devolver 409 limpio SIN crear la fila (la validacion autoritativa
-      // con lock sigue en processManualSale para la carrera entre chequeo y descuento).
-      const pack = await prisma.pack.findUnique({
-        where: { id: packId },
-        select: {
-          name: true,
-          items: { select: { quantity: true, productVariant: { select: { stock: true, variantLabel: true } } } },
-        },
-      });
-      if (!pack) {
-        return NextResponse.json({ error: "El pack no existe" }, { status: 404 });
-      }
-      packName = pack.name;
-      if (willDeduct) {
-        for (const item of pack.items) {
-          const needed = item.quantity * quantity;
-          if (item.productVariant.stock < needed) {
-            return NextResponse.json(
-              {
-                error: `Stock insuficiente${item.productVariant.variantLabel ? ` (${item.productVariant.variantLabel})` : ""}: se necesitan ${needed} y hay ${item.productVariant.stock}. Apaga "descontar inventario" si vendiste fuera del stock.`,
-              },
-              { status: 409 }
-            );
-          }
-        }
-      }
+    const itemName = await itemDisplayName(item);
+    if (item.kind !== "free" && itemName === null) {
+      return NextResponse.json({ error: "El producto/pack no existe" }, { status: 404 });
     }
 
-    const descParts = [concept?.trim() || packName || "Venta manual"];
+    // Pre-chequeo de stock → 409 limpio SIN crear la fila (la validacion autoritativa con
+    // lock sigue dentro de applyStock para la carrera entre chequeo y descuento).
+    if (willDeduct) {
+      const err = await precheckStock(item, quantity);
+      if (err) return NextResponse.json({ error: err }, { status: 409 });
+    }
+
+    const descParts = [concept?.trim() || itemName || "Venta manual"];
     if (channel) descParts.push(`(${channel})`);
     if (notes?.trim()) descParts.push(`- ${notes.trim()}`);
 
-    // mpId es BigInt @unique (ML usa ids positivos reales). Usamos un negativo derivado del
-    // timestamp (×1e6) + aleatorio de 6 digitos para no colisionar con un pago real ni entre
-    // ventas manuales; si aun asi choca (@unique → P2002), reintentamos con otro mpId.
-    const genMpId = () =>
-      -(BigInt(Date.now()) * BigInt(1000000) + BigInt(Math.floor(Math.random() * 1000000)));
+    // mpId es BigInt @unique (ML usa ids positivos reales). Negativo derivado de timestamp×1e6 +
+    // aleatorio para no colisionar; si choca (@unique → P2002) reintentamos con otro id.
+    const genMpId = () => -(BigInt(Date.now()) * BigInt(1000000) + BigInt(Math.floor(Math.random() * 1000000)));
 
     let created: { id: string; amount: unknown; quantity: number } | null = null;
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -128,15 +109,15 @@ export async function POST(request: NextRequest) {
           data: {
             mpId: genMpId(),
             source: "manual",
-            // type marca si se descontó stock (para revertirlo al borrar)
-            type: willDeduct ? "manual_sale" : "manual_sale_nostock",
+            type: willDeduct ? "manual_sale" : "manual_sale_nostock", // marca si descontó stock
             label: "sale", // para que flujo-caja/contabilidad lo cuenten como ingreso
             status: "approved",
             amount,
             balanceChange: amount, // sin comisiones MP en venta manual
             description: descParts.join(" "),
             referenceId: channel || null,
-            packId: packId || null,
+            packId: item.kind === "pack" ? item.packId : null,
+            productVariantId: item.kind === "variant" ? item.variantId : null,
             quantity,
             dateCreated: parseLocalDate(date),
             paidAt: parseLocalDate(date),
@@ -144,7 +125,6 @@ export async function POST(request: NextRequest) {
         });
         break;
       } catch (e: unknown) {
-        // P2002 = mpId duplicado (carrera improbable): reintenta con otro id.
         if (e && typeof e === "object" && "code" in e && e.code === "P2002" && attempt < 3) continue;
         throw e;
       }
@@ -153,9 +133,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No se pudo registrar la venta, intenta de nuevo" }, { status: 500 });
     }
 
-    if (willDeduct && packId) {
+    if (willDeduct) {
       try {
-        await processManualSale(packId, quantity, session.id, `Venta manual #${created.id}`);
+        await applyStock(item, quantity, session.id, `Venta manual #${created.id}`);
       } catch (e) {
         // Carrera: el stock bajó entre el pre-chequeo y el descuento. Deshacemos la venta.
         await prisma.mPTransaction.delete({ where: { id: created.id } }).catch(() => {});

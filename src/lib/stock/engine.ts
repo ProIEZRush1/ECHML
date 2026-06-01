@@ -297,6 +297,114 @@ export async function reverseManualSale(
   }
 }
 
+// Descuenta stock por una venta MANUAL de UNA variante específica (ej. 1 playera Blanco/L).
+// Mismo patron de seguridad que processSale (FOR UPDATE + serializable + retry + espejo).
+export async function processManualVariantSale(
+  variantId: string,
+  quantity: number,
+  userId?: string,
+  reason?: string
+): Promise<void> {
+  const affected = [variantId];
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const rows = await tx.$queryRaw<
+            Array<{ id: string; stock: number }>
+          >`SELECT id, stock FROM "ProductVariant" WHERE id = ANY(${affected}::text[]) FOR UPDATE`;
+          const v = rows[0];
+          if (!v) return;
+          if (v.stock < quantity) {
+            throw new InsufficientStockError(variantId, quantity, v.stock);
+          }
+          const newStock = v.stock - quantity;
+          await tx.productVariant.update({ where: { id: variantId }, data: { stock: newStock } });
+          await tx.stockLog.create({
+            data: {
+              productVariantId: variantId,
+              changeType: "SALE",
+              quantityChange: -quantity,
+              previousStock: v.stock,
+              newStock,
+              reason: reason ?? "Venta manual (variante)",
+              userId: userId ?? null,
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+
+      const mirrored = await syncLinkedVariants(affected);
+      await recalculateAffectedPacks([...affected, ...mirrored]);
+      return;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
+// Reversa el descuento de una venta manual de UNA variante (al editar/borrar): re-incrementa.
+export async function reverseManualVariantSale(
+  variantId: string,
+  quantity: number,
+  userId?: string,
+  reason?: string
+): Promise<void> {
+  const affected = [variantId];
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      await prisma.$transaction(
+        async (tx) => {
+          const rows = await tx.$queryRaw<
+            Array<{ id: string; stock: number }>
+          >`SELECT id, stock FROM "ProductVariant" WHERE id = ANY(${affected}::text[]) FOR UPDATE`;
+          const v = rows[0];
+          if (!v) return;
+          const newStock = v.stock + quantity;
+          await tx.productVariant.update({ where: { id: variantId }, data: { stock: newStock } });
+          await tx.stockLog.create({
+            data: {
+              productVariantId: variantId,
+              changeType: "MANUAL_ADD",
+              quantityChange: quantity,
+              previousStock: v.stock,
+              newStock,
+              reason: reason ?? "Reverso venta manual (variante)",
+              userId: userId ?? null,
+            },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+
+      const mirrored = await syncLinkedVariants(affected);
+      await recalculateAffectedPacks([...affected, ...mirrored]);
+      return;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2034" &&
+        attempt < MAX_RETRIES - 1
+      ) {
+        await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 export async function addStock(
   items: Array<{
     productVariantId: string;

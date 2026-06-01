@@ -13,23 +13,19 @@ import {
 } from "@/components/ui/table";
 import { HandCoins } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { ManualSaleCreateButton, type PackOption } from "./manual-sale-create-button";
+import { ManualSaleCreateButton } from "./manual-sale-create-button";
+import { ManualSaleEditButton } from "./manual-sale-edit-button";
 import { ManualSaleDeleteButton } from "./manual-sale-delete-button";
+import type { ProductOption } from "./manual-sale-form-dialog";
 
-type PackItemLite = {
-  quantity: number;
-  productVariant: { product: { unitCost: unknown } };
-};
+type PackItemLite = { quantity: number; productVariant: { product: { unitCost: unknown } } };
 
 function packCost(items: PackItemLite[]) {
   return items.reduce((s, it) => s + it.quantity * Number(it.productVariant.product.unitCost), 0);
 }
-function packUnits(items: PackItemLite[]) {
-  return items.reduce((s, it) => s + it.quantity, 0);
-}
 
 export default async function VentasManualesPage() {
-  const [sales, packs] = await Promise.all([
+  const [sales, products] = await Promise.all([
     prisma.mPTransaction.findMany({
       where: { source: "manual" },
       include: {
@@ -41,44 +37,63 @@ export default async function VentasManualesPage() {
             items: { select: { quantity: true, productVariant: { select: { product: { select: { unitCost: true } } } } } },
           },
         },
+        productVariant: {
+          select: { id: true, variantLabel: true, color: true, product: { select: { name: true, unitCost: true } } },
+        },
       },
       orderBy: { dateCreated: "desc" },
     }),
-    prisma.pack.findMany({
+    // Productos físicos reales (excluye los listing auto-generados de ML)
+    prisma.product.findMany({
+      where: { NOT: { supplierCode: { startsWith: "AUTO-" } } },
       select: {
         id: true,
-        sku: true,
         name: true,
-        salePrice: true,
-        items: { select: { quantity: true, productVariant: { select: { product: { select: { unitCost: true } } } } } },
+        unitCost: true,
+        variants: { select: { id: true, variantLabel: true, color: true, stock: true }, orderBy: { variantLabel: "asc" } },
       },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  const packOptions: PackOption[] = packs.map((p) => ({
+  const productOptions: ProductOption[] = products.map((p) => ({
     id: p.id,
-    sku: p.sku,
     name: p.name,
-    salePrice: Number(p.salePrice),
-    units: packUnits(p.items),
-    cost: packCost(p.items),
+    unitCost: Number(p.unitCost),
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      label: v.variantLabel || v.color || "Default",
+      stock: v.stock,
+    })),
   }));
 
   const rows = sales.map((s) => {
     const monto = Number(s.amount);
-    const costo = s.pack ? packCost(s.pack.items) * s.quantity : 0;
+    let label: string;
+    let costo = 0;
+    if (s.productVariant) {
+      const vl = s.productVariant.variantLabel || s.productVariant.color || "";
+      label = `${s.productVariant.product.name}${vl ? ` · ${vl}` : ""}`;
+      costo = Number(s.productVariant.product.unitCost) * s.quantity;
+    } else if (s.pack) {
+      label = s.pack.name;
+      costo = packCost(s.pack.items) * s.quantity;
+    } else {
+      label = s.description || "Venta manual";
+    }
     return {
       id: s.id,
       date: s.dateCreated,
-      label: s.pack ? s.pack.name : s.description || "Venta manual",
-      sku: s.pack?.sku || null,
+      dateInput: s.dateCreated.toISOString().split("T")[0],
+      label,
       channel: s.referenceId || null,
       quantity: s.quantity,
       monto,
       costo,
       neto: monto - costo,
       deductedStock: s.type === "manual_sale",
+      productVariantId: s.productVariantId,
+      packId: s.packId,
     };
   });
 
@@ -92,7 +107,7 @@ export default async function VentasManualesPage() {
         title="Ventas Manuales"
         description="Ventas hechas fuera de MercadoLibre. Entran a flujo de caja (no a la conciliacion del saldo MP)."
       >
-        <ManualSaleCreateButton packs={packOptions} />
+        <ManualSaleCreateButton products={productOptions} />
       </PageHeader>
 
       {rows.length > 0 && (
@@ -124,7 +139,7 @@ export default async function VentasManualesPage() {
         />
       ) : (
         <div className="rounded-xl border border-border bg-card glass overflow-x-auto">
-          <Table className="min-w-[640px]">
+          <Table className="min-w-[680px]">
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="text-[11px] uppercase tracking-wider">Fecha</TableHead>
@@ -143,7 +158,9 @@ export default async function VentasManualesPage() {
                   <TableCell className="text-[12.5px] text-muted-foreground whitespace-nowrap">{formatDate(r.date)}</TableCell>
                   <TableCell className="font-medium text-[12.5px] max-w-[260px]">
                     <span className="block truncate">{r.label}</span>
-                    {r.sku && <span className="block text-[10px] text-muted-foreground">{r.sku}{!r.deductedStock ? " · sin descontar stock" : ""}</span>}
+                    {!r.deductedStock && (r.productVariantId || r.packId) && (
+                      <span className="block text-[10px] text-muted-foreground">sin descontar stock</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-right num text-[12.5px]">{r.quantity}</TableCell>
                   <TableCell className="text-right num font-semibold margin-good">{formatCurrency(r.monto)}</TableCell>
@@ -153,7 +170,22 @@ export default async function VentasManualesPage() {
                     {r.channel ? <span className="tx-pill sale text-[10px]">{r.channel}</span> : <span className="text-[11px] text-muted-foreground">—</span>}
                   </TableCell>
                   <TableCell className="text-right">
-                    <ManualSaleDeleteButton saleId={r.id} label={r.label} deductedStock={r.deductedStock} />
+                    <div className="flex items-center justify-end gap-1">
+                      <ManualSaleEditButton
+                        products={productOptions}
+                        sale={{
+                          id: r.id,
+                          productVariantId: r.productVariantId,
+                          packId: r.packId,
+                          quantity: r.quantity,
+                          amount: r.monto,
+                          date: r.dateInput,
+                          channel: r.channel,
+                          deductedStock: r.deductedStock,
+                        }}
+                      />
+                      <ManualSaleDeleteButton saleId={r.id} label={r.label} deductedStock={r.deductedStock} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

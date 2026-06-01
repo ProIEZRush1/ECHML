@@ -484,6 +484,8 @@ export default async function FlujoCajaPage({
   let totalUnits = 0;
   let productUnitsSold = 0;
   const salesPerPack = new Map<string, number>();
+  // Ventas manuales ligadas a una variante (sin pack): su costo = unitCost × cantidad.
+  const manualVariantQty = new Map<string, number>();
 
   let totalReturns = 0;
   const filteredReturnCount = returnedOrders.length;
@@ -506,6 +508,10 @@ export default async function FlujoCajaPage({
       productUnitsSold += tx.quantity * unitsPerPack;
       if (tx.packId) {
         salesPerPack.set(tx.packId, (salesPerPack.get(tx.packId) || 0) + tx.quantity);
+      } else if (tx.source === "manual" && tx.productVariantId && tx.type === "manual_sale") {
+        // Solo si realmente descontó stock: el item salió del inventario → se reconoce su costo.
+        // (nostock = sigue en inventario, su costo no es COGS aún.)
+        manualVariantQty.set(tx.productVariantId, (manualVariantQty.get(tx.productVariantId) || 0) + tx.quantity);
       }
     } else if (tx.label === "fee" || tx.label === "commission") {
       totalFees += Math.abs(amount);
@@ -521,6 +527,18 @@ export default async function FlujoCajaPage({
   for (const [packId, count] of salesPerPack) {
     const costPerUnit = packCostMap.get(packId) || 0;
     totalProductCost += costPerUnit * count;
+  }
+
+  // Costo de mercancía de ventas manuales por variante (unitCost × cantidad).
+  if (manualVariantQty.size > 0) {
+    const mvVariants = await prisma.productVariant.findMany({
+      where: { id: { in: [...manualVariantQty.keys()] } },
+      select: { id: true, product: { select: { unitCost: true } } },
+    });
+    const mvCost = new Map(mvVariants.map((v) => [v.id, Number(v.product.unitCost)]));
+    for (const [vid, qty] of manualVariantQty) {
+      totalProductCost += (mvCost.get(vid) || 0) * qty;
+    }
   }
 
   // Calculate product cost for returned orders using MPTransaction packId
