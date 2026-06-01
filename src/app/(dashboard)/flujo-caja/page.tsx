@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import { STOCK_SYNC_GROUPS } from "@/lib/stock/sync";
 import { PageHeader } from "@/components/shared/page-header";
 import {
   Table,
@@ -173,8 +174,14 @@ export default async function FlujoCajaPage({
     });
     scopeProdIds = [...new Set(pis.map((p) => p.productVariant.productId))];
   }
+  // Evita DOBLE-CONTEO: productos con stock espejado (playera normal↔oversized,
+  // DL360p x5) son el mismo inventario físico — cuenta solo el primero de cada grupo.
+  const mirrorSkip = new Set<string>();
+  for (const g of STOCK_SYNC_GROUPS) for (let i = 1; i < g.length; i++) mirrorSkip.add(g[i]);
   const stockVariants = await prisma.productVariant.findMany({
-    where: scopeProdIds ? { productId: { in: scopeProdIds }, stock: { gt: 0 } } : { stock: { gt: 0 } },
+    where: scopeProdIds
+      ? { productId: { in: scopeProdIds.filter((id) => !mirrorSkip.has(id)) }, stock: { gt: 0 } }
+      : { productId: { notIn: [...mirrorSkip] }, stock: { gt: 0 } },
     select: { stock: true, product: { select: { unitCost: true } } },
   });
   let unsoldStockValue = 0;
