@@ -19,6 +19,7 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Sincronizar ventas, montos, devoluciones y envíos
         env:
           KEY: ${{ secrets.CRM_API_KEY }}
@@ -40,3 +41,9 @@ jobs:
             "$BASE/api/orders/sync-status" || echo "(sync-status falló)"
           echo ""
           echo "Sync ML completado."
+      - name: Sincronizar saldo real de MP (disponible + a liberar)
+        env:
+          MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
+          CRM_API_KEY: ${{ secrets.CRM_API_KEY }}
+          CRM_BASE: https://echml.overcloud.us
+        run: python3 scripts/sync-mp-balance.py || echo "(sync de saldo falló, se reintenta el próximo run)"
