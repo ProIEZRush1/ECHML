@@ -32,8 +32,6 @@ interface Props {
   deductionItems: DeductionItem[];
   serverNet: number;
   serverAvailable: number;
-  cumulativeAvailable: number;
-  cumulativeWithdrawn: number;
   serverAdsCost: number;
   totalWithdrawn: number;
   totalGastos: number;
@@ -55,7 +53,7 @@ interface Props {
 export function FinancialCardsWrapper({
   unsoldStockValue, unsoldUnits,
   totalIncome, manualIncome, salesCount, totalUnits, productUnitsSold, totalDeducciones, deductionItems,
-  serverNet, serverAvailable, cumulativeAvailable, cumulativeWithdrawn, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
+  serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, totalCompras, gastosByAccount, accounts, showWithdraw,
   totalFacturasEmitidas = 0, hasFacturaSobreMercancia = false,
 }: Props) {
@@ -84,8 +82,8 @@ export function FinancialCardsWrapper({
   const accountMap = new Map(accounts.map((a) => [a.id, a]));
 
   async function handleDeposit() {
-    if (cumulativeAvailable >= 0) return;
-    const depositAmount = Math.round(Math.abs(cumulativeAvailable) * 100) / 100;
+    if (available === null || available >= 0) return;
+    const depositAmount = Math.round(Math.abs(available) * 100) / 100;
     setDepositing(true);
     try {
       const packIdList = packIds ? packIds.split(",").filter(Boolean) : [];
@@ -98,6 +96,7 @@ export function FinancialCardsWrapper({
     } catch { toast.error("Error de conexion"); } finally { setDepositing(false); }
   }
 
+  const loading = false;
 
   return (
     <>
@@ -211,11 +210,16 @@ export function FinancialCardsWrapper({
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Dinero a Retirar</p>
             <span className="sw" style={{ background: "oklch(0.55 0.18 260)" }} />
           </div>
-          <p className={`text-3xl font-bold num tracking-tight pl-3 ${cumulativeAvailable >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(cumulativeAvailable)}</p>
+          {loading ? (
+            <div className="flex items-center gap-2 h-7"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /><span className="text-sm text-muted-foreground">Calculando...</span></div>
+          ) : (
+            <p className={`text-3xl font-bold num tracking-tight pl-3 ${available! >= 0 ? "margin-good" : "margin-bad"}`}>{fmt(available!)}</p>
+          )}
           <div className="text-[12px] text-muted-foreground mt-3 pl-3 space-y-1">
-            <p>Generado neto: {fmt(cumulativeAvailable + cumulativeWithdrawn)}</p>
-            {cumulativeWithdrawn > 0 && <p>Retirado: -{fmt(cumulativeWithdrawn)}</p>}
-            <p className="text-[10.5px] text-muted-foreground/70">Saldo acumulado · no depende del rango de fechas</p>
+            {adsCost !== null && adsCost > 0 && <p>Ads: -{fmt(adsCost)}</p>}
+            {totalGastos > 0 && <p>Gastos: -{fmt(totalGastos)}</p>}
+            {totalCompras > 0 && <p>Compra productos: -{fmt(totalCompras)}</p>}
+            {totalWithdrawn > 0 && <p>Retirado: {fmt(totalWithdrawn)}</p>}
           </div>
 
           {/* Per-account breakdown: what to pay to each account */}
@@ -332,14 +336,14 @@ export function FinancialCardsWrapper({
             </div>
           )}
 
-          {cumulativeAvailable < 0 && (
+          {available !== null && available < 0 && (
             <button
               onClick={handleDeposit}
               disabled={depositing}
               className="mt-2 w-full text-[12px] font-medium py-1.5 px-3 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5 truncate"
             >
               {depositing && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              Depositar {fmt(Math.abs(cumulativeAvailable))}
+              Depositar {fmt(Math.abs(available))}
             </button>
           )}
         </div>
