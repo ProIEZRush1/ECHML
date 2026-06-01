@@ -238,6 +238,8 @@ export default async function FlujoCajaPage({
       ? { in: [] }
       : null;
 
+  // Condición de scope (pack/variante) reutilizable SIN fecha — para el saldo acumulado.
+  let scopeMatch: { OR?: Array<{ packId?: { in: string[] }; productVariantId?: { in: string[] } }>; packId?: string | { in: string[] } } | null = null;
   if (filteredVariantIds.length > 0) {
     // Filtro por PRODUCTO/grupo: incluye ventas por pack de esos productos Y ventas
     // MANUALES por variante (packId=null) de esos mismos productos.
@@ -245,8 +247,10 @@ export default async function FlujoCajaPage({
       ...(packCond !== null ? [{ packId: typeof packCond === "string" ? { in: [packCond] } : packCond }] : []),
       { productVariantId: { in: filteredVariantIds } },
     ];
+    scopeMatch = { OR: where.OR };
   } else if (packCond !== null) {
     where.packId = packCond;
+    scopeMatch = { packId: packCond };
   }
 
   // Default to last 30 days if no date filter set
@@ -608,6 +612,58 @@ export default async function FlujoCajaPage({
     : withdrawals.filter((w) => w.hasFactura).reduce((s, w) => s + Number(w.amount) * 0.03, 0);
   const availableToWithdraw = totalIncome - totalFees - totalShipping - totalImpuestos - totalGastos - totalFlexNet - totalWithdrawn;
 
+  // === SALDO ACUMULADO "Dinero a Retirar" — independiente del filtro de fecha ===
+  // "Cuánto queda por retirar" es un SALDO, no un flujo del período: si filtras por fecha,
+  // los retiros (que ocurren en fechas puntuales) se pierden o se parten. Por eso este número
+  // usa TODO el histórico del scope. sale.balanceChange ya viene neto de comisión+envío.
+  const cumScopeWhere = scopeMatch ?? {};
+  const [cumTx, cumReturned, cumWithdrawals, cumGastosRows] = await Promise.all([
+    prisma.mPTransaction.findMany({
+      where: { ...cumScopeWhere, label: { in: ["sale", "flex_cost", "flex_bonificacion"] } },
+      select: { label: true, balanceChange: true, mlOrderId: true },
+    }),
+    prisma.mLOrder.findMany({
+      where: {
+        shippingStatus: { in: ["RETURNED", "NOT_DELIVERED"] },
+        ...(filteredMlItemIds !== null ? { mlItemId: { in: filteredMlItemIds } } : {}),
+      },
+      select: { mlOrderId: true },
+    }),
+    prisma.withdrawal.findMany({
+      where:
+        effectivePackIds.length > 0 || filteredGroupIds.length > 0
+          ? {
+              OR: [
+                ...(effectivePackIds.length > 0 ? [{ allocations: { some: { packId: { in: effectivePackIds } } } }] : []),
+                ...(filteredGroupIds.length > 0 ? [{ productGroupId: { in: filteredGroupIds } }] : []),
+              ],
+            }
+          : {},
+      select: { amount: true },
+    }),
+    prisma.expense.findMany({
+      where: {
+        type: "gasto",
+        ...(filteredGroupIds.length > 0 ? { productGroupId: { in: filteredGroupIds } } : {}),
+      },
+      select: { amount: true },
+    }),
+  ]);
+  const cumReturnedSet = new Set(cumReturned.map((o) => o.mlOrderId));
+  let cumSaleNet = 0;
+  let cumFlexNet = 0;
+  for (const t of cumTx) {
+    const bc = Number(t.balanceChange);
+    if (t.label === "sale") {
+      if (!t.mlOrderId || !cumReturnedSet.has(t.mlOrderId)) cumSaleNet += bc;
+    } else {
+      cumFlexNet += bc; // flex_cost (neg) + flex_bonificacion (pos)
+    }
+  }
+  const cumulativeWithdrawn = cumWithdrawals.reduce((s, w) => s + Number(w.amount), 0);
+  const cumulativeGastos = cumGastosRows.reduce((s, e) => s + Number(e.amount), 0);
+  const cumulativeAvailable = cumSaleNet + cumFlexNet - cumulativeGastos - cumulativeWithdrawn;
+
   // Calculate balance per pack -- apply same pack filter as KPI cards
   const packWhere: {
     packId?: string | { in: string[] };
@@ -791,6 +847,8 @@ export default async function FlujoCajaPage({
               deductionItems={deductionItems}
               serverNet={totalNet}
               serverAvailable={availableToWithdraw}
+              cumulativeAvailable={cumulativeAvailable}
+              cumulativeWithdrawn={cumulativeWithdrawn}
               serverAdsCost={serverAdsCost}
               totalWithdrawn={totalWithdrawn}
               totalGastos={totalGastosOp}
