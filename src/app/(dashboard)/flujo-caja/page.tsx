@@ -163,6 +163,28 @@ export default async function FlujoCajaPage({
       : productFilteredPackIds
     : packIdList;
 
+  // Valor del inventario que AÚN NO se ha vendido: stock actual × costo unitario,
+  // de los productos en scope (los filtrados, o los de los packs filtrados, o todo).
+  let scopeProdIds: string[] | null = productIdList.length > 0 ? [...productIdList] : null;
+  if (!scopeProdIds && packIdList.length > 0) {
+    const pis = await prisma.packItem.findMany({
+      where: { packId: { in: packIdList } },
+      select: { productVariant: { select: { productId: true } } },
+    });
+    scopeProdIds = [...new Set(pis.map((p) => p.productVariant.productId))];
+  }
+  const stockVariants = await prisma.productVariant.findMany({
+    where: scopeProdIds ? { productId: { in: scopeProdIds }, stock: { gt: 0 } } : { stock: { gt: 0 } },
+    select: { stock: true, product: { select: { unitCost: true } } },
+  });
+  let unsoldStockValue = 0;
+  let unsoldUnits = 0;
+  for (const v of stockVariants) {
+    unsoldStockValue += v.stock * Number(v.product.unitCost);
+    unsoldUnits += v.stock;
+  }
+  unsoldStockValue = Math.round(unsoldStockValue * 100) / 100;
+
   // Query unprocessed partial refunds, filtered by active pack/product selection
   const isFiltered = effectivePackIds.length > 0 || (productFilteredPackIds && productFilteredPackIds.length === 0);
   let filteredMlItemIds: string[] | null = null;
@@ -686,8 +708,10 @@ export default async function FlujoCajaPage({
         ].filter((d) => d.value !== 0);
 
         return (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 [&>*]:min-w-0">
             <FinancialCardsWrapper
+              unsoldStockValue={unsoldStockValue}
+              unsoldUnits={unsoldUnits}
               totalIncome={totalIncome}
               salesCount={salesCount}
               totalUnits={totalUnits}

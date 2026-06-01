@@ -21,6 +21,8 @@ interface DeductionItem {
 }
 
 interface Props {
+  unsoldStockValue: number;
+  unsoldUnits: number;
   totalIncome: number;
   salesCount: number;
   totalUnits: number;
@@ -47,6 +49,7 @@ interface Props {
 }
 
 export function FinancialCardsWrapper({
+  unsoldStockValue, unsoldUnits,
   totalIncome, salesCount, totalUnits, totalDeducciones, deductionItems,
   serverNet, serverAvailable, serverAdsCost, totalWithdrawn, totalGastos, totalFacturaCost,
   totalFlexCost, totalFlexBonif, flexCount, flexPaidCount, flexUnpaidCost, totalFlexPaid, totalCompras, gastosByAccount, accounts, showWithdraw,
@@ -173,6 +176,15 @@ export function FinancialCardsWrapper({
             )}
           </div>
         )}
+      </div>
+
+      {/* Inventario sin vender — stock actual × costo */}
+      <div className="rounded-xl border border-border bg-card glass p-5 transition-all duration-300 hover:shadow-lg hover:shadow-accent/5 relative overflow-hidden">
+        <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b from-amber-400 to-amber-600" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 pl-3">Inventario sin vender</p>
+        <p className="text-3xl font-bold num tracking-tight pl-3 text-amber-600 dark:text-amber-400">{fmt(unsoldStockValue)}</p>
+        <p className="text-[12px] text-muted-foreground mt-2 pl-3">{unsoldUnits.toLocaleString("es-MX")} unidades en stock · a costo</p>
+        <p className="text-[11px] text-muted-foreground mt-1 pl-3">Dinero invertido que aún no vendes</p>
       </div>
 
       {/* Dinero a Retirar + Per-Account Breakdown */}
