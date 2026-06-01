@@ -35,20 +35,38 @@ def mp_text(path):
         return r.read().decode("utf-8", "replace")
 
 
-def gen_and_wait(kind, begin, end, max_wait=300):
-    """Generate a release/settlement report and wait for THAT id, return CSV text."""
-    posted = mp("POST", f"/v1/account/{kind}", {"begin_date": begin, "end_date": end})
-    rid = str(posted.get("id"))
-    print(f"  {kind} id={rid} generating...")
-    deadline = time.time() + max_wait
-    while time.time() < deadline:
-        time.sleep(10)
-        lst = mp("GET", f"/v1/account/{kind}/list")
-        match = [x for x in lst if str(x.get("id")) == rid]
-        if match and match[0].get("status") in ("enabled", "processed"):
-            fn = match[0]["file_name"]
-            return mp_text(f"/v1/account/{kind}/{fn}")
-    raise TimeoutError(f"{kind} {rid} no quedó listo a tiempo")
+def gen_and_wait(kind, begin, end, wait=150):
+    """Fire a fresh report and try to use it; if MP is slow, fall back to the most
+    recent ENABLED report (immutable snapshot — its last BALANCE_AMOUNT = balance as of
+    its end_date). MP report generation is slow/queued, so we never block for long."""
+    rid = None
+    try:
+        posted = mp("POST", f"/v1/account/{kind}", {"begin_date": begin, "end_date": end})
+        rid = str(posted.get("id"))
+        print(f"  {kind} fresh id={rid} (espero hasta {wait}s)")
+    except Exception as e:
+        print(f"  no se pudo generar {kind} fresco ({e}); uso el más reciente")
+
+    deadline = time.time() + wait
+    while rid and time.time() < deadline:
+        time.sleep(12)
+        try:
+            lst = mp("GET", f"/v1/account/{kind}/list")
+        except Exception:
+            continue
+        m = [x for x in lst if str(x.get("id")) == rid and x.get("status") in ("enabled", "processed")]
+        if m:
+            print(f"  {kind} fresco listo")
+            return mp_text(f"/v1/account/{kind}/{m[0]['file_name']}")
+
+    # Fallback: enabled report with the latest end_date (freshest available snapshot).
+    lst = mp("GET", f"/v1/account/{kind}/list")
+    en = [x for x in lst if x.get("status") in ("enabled", "processed") and x.get("end_date")]
+    en.sort(key=lambda x: x["end_date"], reverse=True)
+    if not en:
+        raise RuntimeError(f"sin reportes {kind} disponibles")
+    print(f"  uso reporte previo {kind} (end {en[0]['end_date']})")
+    return mp_text(f"/v1/account/{kind}/{en[0]['file_name']}")
 
 
 def parse_disponible(csv_text):
