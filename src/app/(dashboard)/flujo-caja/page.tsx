@@ -128,8 +128,11 @@ export default async function FlujoCajaPage({
   let productFilteredPackIds: string[] | null = null;
   let filteredProductName: string | null = null;
   let filteredGroupIds: string[] = [];
+  // Variantes de los productos filtrados → para incluir ventas MANUALES (ligadas a
+  // productVariantId, sin packId) cuando se filtra por producto/grupo.
+  let filteredVariantIds: string[] = [];
   if (productIdList.length > 0) {
-    const [packItems, product, groupItems] = await Promise.all([
+    const [packItems, product, groupItems, variants] = await Promise.all([
       prisma.packItem.findMany({
         where: { productVariant: { productId: { in: productIdList } } },
         select: { packId: true },
@@ -142,9 +145,14 @@ export default async function FlujoCajaPage({
         where: { productId: { in: productIdList } },
         select: { productGroupId: true },
       }),
+      prisma.productVariant.findMany({
+        where: { productId: { in: productIdList } },
+        select: { id: true },
+      }),
     ]);
     productFilteredPackIds = [...new Set(packItems.map((pi) => pi.packId))];
     filteredGroupIds = [...new Set(groupItems.map((g) => g.productGroupId))];
+    filteredVariantIds = variants.map((v) => v.id);
     filteredProductName = product
       ? `${product.name}${product.brand ? ` (${product.brand})` : ""}`
       : null;
@@ -153,6 +161,8 @@ export default async function FlujoCajaPage({
   // Build filter conditions for MPTransactions
   const where: {
     packId?: string | { in: string[] };
+    productVariantId?: { in: string[] };
+    OR?: Array<{ packId?: { in: string[] }; productVariantId?: { in: string[] } }>;
     dateCreated?: { gte?: Date; lte?: Date };
     label?: string;
   } = {};
@@ -218,13 +228,25 @@ export default async function FlujoCajaPage({
     take: 20,
   });
 
-  if (effectivePackIds.length === 1) {
-    where.packId = effectivePackIds[0];
-  } else if (effectivePackIds.length > 1) {
-    where.packId = { in: effectivePackIds };
-  } else if (productFilteredPackIds && productFilteredPackIds.length === 0) {
-    // Product has no linked packs, force empty result
-    where.packId = { in: [] };
+  // Condición de pack según el filtro (o null si no aplica).
+  const packCond: { in: string[] } | string | null =
+    effectivePackIds.length === 1
+      ? effectivePackIds[0]
+      : effectivePackIds.length > 1
+      ? { in: effectivePackIds }
+      : productFilteredPackIds && productFilteredPackIds.length === 0
+      ? { in: [] }
+      : null;
+
+  if (filteredVariantIds.length > 0) {
+    // Filtro por PRODUCTO/grupo: incluye ventas por pack de esos productos Y ventas
+    // MANUALES por variante (packId=null) de esos mismos productos.
+    where.OR = [
+      ...(packCond !== null ? [{ packId: typeof packCond === "string" ? { in: [packCond] } : packCond }] : []),
+      { productVariantId: { in: filteredVariantIds } },
+    ];
+  } else if (packCond !== null) {
+    where.packId = packCond;
   }
 
   // Default to last 30 days if no date filter set
