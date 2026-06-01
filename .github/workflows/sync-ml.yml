@@ -1,0 +1,42 @@
+name: Sync ML (mantener CRM al día con MercadoLibre)
+
+# Mantiene el CRM sincronizado con MercadoLibre para que nunca se desfase:
+#  - ventas + montos reales (backfill-range, últimos días) → cada venta cuadra
+#  - devoluciones/reclamos + flete de regreso (sync-claims)
+#  - estado de envío (sync-status)
+# Corre solo en la infra de GitHub (independiente de cualquier máquina/servidor).
+
+on:
+  schedule:
+    - cron: "17 */3 * * *" # cada 3 horas
+  workflow_dispatch: {} # permite correrlo manualmente
+
+concurrency:
+  group: sync-ml
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar ventas, montos, devoluciones y envíos
+        env:
+          KEY: ${{ secrets.CRM_API_KEY }}
+          BASE: https://echml.overcloud.us
+        run: |
+          if [ -z "$KEY" ]; then echo "Falta secret CRM_API_KEY"; exit 1; fi
+          FROM=$(date -u -d '10 days ago' +%Y-%m-%d)
+          TO=$(date -u -d '+1 day' +%Y-%m-%d)
+          echo "== Backfill ventas/montos $FROM .. $TO =="
+          curl -fsS --max-time 295 -X POST -H "Authorization: Bearer $KEY" \
+            "$BASE/api/orders/backfill-range?from=$FROM&to=$TO" || echo "(backfill-range falló, se reintenta el próximo run)"
+          echo ""
+          echo "== Sync devoluciones/reclamos + flete =="
+          curl -fsS --max-time 295 -X POST -H "Authorization: Bearer $KEY" \
+            "$BASE/api/orders/sync-claims" || echo "(sync-claims falló)"
+          echo ""
+          echo "== Sync estado de envío =="
+          curl -fsS --max-time 295 -X POST -H "Authorization: Bearer $KEY" \
+            "$BASE/api/orders/sync-status" || echo "(sync-status falló)"
+          echo ""
+          echo "Sync ML completado."
