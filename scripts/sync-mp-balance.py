@@ -83,9 +83,10 @@ def parse_a_liberar(csv_text):
 
 
 def main():
-    today = datetime.date.today()
-    begin = (today - datetime.timedelta(days=40)).strftime("%Y-%m-%dT00:00:00.000-06:00")
-    end = (today + datetime.timedelta(days=1)).strftime("%Y-%m-%dT23:59:59.999-06:00")
+    # MP report API rechaza milisegundos en las fechas: usar T..:..:..Z sin .000
+    now = datetime.datetime.now(datetime.timezone.utc)
+    begin = (now - datetime.timedelta(days=40)).strftime("%Y-%m-%dT00:00:00Z")
+    end = now.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     print("Release report (disponible)...")
     disp = parse_disponible(gen_and_wait("release_report", begin, end))
