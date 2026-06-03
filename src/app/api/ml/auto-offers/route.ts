@@ -30,6 +30,11 @@ interface OfferResult {
 
 const PLAYERA_DOMAINS = ["MLM-T_SHIRTS"];
 const TIMIS_CATEGORIES = ["MLM5363", "MLM5367", "MLM5365"];
+// Cubrebocas / tapabocas — surgical+industrial and reusable mask domains
+const MASK_DOMAINS = ["MLM-SURGICAL_AND_INDUSTRIAL_MASKS", "MLM-REUSABLE_MASKS"];
+// Masks run on thin margins; default to the smallest credible discount (≈5% off,
+// near ML's max_discounted_price) so the offer badge doesn't erase the margin.
+const MASK_DEFAULT_FACTOR = 0.95;
 
 function getNextMonthRange(): { start: string; end: string } {
   const now = new Date();
@@ -116,6 +121,7 @@ export async function GET(request: NextRequest) {
     domain: string | null;
     isPlayera: boolean;
     isTimis: boolean;
+    isMask: boolean;
   }> = [];
 
   const batchSize = 5;
@@ -138,6 +144,7 @@ export async function GET(request: NextRequest) {
 
         const isPlayera = info ? PLAYERA_DOMAINS.includes(info.domain_id) : false;
         const isTimis = info ? TIMIS_CATEGORIES.includes(info.category_id) : false;
+        const isMask = info ? MASK_DOMAINS.includes(info.domain_id) : false;
 
         return {
           mlItemId: listing.mlItemId,
@@ -150,6 +157,7 @@ export async function GET(request: NextRequest) {
           domain: info?.domain_id || null,
           isPlayera,
           isTimis,
+          isMask,
         };
       })
     );
@@ -158,11 +166,13 @@ export async function GET(request: NextRequest) {
 
   const playeras = results.filter((r) => r.isPlayera);
   const timis = results.filter((r) => r.isTimis);
+  const masks = results.filter((r) => r.isMask);
 
   return NextResponse.json({
     total: results.length,
     playeras: { count: playeras.length, items: playeras },
     timis: { count: timis.length, items: timis },
+    masks: { count: masks.length, items: masks },
     nextMonth: getNextMonthRange(),
   });
 }
@@ -199,8 +209,9 @@ export async function POST(request: NextRequest) {
 
         const isPlayera = PLAYERA_DOMAINS.includes(info.domain_id);
         const isTimis = TIMIS_CATEGORIES.includes(info.category_id);
+        const isMask = MASK_DOMAINS.includes(info.domain_id);
 
-        if (!isPlayera && !isTimis) {
+        if (!isPlayera && !isTimis && !isMask) {
           return { mlItemId: listing.mlItemId, title: listing.title || "", action: "skip_not_target" };
         }
 
@@ -222,7 +233,7 @@ export async function POST(request: NextRequest) {
         } else if (body.discountPercent) {
           offerPrice = Math.round(info.price * (1 - body.discountPercent / 100));
         } else {
-          offerPrice = Math.round(info.price * 0.80);
+          offerPrice = Math.round(info.price * (isMask ? MASK_DEFAULT_FACTOR : 0.80));
         }
 
         if (candidateDiscount) {
