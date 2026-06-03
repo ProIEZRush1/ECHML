@@ -1,0 +1,35 @@
+name: Auto-ofertas Tapabocas (5% off seguro)
+
+# Aplica ofertas PRICE_DISCOUNT (~5% off) a TODOS los tapabocas/cubrebocas.
+# Corre a diario porque ML solo acepta una oferta "creíble" cuando el precio ya
+# maduró en su historial; este cron las va activando conforme cada ítem califica.
+# La guarda de margen del endpoint (MASK_MIN_OFFER_FACTOR) salta cualquier ítem
+# donde ML solo permita un precio a pérdida, así que nunca vende bajo costo.
+# Solo toca el segmento "masks" (no playeras ni Timi's).
+
+on:
+  schedule:
+    - cron: "32 15 * * *" # diario ~09:32 CDMX
+  workflow_dispatch: {}
+
+concurrency:
+  group: auto-offers-tapabocas
+  cancel-in-progress: false
+
+jobs:
+  offers:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aplicar ofertas seguras a tapabocas
+        env:
+          KEY: ${{ secrets.CRM_API_KEY }}
+          BASE: https://echml.overcloud.us
+        run: |
+          if [ -z "$KEY" ]; then echo "Falta secret CRM_API_KEY"; exit 1; fi
+          echo "== Aplicando ofertas (masks, 5% off, margin-floor safe) =="
+          curl -fsS --max-time 295 -X POST \
+            -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+            -d '{"only":"masks","forceCurrentMonth":true}' \
+            "$BASE/api/ml/auto-offers" || echo "(auto-offers falló, se reintenta el próximo run)"
+          echo ""
+          echo "Auto-ofertas tapabocas completado."
