@@ -35,6 +35,10 @@ const MASK_DOMAINS = ["MLM-SURGICAL_AND_INDUSTRIAL_MASKS", "MLM-REUSABLE_MASKS"]
 // Masks run on thin margins; default to the smallest credible discount (≈5% off,
 // near ML's max_discounted_price) so the offer badge doesn't erase the margin.
 const MASK_DEFAULT_FACTOR = 0.95;
+// Hard margin floor for masks: never create an offer deeper than 10% off. ML's
+// credibility ceiling can force a loss-making price (it remembers an old low price);
+// in that case we skip rather than sell below cost.
+const MASK_MIN_OFFER_FACTOR = 0.9;
 
 function getNextMonthRange(): { start: string; end: string } {
   const now = new Date();
@@ -252,6 +256,19 @@ export async function POST(request: NextRequest) {
           const maxPrice = candidateDiscount.max_discounted_price ?? info.price;
           if (offerPrice < minPrice) offerPrice = Math.ceil(minPrice);
           if (offerPrice > maxPrice) offerPrice = Math.floor(maxPrice);
+        }
+
+        // Margin guard for masks: if ML's credible range forces a discount deeper
+        // than MASK_MIN_OFFER_FACTOR (price would be below the floor), skip — don't
+        // sell at a loss. Happens while the new price hasn't aged in ML's history.
+        if (isMask && offerPrice < info.price * MASK_MIN_OFFER_FACTOR) {
+          return {
+            mlItemId: listing.mlItemId,
+            title: listing.title || "",
+            action: "skip_below_margin_floor",
+            offerPrice,
+            basePrice: info.price,
+          };
         }
 
         let effectiveStart = dateRange.start;
