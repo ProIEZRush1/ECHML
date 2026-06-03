@@ -184,6 +184,8 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const dryRun = body.dryRun === true;
   const forceCurrentMonth = body.forceCurrentMonth === true;
+  // Optional scope: "masks" | "playeras" | "timis" — limit the run to one segment.
+  const only: string | null = typeof body.only === "string" ? body.only : null;
 
   const dateRange = forceCurrentMonth ? getCurrentMonthRange() : getNextMonthRange();
 
@@ -212,6 +214,14 @@ export async function POST(request: NextRequest) {
         const isMask = MASK_DOMAINS.includes(info.domain_id);
 
         if (!isPlayera && !isTimis && !isMask) {
+          return { mlItemId: listing.mlItemId, title: listing.title || "", action: "skip_not_target" };
+        }
+        // Scope filter: if `only` is set, skip items outside that segment.
+        if (
+          (only === "masks" && !isMask) ||
+          (only === "playeras" && !isPlayera) ||
+          (only === "timis" && !isTimis)
+        ) {
           return { mlItemId: listing.mlItemId, title: listing.title || "", action: "skip_not_target" };
         }
 
