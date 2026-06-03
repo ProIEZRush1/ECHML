@@ -77,6 +77,7 @@ async function createOffer(
       params: { app_version: "v2" },
       body: JSON.stringify({
         deal_price: dealPrice,
+        promotion_type: "PRICE_DISCOUNT",
         start_date: startDate,
         finish_date: finishDate,
       }),
