@@ -281,14 +281,18 @@ export async function tiktokFetch<T = unknown>(
 
 export async function uploadTikTokImage(
   imageUrl: string,
-  filename: string
-): Promise<{ img_id: string; img_url: string }> {
+  filename: string,
+  useCase: string = "MAIN_IMAGE"
+): Promise<{ uri: string; url: string }> {
   const imageRes = await fetch(imageUrl);
+  if (!imageRes.ok) {
+    throw new Error(`Failed to fetch source image ${imageUrl}: ${imageRes.status}`);
+  }
   const arrayBuffer = await imageRes.arrayBuffer();
   const formData = new FormData();
   const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
   formData.append("data", blob, filename);
-  formData.append("use_case", "MAIN_IMAGE");
+  formData.append("use_case", useCase);
 
   return tiktokFetch(`/product/${API_VERSION}/images/upload`, {
     method: "POST",
