@@ -263,14 +263,36 @@ export async function tiktokFetch<T = unknown>(
     }
   }
 
-  const response = await fetch(url, fetchOptions);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45000);
+  let response: Response;
+  try {
+    response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+  } catch (e) {
+    clearTimeout(timer);
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`TikTok API error 0: request failed (${msg})`);
+  }
+  clearTimeout(timer);
+
+  const text = await response.text();
 
   if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`TikTok API error ${response.status}: ${errorBody}`);
+    throw new Error(`TikTok API error ${response.status}: ${text || "(empty body)"}`);
   }
 
-  const result = await response.json();
+  // Some endpoints (e.g. promotion add-products) reply 200 with an empty or
+  // non-JSON body on success. Tolerate that instead of crashing the handler.
+  if (!text || !text.trim()) {
+    return {} as T;
+  }
+
+  let result: { code?: number; message?: string; data?: unknown };
+  try {
+    result = JSON.parse(text);
+  } catch {
+    return { raw: text } as T;
+  }
 
   if (result.code !== undefined && result.code !== 0) {
     throw new Error(`TikTok API error ${result.code}: ${result.message}`);
