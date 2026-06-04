@@ -57,9 +57,10 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error desconocido";
     console.error("TikTok upload-picture error:", message);
-    const status = message.includes("TikTok API error")
-      ? parseInt(message.match(/TikTok API error (\d+)/)?.[1] || "500", 10)
+    const raw = message.includes("TikTok API error")
+      ? parseInt(message.match(/TikTok API error (\d+)/)?.[1] || "400", 10)
       : 500;
+    const status = raw >= 200 && raw <= 599 ? raw : 400;
     return NextResponse.json({ error: message }, { status });
   }
 }
