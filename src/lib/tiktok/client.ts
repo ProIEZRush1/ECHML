@@ -279,18 +279,13 @@ export async function tiktokFetch<T = unknown>(
   return (result.data !== undefined ? result.data : result) as T;
 }
 
-export async function uploadTikTokImage(
-  imageUrl: string,
+export async function uploadTikTokImageData(
+  data: ArrayBuffer,
   filename: string,
   useCase: string = "MAIN_IMAGE"
 ): Promise<{ uri: string; url: string }> {
-  const imageRes = await fetch(imageUrl);
-  if (!imageRes.ok) {
-    throw new Error(`Failed to fetch source image ${imageUrl}: ${imageRes.status}`);
-  }
-  const arrayBuffer = await imageRes.arrayBuffer();
   const formData = new FormData();
-  const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+  const blob = new Blob([data], { type: "image/jpeg" });
   formData.append("data", blob, filename);
   formData.append("use_case", useCase);
 
@@ -299,6 +294,25 @@ export async function uploadTikTokImage(
     isMultipart: true,
     rawBody: formData,
   });
+}
+
+export async function uploadTikTokImage(
+  imageUrl: string,
+  filename: string,
+  useCase: string = "MAIN_IMAGE"
+): Promise<{ uri: string; url: string }> {
+  const imageRes = await fetch(imageUrl, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      Accept: "image/avif,image/webp,image/*,*/*;q=0.8",
+    },
+  });
+  if (!imageRes.ok) {
+    throw new Error(`Failed to fetch source image ${imageUrl}: ${imageRes.status}`);
+  }
+  const arrayBuffer = await imageRes.arrayBuffer();
+  return uploadTikTokImageData(arrayBuffer, filename, useCase);
 }
 
 export async function getCategories(): Promise<unknown> {

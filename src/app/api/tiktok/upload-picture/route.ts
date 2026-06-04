@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAnyAuth } from "@/lib/api-auth";
-import { uploadTikTokImage } from "@/lib/tiktok/client";
+import { uploadTikTokImage, uploadTikTokImageData } from "@/lib/tiktok/client";
 
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/tiktok/upload-picture
  *
- * Body: { imageUrl: string, useCase?: string, filename?: string }
- * Fetches the source image (e.g. a hi-res MercadoLibre photo) and uploads it
- * to TikTok Shop, returning the { uri, url } so the uri can be referenced as an
- * image id when creating/updating products.
+ * Two modes:
+ *  - JSON  { imageUrl, useCase?, filename? }  — server fetches the URL then uploads.
+ *  - multipart/form-data { file, useCase? }   — raw bytes uploaded directly
+ *    (use this when the source CDN blocks the datacenter IP, e.g. ML Cloudflare).
  *
+ * Returns { uri, url }; reference uri as an image id when creating products.
  * useCase: MAIN_IMAGE (default) | ATTRIBUTE_IMAGE | DESCRIPTION_IMAGE |
  *          CERTIFICATION_IMAGE | SIZE_CHART_IMAGE
  */
@@ -22,6 +23,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const contentType = request.headers.get("content-type") || "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const form = await request.formData();
+      const file = form.get("file") as File | null;
+      const useCase = (form.get("useCase") as string) || "MAIN_IMAGE";
+      if (!file) {
+        return NextResponse.json({ error: "Se requiere 'file'" }, { status: 400 });
+      }
+      const bytes = await file.arrayBuffer();
+      const result = await uploadTikTokImageData(bytes, file.name || "image.jpg", useCase);
+      return NextResponse.json(result);
+    }
+
     const { imageUrl, useCase, filename } = (await request.json()) as {
       imageUrl?: string;
       useCase?: string;
@@ -29,7 +44,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (!imageUrl) {
-      return NextResponse.json({ error: "Se requiere 'imageUrl'" }, { status: 400 });
+      return NextResponse.json({ error: "Se requiere 'imageUrl' o 'file'" }, { status: 400 });
     }
 
     const result = await uploadTikTokImage(
