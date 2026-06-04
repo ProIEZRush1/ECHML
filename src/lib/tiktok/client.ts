@@ -293,6 +293,7 @@ export async function uploadTikTokImageData(
     method: "POST",
     isMultipart: true,
     rawBody: formData,
+    skipShopCipher: true,
   });
 }
 
