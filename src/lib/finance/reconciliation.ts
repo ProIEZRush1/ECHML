@@ -25,6 +25,12 @@ export interface GroupReconciliation {
   retiros: number;              // withdrawals attributed to this group
   gastosDesdeMP: number;        // MP-account expenses attributed to this group
   saldoLibros: number;          // ventasNetas + flexNeto − retiros − gastosDesdeMP
+  // "Dinero a Retirar" (P&L base, MISMA definición que flujo-caja): ventas netas + flex
+  // − retiros − TODOS los gastos/compras (cualquier cuenta), SIN restar costo de producto
+  // (COGS). Ads se restan en el cliente (son por producto). Pre-ads aquí.
+  aRetirarPreAds: number;
+  gastosTotal: number;          // gastos op. (cualquier cuenta)
+  comprasTotal: number;         // compras de producto (cualquier cuenta)
   ventasBrutas: number;
   devolucionesParciales: number;
   salesCount: number;
@@ -37,6 +43,8 @@ export interface Reconciliation {
   retiros: number;          // Σ Withdrawal.amount
   gastosDesdeMP: number;    // Σ Expense.amount paid from a Mercado Pago account
   saldoLibros: number;      // expected MP balance from our books
+  // "Dinero a Retirar" total (P&L, pre-ads) = Σ por grupo. Ads se restan en el cliente.
+  aRetirarTotalPreAds: number;
   // Reality
   real: RealMpBalance;
   diferencia: number;       // saldoLibros − real.total  (≈0 == cuadrado)
@@ -59,6 +67,8 @@ interface GroupAcc {
   flexNeto: number;
   retiros: number;
   gastosDesdeMP: number;
+  gastosTotal: number;
+  comprasTotal: number;
   ventasBrutas: number;
   devolucionesParciales: number;
   salesCount: number;
@@ -125,7 +135,7 @@ export async function computeReconciliation(): Promise<Reconciliation> {
     const k = gid ?? NONE;
     let a = gmap.get(k);
     if (!a) {
-      a = { ventasNetas: 0, flexNeto: 0, retiros: 0, gastosDesdeMP: 0, ventasBrutas: 0, devolucionesParciales: 0, salesCount: 0 };
+      a = { ventasNetas: 0, flexNeto: 0, retiros: 0, gastosDesdeMP: 0, gastosTotal: 0, comprasTotal: 0, ventasBrutas: 0, devolucionesParciales: 0, salesCount: 0 };
       gmap.set(k, a);
     }
     return a;
@@ -194,31 +204,36 @@ export async function computeReconciliation(): Promise<Reconciliation> {
     }
   }
 
-  let gastosDesdeMP = 0;
-  if (mpAccountIds.size > 0) {
-    const mpExpenses = await prisma.expense.findMany({
-      where: { accountId: { in: [...mpAccountIds] }, type: { in: ["gasto", "compra"] } },
-      select: { amount: true, productGroupId: true, packId: true, productId: true, transactionIds: true },
-    });
-    for (const e of mpExpenses) {
-      const amt = Number(e.amount);
-      gastosDesdeMP += amt;
-      let gid: string | null = null;
-      if (e.productGroupId) gid = e.productGroupId;
-      else if (e.packId) gid = packToGroup.get(e.packId) ?? null;
-      else if (e.productId) gid = productToGroup.get(e.productId) ?? null;
-      else if (e.transactionIds) {
-        for (const txId of e.transactionIds.split(",").filter(Boolean)) {
-          const pId = txToPack.get(txId);
-          if (pId) { gid = packToGroup.get(pId) ?? null; break; }
-        }
+  // Load ALL gasto/compra expenses once: every one reduces the P&L "a retirar"; only those
+  // paid from an MP account also reduce the literal MP cash balance (gastosDesdeMP).
+  let gastosDesdeMP = 0, gastosTotal = 0, comprasTotal = 0;
+  const allExpenses = await prisma.expense.findMany({
+    where: { type: { in: ["gasto", "compra"] } },
+    select: { amount: true, type: true, accountId: true, productGroupId: true, packId: true, productId: true, transactionIds: true },
+  });
+  for (const e of allExpenses) {
+    const amt = Number(e.amount);
+    let gid: string | null = null;
+    if (e.productGroupId) gid = e.productGroupId;
+    else if (e.packId) gid = packToGroup.get(e.packId) ?? null;
+    else if (e.productId) gid = productToGroup.get(e.productId) ?? null;
+    else if (e.transactionIds) {
+      for (const txId of e.transactionIds.split(",").filter(Boolean)) {
+        const pId = txToPack.get(txId);
+        if (pId) { gid = packToGroup.get(pId) ?? null; break; }
       }
-      gacc(gid).gastosDesdeMP += amt;
     }
+    const a = gacc(gid);
+    if (e.type === "compra") { comprasTotal += amt; a.comprasTotal += amt; }
+    else { gastosTotal += amt; a.gastosTotal += amt; }
+    if (e.accountId && mpAccountIds.has(e.accountId)) { gastosDesdeMP += amt; a.gastosDesdeMP += amt; }
   }
 
   // Inflows (ventas netas + flex) − outflows (retiros = withdrawals, gastosDesdeMP = expenses paid from the MP wallet).
   const saldoLibros = ventasNetas + flexNeto - retiros - gastosDesdeMP;
+  // "Dinero a Retirar" (P&L, pre-ads): ventas netas + flex − retiros − TODOS los gastos/compras
+  // (cualquier cuenta), SIN restar costo de producto (COGS). = misma base que flujo-caja.
+  const aRetirarTotalPreAds = ventasNetas + flexNeto - retiros - gastosTotal - comprasTotal;
   const real = await getRealMpBalance();
   const diferencia = r2(saldoLibros - real.total);
   const cuadrado = real.source !== "none" && Math.abs(diferencia) < 100;
@@ -239,8 +254,8 @@ export async function computeReconciliation(): Promise<Reconciliation> {
 
   const byGroup: GroupReconciliation[] = [];
   for (const [k, a] of gmap) {
-    // Skip groups with no MP activity at all (e.g. a group whose only orders were fully returned).
-    if (a.ventasNetas === 0 && a.flexNeto === 0 && a.retiros === 0 && a.gastosDesdeMP === 0 && a.ventasBrutas === 0 && a.devolucionesParciales === 0) continue;
+    // Skip groups with no activity at all (e.g. a group whose only orders were fully returned).
+    if (a.ventasNetas === 0 && a.flexNeto === 0 && a.retiros === 0 && a.gastosDesdeMP === 0 && a.gastosTotal === 0 && a.comprasTotal === 0 && a.ventasBrutas === 0 && a.devolucionesParciales === 0) continue;
     const gid = k === NONE ? null : k;
     const info = gid ? groupInfo.get(gid) : null;
     byGroup.push({
@@ -252,6 +267,9 @@ export async function computeReconciliation(): Promise<Reconciliation> {
       retiros: r2(a.retiros),
       gastosDesdeMP: r2(a.gastosDesdeMP),
       saldoLibros: r2(a.ventasNetas + a.flexNeto - a.retiros - a.gastosDesdeMP),
+      aRetirarPreAds: r2(a.ventasNetas + a.flexNeto - a.retiros - a.gastosTotal - a.comprasTotal),
+      gastosTotal: r2(a.gastosTotal),
+      comprasTotal: r2(a.comprasTotal),
       ventasBrutas: r2(a.ventasBrutas),
       devolucionesParciales: r2(a.devolucionesParciales),
       salesCount: a.salesCount,
@@ -262,7 +280,7 @@ export async function computeReconciliation(): Promise<Reconciliation> {
 
   return {
     ventasNetas: r2(ventasNetas), flexNeto: r2(flexNeto), retiros: r2(retiros), gastosDesdeMP: r2(gastosDesdeMP),
-    saldoLibros: r2(saldoLibros), real, diferencia, cuadrado,
+    saldoLibros: r2(saldoLibros), aRetirarTotalPreAds: r2(aRetirarTotalPreAds), real, diferencia, cuadrado,
     ventasBrutas: r2(ventasBrutas), comisiones: r2(comisiones), envios: r2(envios), devueltasExcluidas: r2(devueltasExcluidas),
     devolucionesParciales: r2(devolucionesParciales), hasMpAccount: mpAccountIds.size > 0, flags, byGroup,
   };
