@@ -84,6 +84,10 @@ export async function computeReconciliation(): Promise<Reconciliation> {
       select: { id: true, amount: true, balanceChange: true, label: true, type: true, mlOrderId: true, quantity: true, packId: true },
     }),
     prisma.withdrawal.findMany({
+      // method "venta_directa" = venta manual cobrada directo a una cuenta (nunca pasó por MP);
+      // su ingreso (venta manual) también se excluye de esta conciliación, así que ignoramos
+      // toda la transacción aquí para no crear un descuadre fantasma.
+      where: { NOT: { method: "venta_directa" } },
       select: { amount: true, productGroupId: true, allocations: { select: { amount: true, packId: true, productId: true } } },
     }),
     prisma.mLOrder.findMany({
