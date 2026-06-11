@@ -78,6 +78,7 @@ const navItems = [
     icon: TrendingUp,
     children: [
       { title: "Flujo de Caja", href: "/flujo-caja", icon: TrendingUp },
+      { title: "Flex", href: "/flex", icon: Truck },
       { title: "Rentabilidad", href: "/rentabilidad", icon: BarChart3 },
       { title: "Gastos", href: "/gastos", icon: Receipt },
       { title: "Retiros", href: "/retiros", icon: ArrowDownToLine },
