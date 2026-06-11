@@ -35,6 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   let linked = 0;
+  let backfilled = 0;
   const errors: Array<{ mlItemId: string; error: string }> = [];
   const orphanPackIds = new Set<string>();
 
@@ -76,6 +77,20 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         },
       });
       linked++;
+
+      // Backfill: attribute this listing's PAST sales (synced before it was mapped) to the pack.
+      // Only fills transactions with no pack yet — never clobbers a correctly-attributed one.
+      const pastOrders = await prisma.mLOrder.findMany({
+        where: { mlItemId: l.mlItemId },
+        select: { mlOrderId: true },
+      });
+      if (pastOrders.length > 0) {
+        const r = await prisma.mPTransaction.updateMany({
+          where: { mlOrderId: { in: pastOrders.map((o) => o.mlOrderId) }, packId: null },
+          data: { packId: l.packId },
+        });
+        backfilled += r.count;
+      }
     } catch (e) {
       errors.push({ mlItemId: l.mlItemId, error: e instanceof Error ? e.message : "error" });
     }
@@ -94,5 +109,5 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  return NextResponse.json({ linked, orphansDeleted, errors, total: links.length });
+  return NextResponse.json({ linked, backfilled, orphansDeleted, errors, total: links.length });
 }
