@@ -10,13 +10,13 @@ interface ProductLine { productId: string | null; productName: string; vendido: 
 interface GroupAccountability {
   groupId: string | null; groupName: string; groupColor: string;
   vendido: number; gastos: number; retiros: number; esperado: number;
-  saldoMpAsignado: number; descuadre: number; inventarioValor: number; unidades: number;
+  saldoMpAsignado: number; descuadre: number; inventarioValor: number; inventarioNeto: number; unidades: number;
   products: ProductLine[];
 }
 export interface AccountabilityData {
   startDate: string | null; real: RealMpBalance;
   vendido: number; gastos: number; retiros: number; esperado: number; descuadre: number;
-  inventarioValor: number; unidades: number; hasMpAccount: boolean;
+  inventarioValor: number; inventarioNeto: number; netRatio: number; unidades: number; hasMpAccount: boolean;
   byGroup: GroupAccountability[];
 }
 
@@ -125,9 +125,10 @@ export function AccountabilityView({ data, from }: { data: AccountabilityData; f
         {/* Inventory = future income */}
         <div className="rounded-xl border border-border bg-card glass p-4 flex flex-col">
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold inline-flex items-center gap-1"><Package className="h-3.5 w-3.5" /> Inventario por vender</p>
-          <p className="text-3xl font-bold num margin-good mt-1">{fmt(data.inventarioValor)}</p>
-          <p className="text-[11px] text-muted-foreground mt-1">{data.unidades.toLocaleString("es-MX")} unidades · a precio de listado ML</p>
-          <p className="text-[11px] text-muted-foreground mt-auto pt-2">Ingreso <strong>futuro</strong> — cuánto entrará cuando vendas el stock actual. No cuenta en el descuadre.</p>
+          <p className="text-3xl font-bold num margin-good mt-1">{fmt(data.inventarioNeto)}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">≈ neto que entraría · prom. {Math.round(data.netRatio * 100)}% después de costos ML (comisión + envío)</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{data.unidades.toLocaleString("es-MX")} unidades · {fmt(data.inventarioValor)} a precio de listado ML</p>
+          <p className="text-[11px] text-muted-foreground mt-auto pt-2">Ingreso <strong>futuro</strong> — cuánto entraría (neto, promedio) cuando vendas el stock actual. No cuenta en el descuadre.</p>
         </div>
       </div>
 

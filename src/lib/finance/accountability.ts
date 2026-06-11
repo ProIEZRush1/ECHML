@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getRealMpBalance, type RealMpBalance } from "@/lib/mp/balance";
+import { STOCK_SYNC_GROUPS } from "@/lib/stock/sync";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const NONE = "__none__";
@@ -23,7 +24,8 @@ export interface GroupAccountability {
   esperado: number;         // vendido − gastos − retiros = should still be in MP
   saldoMpAsignado: number;  // real MP balance allocated to this group (proportional)
   descuadre: number;        // esperado − saldoMpAsignado  (>0 falta en MP, <0 retirado de más)
-  inventarioValor: number;  // current stock × ML unit price (future income)
+  inventarioValor: number;  // current stock × ML unit price (future income, gross)
+  inventarioNeto: number;   // × netRatio = avg money in after ML costs
   unidades: number;
   products: ProductLine[];
 }
@@ -37,7 +39,9 @@ export interface Accountability {
   retiros: number;
   esperado: number;         // vendido − gastos − retiros
   descuadre: number;        // esperado − real.total
-  inventarioValor: number;  // total future income (current stock × ML price)
+  inventarioValor: number;  // total future income (current stock × ML list price, gross)
+  inventarioNeto: number;   // inventarioValor × netRatio = avg money in AFTER ML costs (comisión + envío)
+  netRatio: number;         // avg net/gross from real sales (0-1); averages over all shipping types
   unidades: number;
   hasMpAccount: boolean;
   byGroup: GroupAccountability[];
@@ -81,7 +85,7 @@ export async function computeAccountability(startDateISO?: string | null): Promi
       prisma.productGroup.findMany({
         select: {
           id: true, name: true, color: true,
-          items: { select: { product: { select: { id: true, name: true, variants: { select: { id: true, stock: true, packItems: { select: { packId: true } } } } } } } },
+          items: { select: { product: { select: { id: true, name: true, supplierCode: true, variants: { select: { id: true, stock: true, packItems: { select: { packId: true } } } } } } } },
         },
       }),
       // Active listings with a price → used for the per-unit ML price map.
@@ -150,7 +154,7 @@ export async function computeAccountability(startDateISO?: string | null): Promi
   };
 
   // ── Vendido (net ML sales into MP) ──
-  let vendido = 0;
+  let vendido = 0, grossSales = 0;
   for (const t of txns) {
     if (t.label !== "sale") continue;
     if (t.mlOrderId && returned.has(t.mlOrderId)) continue; // fully returned → never nets into MP
@@ -158,6 +162,10 @@ export async function computeAccountability(startDateISO?: string | null): Promi
     let net = bc;
     const prQty = t.mlOrderId ? partialMap.get(t.mlOrderId) : undefined;
     if (prQty && prQty > 0 && t.quantity > 0) net = bc - (bc * Math.min(prQty, t.quantity)) / t.quantity;
+    // gross (for the net/gross ratio) — same partial-refund proportion
+    let gross = Number(t.amount);
+    if (prQty && prQty > 0 && t.quantity > 0) gross = gross - (gross * Math.min(prQty, t.quantity)) / t.quantity;
+    grossSales += gross;
     const gid = t.packId ? (packToGroup.get(t.packId) ?? null) : null;
     const a = gacc(gid);
     a.vendido += net;
@@ -209,12 +217,17 @@ export async function computeAccountability(startDateISO?: string | null): Promi
   }
 
   // ── Inventario @ ML price (current, point-in-time) ──
+  // Skip AUTO- products (virtual listing stock, not real merchandise) and mirror duplicates
+  // of a stock-sync group (Playera Normal/Oversized + DL360p x5 = same physical inventory).
+  const mirrorSkip = new Set<string>();
+  for (const grp of STOCK_SYNC_GROUPS) for (let i = 1; i < grp.length; i++) mirrorSkip.add(grp[i]);
   let inventarioValor = 0, unidades = 0;
   const stockMap = new Map(variants.map((v) => [v.id, v.stock]));
   for (const g of groups) {
     const a = gacc(g.id);
     for (const item of g.items) {
       const p = item.product;
+      if (p.supplierCode?.startsWith("AUTO-") || mirrorSkip.has(p.id)) continue;
       for (const v of p.variants) {
         const st = stockMap.get(v.id) ?? v.stock;
         if (st <= 0) continue;
@@ -225,6 +238,11 @@ export async function computeAccountability(startDateISO?: string | null): Promi
       }
     }
   }
+
+  // Average money that actually lands after ML costs (comisión + envío), averaged over
+  // every real sale → applied to the gross inventory value. "Avg" because shipping type varies.
+  const netRatio = grossSales > 0 ? vendido / grossSales : 0;
+  const inventarioNeto = r2(inventarioValor * netRatio);
 
   // ── MP balance + descuadre ──
   const real = await getRealMpBalance();
@@ -251,7 +269,7 @@ export async function computeAccountability(startDateISO?: string | null): Promi
       groupColor: info?.color ?? "#9ca3af",
       vendido: r2(a.vendido), gastos: r2(a.gastos), retiros: r2(a.retiros),
       esperado: r2(esp), saldoMpAsignado: r2(asignado), descuadre: r2(esp - asignado),
-      inventarioValor: r2(a.inventarioValor), unidades: a.unidades, products,
+      inventarioValor: r2(a.inventarioValor), inventarioNeto: r2(a.inventarioValor * netRatio), unidades: a.unidades, products,
     });
   }
   byGroup.sort((x, y) => Math.abs(y.descuadre) - Math.abs(x.descuadre));
@@ -261,7 +279,7 @@ export async function computeAccountability(startDateISO?: string | null): Promi
     real,
     vendido: r2(vendido), gastos: r2(gastos), retiros: r2(retiros),
     esperado: r2(esperado), descuadre,
-    inventarioValor: r2(inventarioValor), unidades,
+    inventarioValor: r2(inventarioValor), inventarioNeto, netRatio: r2(netRatio), unidades,
     hasMpAccount: mpAccountIds.size > 0,
     byGroup,
   };
