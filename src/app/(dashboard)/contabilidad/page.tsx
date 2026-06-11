@@ -13,10 +13,8 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import { ContabilidadAds } from "./contabilidad-ads";
-import { ContabilidadFilters } from "./contabilidad-filters";
-import { ReconciliationCard } from "./reconciliation-card";
-import { MissingMoneyCard } from "./missing-money-card";
-import { computeReconciliation } from "@/lib/finance/reconciliation";
+import { AccountabilityView } from "./accountability-view";
+import { computeAccountability } from "@/lib/finance/accountability";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 interface GroupAccounting {
@@ -41,14 +39,14 @@ interface GroupAccounting {
 export default async function ContabilidadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ dateFrom?: string; dateTo?: string }>;
+  searchParams: Promise<{ from?: string; dateFrom?: string; dateTo?: string }>;
 }) {
   const params = await searchParams;
 
-  const defaultFrom = new Date();
-  defaultFrom.setDate(defaultFrom.getDate() - 30);
-  const dateFrom = params.dateFrom || defaultFrom.toISOString().split("T")[0];
-  const dateTo = params.dateTo || new Date().toISOString().split("T")[0];
+  // Single START date (accumulated from that date → today). Empty = all-time.
+  const from = params.from || params.dateFrom || "";
+  const dateFrom = from || "2020-01-01";
+  const dateTo = new Date().toISOString().split("T")[0];
 
   const dateGte = new Date(`${dateFrom}T00:00:00.000Z`);
   const dateLte = new Date(`${dateTo}T23:59:59.999Z`);
@@ -342,33 +340,18 @@ export default async function ContabilidadPage({
     retiros: r.retiros,
   }));
 
-  // All-time cash reconciliation (MP balance is point-in-time, not date-scoped).
-  const recon = await computeReconciliation();
+  // Accountability reconciliation from the start date: Vendido − Gastos − Retirado − SaldoMP.
+  const accountability = await computeAccountability(from || null);
 
   return (
     <div className="space-y-5">
       <PageHeader
         title="Contabilidad"
-        description="Conciliacion financiera por grupo"
+        description="¿Cuadra el dinero? Ventas vs retiros vs saldo MP, por grupo y producto"
       />
 
-      <ContabilidadFilters />
-
-      {/* Cash reconciliation: books vs real MP balance (all-time) */}
-      <ReconciliationCard recon={recon} />
-
-      {/* ¿Cuánto falta en MP? — saldo real vs Dinero a Retirar (P&L) por grupo (all-time) */}
-      <MissingMoneyCard
-        realMpTotal={recon.real.total}
-        realSource={recon.real.source}
-        groups={recon.byGroup.map((g) => ({
-          groupId: g.groupId,
-          groupName: g.groupName,
-          groupColor: g.groupColor,
-          aRetirarPreAds: g.aRetirarPreAds,
-        }))}
-        productToGroupMap={productToGroupMapObj}
-      />
+      {/* Conciliación de caja — la pantalla principal */}
+      <AccountabilityView data={accountability} from={from} />
 
       {/* Explanation */}
       <div className="rounded-xl border border-border bg-muted/30 p-4 text-[12px] text-muted-foreground space-y-1">
