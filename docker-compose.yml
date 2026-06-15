@@ -4,16 +4,13 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      - DATABASE_URL=postgresql://echml:${DB_PASSWORD:-echml_password}@db:5432/echml?schema=public
+      - DATABASE_URL=postgresql://echml:${DB_PASSWORD:-echml_password}@echml-db-standalone:5432/echml?schema=public
       - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production-32chars-min}
       - ML_APP_ID=${ML_APP_ID:-}
       - ML_CLIENT_SECRET=${ML_CLIENT_SECRET:-}
       - ML_REDIRECT_URI=${ML_REDIRECT_URI:-https://echml.overcloud.us/api/ml/auth/callback}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://echml.overcloud.us}
       - NODE_ENV=production
-    depends_on:
-      db:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})"]
